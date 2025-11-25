@@ -99,6 +99,7 @@ export const colors = {
   networkEthereumSoft: 'rgba(98, 126, 234, 0.16)',
   networkBase: '#0052FF',
   networkBlast: '#fcfc03',
+  networkJocTestnet: '#222222',
   //NEW COLORS FOR SPORE - need to define light/dark here cause they are root colors now (different system)
   neutral1_dark: '#FFFFFF',
   neutral2_dark: '#9B9B9B',
@@ -162,6 +163,7 @@ const commonTheme = {
   chain_84531: colors.networkBase,
   chain_56_background: colors.networkBsc,
   chain_81457: colors.networkBlast,
+  chain_10081: colors.networkJocTestnet,
   chain_7777777: colors.neutral1_light,
   promotional: colors.magenta300,
 

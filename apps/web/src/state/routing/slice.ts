@@ -128,7 +128,7 @@ export const routingApi = createApi({
           }
 
           try {
-            return trace.child({ name: 'Quote on server', op: 'quote.server' }, async () => {
+            return await trace.child({ name: 'Quote on server', op: 'quote.server' }, async () => {
               const response = await fetch({
                 method: 'POST',
                 url: `${UNISWAP_GATEWAY_DNS_URL}/quote`,

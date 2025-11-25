@@ -212,6 +212,22 @@ export const USDC_ZKSYNC = new Token(
   'USDC',
 )
 
+export const USDTX_JOC_TESTNET = new Token(
+  UniverseChainId.JocTestnet,
+  '0x382eb09D8cE59968683001947EF04cB34f7A180E',
+  6,
+  'USDTX',
+  'USDTX',
+)
+
+export const USDCX_JOC_TESTNET = new Token(
+  UniverseChainId.JocTestnet,
+  '0x367f476c9B5fA1e64F3d7EE19c3E4E2f76D42200',
+  6,
+  'USDCX',
+  'USDCX',
+)
+
 export const WBTC = new Token(
   UniverseChainId.Mainnet,
   '0x2260fac5e5542a773aa44fbcfedf7c193bc2c599',
