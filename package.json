@@ -19,10 +19,10 @@
     "syncpack": "^8.5.14",
     "turbo": "1.10.16",
     "turbo-ignore": "^1.11.3",
-    "wagmi": "3.0.1"
+    "wagmi": "2.19.5"
   },
   "engines": {
-    "node": "=18.12.1",
+    "node": "=22.13.1",
     "yarn": ">=3.2.3",
     "npm": "please-use-yarn"
   },

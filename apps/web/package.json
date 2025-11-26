@@ -13,6 +13,7 @@
     "i18n:download:if-missing": "ONLY_IF_MISSING=1 ./scripts/crowdin.sh download",
     "start": "craco start",
     "start:cloud": "NODE_OPTIONS=--dns-result-order=ipv4first PORT=3001 REACT_APP_SKIP_CSP=1 npx wrangler pages dev --compatibility-flags=nodejs_compat --compatibility-date=2023-08-01 --proxy=3001 --port=3000 -- yarn start",
+    "build": "craco build",
     "build:production": "yarn i18n:download:if-missing && craco build",
     "analyze": "source-map-explorer 'build/static/js/*.js' --no-border-checks --gzip",
     "serve": "serve build -s -l 3000",
@@ -283,8 +284,8 @@
     "utilities": "workspace:^",
     "uuid": "9.0.0",
     "video-extensions": "1.2.0",
-    "viem": "2.x",
-    "wagmi": "2.8.4",
+    "viem": "2.40.3",
+    "wagmi": "2.19.5",
     "wcag-contrast": "3.0.0",
     "web-vitals": "2.1.4",
     "xml2js": "0.6.2",
@@ -293,7 +294,7 @@
   },
   "engines": {
     "npm": "please-use-yarn",
-    "node": "18.x",
+    "node": "22.x",
     "yarn": ">=1.22"
   }
 }
