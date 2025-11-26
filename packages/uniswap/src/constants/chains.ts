@@ -1111,15 +1111,15 @@ export const UNIVERSE_CHAIN_INFO: ChainInfo = {
     pendingTransactionsRetryOptions: undefined,
 
     rpcUrls: {
-      [RPCType.Public]: { http: ['https://rpc-1.testnet.japanopenchain.org:8545'] },
-      default: { http: ['https://rpc-1.testnet.japanopenchain.org:8545'] },
-      appOnly: { http: ['https://rpc-1.testnet.japanopenchain.org:8545'] },
+      [RPCType.Public]: { http: ['https://rpc-3.testnet.japanopenchain.org'] },
+      default: { http: ['https://rpc-3.testnet.japanopenchain.org'] },
+      appOnly: { http: ['https://rpc-3.testnet.japanopenchain.org'] },
     },
     urlParam: 'jocTestnet',
     statusPage: undefined,
     spotPriceStablecoinAmount: CurrencyAmount.fromRawAmount(USDTX_JOC_TESTNET, 10_000e6),
     stablecoins: [USDTX_JOC_TESTNET, USDCX_JOC_TESTNET],
-    supportsClientSideRouting: false,
+    supportsClientSideRouting: true,
     supportsGasEstimates: false,
     wrappedNativeCurrency: {
       name: 'Wrapped JOCT',
