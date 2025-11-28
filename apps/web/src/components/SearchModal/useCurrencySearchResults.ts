@@ -106,22 +106,37 @@ export function useCurrencySearchResults({
    */
   const { sortedCombinedTokens, portfolioTokens, sortedTokensWithoutPortfolio } = useMemo(() => {
     const fullBaseList = (() => {
-      if ((!isEmpty(searchQuery) && gqlSearchResultsEmpty) || (isEmpty(searchQuery) && gqlPopularTokensEmpty)) {
+      // if ((!isEmpty(searchQuery) && gqlSearchResultsEmpty) || (isEmpty(searchQuery) && gqlPopularTokensEmpty)) {
+      //   return Object.values(defaultAndUserAddedTokens)
+      // } else if (!isEmpty(searchQuery)) {
+      //   return [
+      //     ...((searchResults?.searchTokens?.map(gqlCurrencyMapper).filter(Boolean) as Currency[]) ?? []),
+      //     ...userAddedTokens
+      //       .filter(getTokenFilter(searchQuery))
+      //       .filter(
+      //         (userAddedToken) =>
+      //           !searchResults?.searchTokens?.find((token) => isSameAddress(token?.address, userAddedToken.address)),
+      //       ),
+      //   ]
+      // } else {
+      //   return [
+      //     ...((sortedPopularTokens?.map(gqlCurrencyMapper).filter(Boolean) as Currency[]) ?? []),
+      //     ...userAddedTokens,
+      //   ]
+      // }
+
+      // Temporary use token list from defaultAndUserAddedTokens instead using gql token lists
+      if (isEmpty(searchQuery)) {
         return Object.values(defaultAndUserAddedTokens)
-      } else if (!isEmpty(searchQuery)) {
+      } else {
         return [
-          ...((searchResults?.searchTokens?.map(gqlCurrencyMapper).filter(Boolean) as Currency[]) ?? []),
+          ...Object.values(defaultAndUserAddedTokens).filter(getTokenFilter(searchQuery)),
           ...userAddedTokens
             .filter(getTokenFilter(searchQuery))
             .filter(
               (userAddedToken) =>
                 !searchResults?.searchTokens?.find((token) => isSameAddress(token?.address, userAddedToken.address)),
             ),
-        ]
-      } else {
-        return [
-          ...((sortedPopularTokens?.map(gqlCurrencyMapper).filter(Boolean) as Currency[]) ?? []),
-          ...userAddedTokens,
         ]
       }
     })()

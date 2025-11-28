@@ -64,7 +64,9 @@ module.exports = {
         cacheDirectory: getCacheDirectory('jest'),
         transform: {
           ...Object.entries(jestConfig.transform).reduce((transform, [key, value]) => {
-            if (value.match(/babel/)) return transform
+            if (value.match(/babel/)) {
+              return transform
+            }
             return { ...transform, [key]: value }
           }, {}),
           // Transform vanilla-extract using its own transformer.
@@ -108,7 +110,7 @@ module.exports = {
         webpackConfig.plugins.push(
           new BundleAnalyzerPlugin({
             analyzerMode: 'json',
-          })
+          }),
         )
       }
 
@@ -133,10 +135,14 @@ module.exports = {
         .filter((plugin) => {
           // Case sensitive paths are already enforced by TypeScript.
           // See https://www.typescriptlang.org/tsconfig#forceConsistentCasingInFileNames.
-          if (plugin instanceof CaseSensitivePathsPlugin) return false
+          if (plugin instanceof CaseSensitivePathsPlugin) {
+            return false
+          }
 
           // IgnorePlugin is used to tree-shake moment locales, but we do not use moment in this project.
-          if (plugin instanceof IgnorePlugin) return false
+          if (plugin instanceof IgnorePlugin) {
+            return false
+          }
 
           return true
         })
@@ -226,12 +232,12 @@ module.exports = {
       // This works by eliminating dead code, so that webpack can identify unused imports and tree-shake them;
       // it is only necessary for node_modules - it is done through linting for our own source code -
       // see https://medium.com/engineering-housing/dead-code-elimination-and-tree-shaking-at-housing-part-1-307a94b30f23#7e03:
-      webpackConfig.module.rules.push({
-        enforce: 'post',
-        test: /node_modules.*\.(js)$/,
-        loader: path.join(__dirname, 'scripts/terser-loader.js'),
-        options: { compress: true, mangle: false },
-      })
+      // webpackConfig.module.rules.push({
+      //   enforce: 'post',
+      //   test: /node_modules.*\.(js)$/,
+      //   loader: path.join(__dirname, 'scripts/terser-loader.js'),
+      //   options: { compress: true, mangle: false },
+      // })
 
       // Configure webpack optimization:
       webpackConfig.optimization = Object.assign(
@@ -241,7 +247,7 @@ module.exports = {
               // Optimize over all chunks, instead of async chunks (the default), so that initial chunks are also included.
               splitChunks: { chunks: 'all' },
             }
-          : {}
+          : {},
       )
 
       // Configure webpack resolution. webpackConfig.cache is unused with swc-loader, but the resolver can still cache:

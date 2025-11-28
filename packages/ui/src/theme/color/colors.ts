@@ -203,6 +203,10 @@ export const networkColors = {
     light: '#3667F6',
     dark: '#3667F6',
   },
+  jocTestnet: {
+    light: '#3667F6',
+    dark: '#3667F6',
+  },
 }
 
 // TODO: map named colors to new Spore colors
@@ -338,6 +342,7 @@ export const colorsLight = {
   chain_42220: networkColors.celo.light,
   chain_43114: networkColors.avalanche.light,
   chain_324: networkColors.zksync.light,
+  chain_10081: networkColors.jocTestnet.light,
 
   // Testnets
   chain_3: colors.yellow400,
@@ -412,6 +417,7 @@ export const colorsDark = {
   chain_42220: networkColors.celo.dark,
   chain_43114: networkColors.avalanche.dark,
   chain_324: networkColors.zksync.dark,
+  chain_10081: networkColors.jocTestnet.dark,
 
   // Testnets
   chain_3: colors.yellow400,
