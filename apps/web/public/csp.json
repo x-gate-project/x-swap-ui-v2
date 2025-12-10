@@ -101,7 +101,8 @@
     "wss://relay.walletconnect.org",
     "wss://ws-us3.pusher.com/",
     "wss://www.walletlink.org",
-    "https://rpc-3.testnet.japanopenchain.org"
+    "https://rpc-3.testnet.japanopenchain.org",
+    "https://rpc-3.japanopenchain.org"
   ],
   "workerSrc": [
     "'self'",

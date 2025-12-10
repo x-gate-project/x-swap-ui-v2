@@ -205,4 +205,5 @@ export interface Palette {
   chain_7777777: string
   chain_324: string
   chain_10081: string
+  chain_81: string
 }
