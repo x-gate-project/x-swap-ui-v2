@@ -3,6 +3,7 @@ import AvaxLogo from 'assets/svg/avax_logo.svg'
 import BnbLogo from 'assets/svg/bnb-logo.svg'
 import CeloLogo from 'assets/svg/celo_logo.svg'
 import JocLogo from 'assets/svg/joc_logo.svg'
+import JoctLogo from 'assets/svg/joct_logo.svg'
 import MaticLogo from 'assets/svg/matic-token-icon.svg'
 import { getChain, isSupportedChainId } from 'constants/chains'
 import { PORTAL_ETH_CELO, isCelo, isJoc, nativeOnChain } from 'constants/tokens'
@@ -22,7 +23,7 @@ export function getNativeLogoURI(chainId: InterfaceChainId = UniverseChainId.Mai
     case UniverseChainId.Avalanche:
       return AvaxLogo
     case UniverseChainId.JocTestnet:
-      return JocLogo
+      return JoctLogo
     case UniverseChainId.JocMainnet:
       return JocLogo
     default:
