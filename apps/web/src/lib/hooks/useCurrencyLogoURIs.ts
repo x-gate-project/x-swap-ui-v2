@@ -23,6 +23,8 @@ export function getNativeLogoURI(chainId: InterfaceChainId = UniverseChainId.Mai
       return AvaxLogo
     case UniverseChainId.JocTestnet:
       return JocLogo
+    case UniverseChainId.JocMainnet:
+      return JocLogo
     default:
       return EthereumLogo
   }

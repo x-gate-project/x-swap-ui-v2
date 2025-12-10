@@ -199,6 +199,10 @@ export const COMMON_BASES: ChainCurrencyList = {
     nativeOnChain(UniverseChainId.JocTestnet),
     WRAPPED_NATIVE_CURRENCY[UniverseChainId.JocTestnet] as Token,
   ].map(buildCurrencyInfo),
+  [UniverseChainId.JocMainnet]: [
+    nativeOnChain(UniverseChainId.JocMainnet),
+    WRAPPED_NATIVE_CURRENCY[UniverseChainId.JocMainnet] as Token,
+  ].map(buildCurrencyInfo),
 }
 
 // used to construct the list of all pairs we consider by default in the frontend

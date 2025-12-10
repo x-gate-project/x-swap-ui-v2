@@ -228,6 +228,22 @@ export const USDCX_JOC_TESTNET = new Token(
   'USDCX',
 )
 
+export const USDTX_JOC_MAINNET = new Token(
+  UniverseChainId.JocMainnet,
+  '0xe18e898E5843E8a8EA7A1C4AF08730DcA6689aA9',
+  6,
+  'USDTX',
+  'USDTX',
+)
+
+export const USDCX_JOC_MAINNET = new Token(
+  UniverseChainId.JocMainnet,
+  '0x538F7567f16cbE40d051e9f2928d215343D9A13A',
+  6,
+  'USDCX',
+  'USDCX',
+)
+
 export const WBTC = new Token(
   UniverseChainId.Mainnet,
   '0x2260fac5e5542a773aa44fbcfedf7c193bc2c599',

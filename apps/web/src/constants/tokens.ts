@@ -352,22 +352,6 @@ export const MNW = new Token(
   'Morpheus.Network',
 )
 
-export const USDTX_JOC_TESTNET = new Token(
-  UniverseChainId.JocTestnet,
-  '0x382eb09D8cE59968683001947EF04cB34f7A180E',
-  6,
-  'USDTX',
-  'USDTX',
-)
-
-export const USDCX_JOC_TESTNET = new Token(
-  UniverseChainId.JocTestnet,
-  '0x367f476c9B5fA1e64F3d7EE19c3E4E2f76D42200',
-  6,
-  'USDCX',
-  'USDCX',
-)
-
 export const WRAPPED_NATIVE_CURRENCY: { [chainId: number]: Token | undefined } = {
   ...(WETH9 as Record<InterfaceChainId, Token>),
   [UniverseChainId.Optimism]: new Token(
@@ -570,8 +554,8 @@ class AvaxNativeCurrency extends NativeCurrency {
   }
 }
 
-export function isJoc(chainId: number): chainId is UniverseChainId.JocTestnet {
-  return chainId === UniverseChainId.JocTestnet
+export function isJoc(chainId: number): chainId is UniverseChainId.JocTestnet | UniverseChainId.JocMainnet {
+  return chainId === UniverseChainId.JocTestnet || chainId === UniverseChainId.JocMainnet
 }
 
 class JocNativeCurrency extends NativeCurrency {
