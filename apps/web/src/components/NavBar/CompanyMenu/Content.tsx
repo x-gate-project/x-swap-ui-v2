@@ -55,5 +55,5 @@ export const useMenuContent = (): MenuSection[] => {
     ],
   }
 
-  return [...(isLegacyNav ? [legacyAppLinks] : []), companyLinks, protocolLinks, helpLinks]
+  return [...(isLegacyNav ? [legacyAppLinks] : [])]
 }

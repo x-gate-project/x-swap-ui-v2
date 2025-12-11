@@ -109,10 +109,10 @@ export const useTabsContent = (): TabsSection[] => {
         },
         ...(!areTabsVisible
           ? [
-              {
-                title: t('common.nfts'),
-                href: '/nfts',
-              },
+              // {
+              //   title: t('common.nfts'),
+              //   href: '/nfts',
+              // },
             ]
           : []),
       ]

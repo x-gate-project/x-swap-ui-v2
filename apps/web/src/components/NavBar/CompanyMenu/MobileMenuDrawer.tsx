@@ -135,8 +135,8 @@ export function MobileMenuDrawer({ isOpen, closeMenu }: { isOpen: boolean; close
                 <PreferenceSettings showHeader={false} setSettingsView={changeView} />
               </MenuSection>
 
-              <DownloadApp onClick={closeMenu} />
-              <Socials iconSize="25px" />
+              {/* <DownloadApp onClick={closeMenu} /> */}
+              {/* <Socials iconSize="25px" /> */}
             </Column>
           </Accordion>
 

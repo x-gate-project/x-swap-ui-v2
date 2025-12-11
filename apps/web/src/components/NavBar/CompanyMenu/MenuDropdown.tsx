@@ -95,9 +95,9 @@ export function MenuDropdown({ close }: { close?: () => void }) {
               closeMenu={close}
             />
           ))}
-          <Separator />
+          {/* <Separator />
           <DownloadApp onClick={close} />
-          <Socials iconSize="25px" />
+          <Socials iconSize="25px" /> */}
         </Column>
       </Container>
     </NavDropdown>
