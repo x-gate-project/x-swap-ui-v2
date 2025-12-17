@@ -109,6 +109,15 @@ const ExtentsText = styled.span`
   font-weight: 535;
 `
 
+const PriceText = styled(ThemedText.DeprecatedMediumHeader)`
+  text-align: center;
+  overflow: hidden;
+  max-width: 100%;
+  word-break: break-all;
+  font-size: clamp(12px, 2.5vw, 20px);
+  line-height: 1.2;
+`
+
 const HoverText = styled(ThemedText.DeprecatedMain)`
   text-decoration: none;
   color: ${({ theme }) => theme.neutral2};
@@ -208,9 +217,9 @@ function CurrentPriceCard({
         <ExtentsText>
           <Trans i18nKey="common.currentPrice" />
         </ExtentsText>
-        <ThemedText.DeprecatedMediumHeader textAlign="center">
+        <PriceText>
           {formatPrice({ price: inverted ? pool.token1Price : pool.token0Price, type: NumberType.TokenTx })}
-        </ThemedText.DeprecatedMediumHeader>
+        </PriceText>
         <ExtentsText>
           <Trans
             i18nKey="common.feesEarnedPerBase"
@@ -1016,14 +1025,14 @@ function PositionPageContent() {
                       <ExtentsText>
                         <Trans i18nKey="pool.minPrice" />
                       </ExtentsText>
-                      <ThemedText.DeprecatedMediumHeader textAlign="center">
+                      <PriceText>
                         {formatTickPrice({
                           price: priceLower,
                           atLimit: tickAtLimit,
                           direction: Bound.LOWER,
                           numberType: NumberType.TokenTx,
                         })}
-                      </ThemedText.DeprecatedMediumHeader>
+                      </PriceText>
                       <ExtentsText>
                         {' '}
                         <Trans
@@ -1046,14 +1055,14 @@ function PositionPageContent() {
                       <ExtentsText>
                         <Trans i18nKey="pool.maxPrice" />
                       </ExtentsText>
-                      <ThemedText.DeprecatedMediumHeader textAlign="center">
+                      <PriceText>
                         {formatTickPrice({
                           price: priceUpper,
                           atLimit: tickAtLimit,
                           direction: Bound.UPPER,
                           numberType: NumberType.TokenTx,
                         })}
-                      </ThemedText.DeprecatedMediumHeader>
+                      </PriceText>
                       <ExtentsText>
                         {' '}
                         <Trans

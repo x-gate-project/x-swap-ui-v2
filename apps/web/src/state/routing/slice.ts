@@ -208,3 +208,59 @@ export const routingApi = createApi({
 
 export const { useGetQuoteQuery } = routingApi
 export const useGetQuoteQueryState = routingApi.endpoints.getQuote.useQueryState
+
+
+export const jocPriceAPi = createApi({
+  reducerPath: 'jocPriceApi',
+  baseQuery: fetchBaseQuery(),
+  endpoints: (build) => ({
+    getJocPrice: build.query<{ price: number }, { symbol: string, chainId: string, tokenAddress: string }>({
+      queryFn(args, _api, _extraOptions, fetch) {
+        return trace({ name: 'JocPrice', op: 'jocPrice.get', data: { ...args } }, async (trace) => {
+
+          const baseUrl = 'https://api.gu.net/v1'
+          try {
+            return await trace.child({ name: 'JocPrice', op: 'jocPrice.get' }, async () => {
+              const response = await fetch({
+                method: 'GET',
+                url: `${baseUrl}/prices/crypto`,
+                params: {
+                  fsymbols: args.symbol,
+                  tsymbols: 'USD',
+                  types: 'evm',
+                  chainIds: args.chainId,
+                  tokenAddresses: args.tokenAddress,
+                },
+              })
+
+              if (response.error) {
+                throw response.error
+              }
+              return { data: { price: (response.data as any)[0]?.price }, latencyMs: trace.now() }
+            })
+          } catch (error: any) {
+            logger.warn(
+              'jocPrice/slice',
+              'queryFn',
+              `GetJocPrice failed: ${
+                error?.message ?? error?.detail ?? error
+              }`,
+            )
+            trace.setError(error)
+            return {
+              error: { status: 'CUSTOM_ERROR', error: error?.detail ?? error?.message ?? error },
+            }
+          }
+        })
+      },
+      keepUnusedDataFor: ms(`10s`),
+      extraOptions: {
+        maxRetries: 0,
+      },
+    }),
+  }),
+})
+
+export const { useGetJocPriceQuery } = jocPriceAPi
+export const useGetJocPriceQueryState = jocPriceAPi.endpoints.getJocPrice.useQueryState
+

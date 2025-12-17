@@ -6,6 +6,7 @@ import {
   isSupportedChainId,
   useSupportedChainId,
 } from 'constants/chains'
+import { X_SWAP_LIST } from 'constants/lists'
 import { COMMON_BASES } from 'constants/routing'
 import { NATIVE_CHAIN_ID, UNKNOWN_TOKEN_SYMBOL } from 'constants/tokens'
 import { arrayify, parseBytes32String } from 'ethers/lib/utils'
@@ -13,10 +14,11 @@ import { gqlTokenToCurrencyInfo } from 'graphql/data/types'
 import { useAccount } from 'hooks/useAccount'
 import { useBytes32TokenContract, useTokenContract } from 'hooks/useContract'
 import { NEVER_RELOAD, useSingleCallResult } from 'lib/hooks/multicall'
-import { TokenAddressMap } from 'lib/hooks/useTokenList/utils'
+import { TokenAddressMap, tokensToChainTokenMap } from 'lib/hooks/useTokenList/utils'
 import { useMemo } from 'react'
 import { useCombinedInactiveLists } from 'state/lists/hooks'
 import { TokenFromList } from 'state/lists/tokenFromList'
+import { useAppSelector } from 'state/hooks'
 import { useUserAddedTokens } from 'state/user/userAddedTokens'
 import {
   Token as GqlToken,
@@ -140,6 +142,8 @@ export function useCurrencyInfo(
     fetchPolicy: 'cache-first',
   })
 
+  const tokenList = useAppSelector((state) => state.lists.byUrl[X_SWAP_LIST]?.current)
+
   return useMemo(() => {
     if (commonBase) {
       return commonBase
@@ -160,8 +164,34 @@ export function useCurrencyInfo(
       return
     }
 
-    return gqlTokenToCurrencyInfo(data.token as GqlToken)
-  }, [commonBase, fallbackListTokens, address, skip, data?.token])
+    if(gqlTokenToCurrencyInfo(data.token as GqlToken)) {
+      return gqlTokenToCurrencyInfo(data.token as GqlToken)
+    }
+
+    if (supportedChainId && tokenList) {
+      const tokenMap = tokensToChainTokenMap(tokenList)
+      const chainTokens = tokenMap[supportedChainId]
+
+      if (chainTokens) {
+        const addressLower = address.toLowerCase()
+        const tokenEntry = Object.values(chainTokens).find(
+          ({ token }) => isSameAddress(token.address, addressLower)
+        )
+
+        if (tokenEntry && tokenEntry.token instanceof TokenFromList) {
+          return {
+            currency: tokenEntry.token,
+            currencyId: currencyId(tokenEntry.token),
+            logoUrl: tokenEntry.token.tokenInfo.logoURI,
+            safetyLevel: SafetyLevel.Verified,
+            isSpam: false,
+          }
+        }
+      }
+    }
+
+    return undefined
+  }, [commonBase, fallbackListTokens, address, skip, data?.token, supportedChainId, tokenList])
 }
 
 export function useToken(tokenAddress?: string, chainId?: SupportedInterfaceChainId): Maybe<Token> {

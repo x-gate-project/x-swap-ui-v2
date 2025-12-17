@@ -20,7 +20,7 @@ import {
   useTopTokensQuery,
 } from 'uniswap/src/data/graphql/uniswap-data-api/__generated__/types-and-hooks'
 import { isSameAddress } from 'utilities/src/addresses'
-import { currencyKey } from 'utils/currencyKey'
+import { currencyKey, deduplicateCurrencies } from 'utils/currencyKey'
 
 interface CurrencySearchParams {
   searchQuery?: string
@@ -106,38 +106,25 @@ export function useCurrencySearchResults({
    */
   const { sortedCombinedTokens, portfolioTokens, sortedTokensWithoutPortfolio } = useMemo(() => {
     const fullBaseList = (() => {
-      // if ((!isEmpty(searchQuery) && gqlSearchResultsEmpty) || (isEmpty(searchQuery) && gqlPopularTokensEmpty)) {
-      //   return Object.values(defaultAndUserAddedTokens)
-      // } else if (!isEmpty(searchQuery)) {
-      //   return [
-      //     ...((searchResults?.searchTokens?.map(gqlCurrencyMapper).filter(Boolean) as Currency[]) ?? []),
-      //     ...userAddedTokens
-      //       .filter(getTokenFilter(searchQuery))
-      //       .filter(
-      //         (userAddedToken) =>
-      //           !searchResults?.searchTokens?.find((token) => isSameAddress(token?.address, userAddedToken.address)),
-      //       ),
-      //   ]
-      // } else {
-      //   return [
-      //     ...((sortedPopularTokens?.map(gqlCurrencyMapper).filter(Boolean) as Currency[]) ?? []),
-      //     ...userAddedTokens,
-      //   ]
-      // }
-
-      // Temporary use token list from defaultAndUserAddedTokens instead using gql token lists
-      if (isEmpty(searchQuery)) {
+      if ((!isEmpty(searchQuery) && gqlSearchResultsEmpty) || (isEmpty(searchQuery) && gqlPopularTokensEmpty)) {
         return Object.values(defaultAndUserAddedTokens)
-      } else {
-        return [
+      } else if (!isEmpty(searchQuery)) {
+        return deduplicateCurrencies([
           ...Object.values(defaultAndUserAddedTokens).filter(getTokenFilter(searchQuery)),
+          ...((searchResults?.searchTokens?.map(gqlCurrencyMapper).filter(Boolean) as Currency[]) ?? []),
           ...userAddedTokens
             .filter(getTokenFilter(searchQuery))
             .filter(
               (userAddedToken) =>
                 !searchResults?.searchTokens?.find((token) => isSameAddress(token?.address, userAddedToken.address)),
             ),
-        ]
+        ])
+      } else {
+        return deduplicateCurrencies([
+          ...Object.values(defaultAndUserAddedTokens),
+          ...((sortedPopularTokens?.map(gqlCurrencyMapper).filter(Boolean) as Currency[]) ?? []),
+          ...userAddedTokens,
+        ])
       }
     })()
 
