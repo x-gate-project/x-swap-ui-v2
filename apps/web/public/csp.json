@@ -102,7 +102,8 @@
     "wss://ws-us3.pusher.com/",
     "wss://www.walletlink.org",
     "https://rpc-1.testnet.japanopenchain.org:8545",
-    "https://rpc-1.japanopenchain.org:8545"
+    "https://rpc-1.japanopenchain.org:8545",
+    "https://api.gu.net"
   ],
   "workerSrc": [
     "'self'",

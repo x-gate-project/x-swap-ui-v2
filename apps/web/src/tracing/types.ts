@@ -28,6 +28,7 @@ export type OpCode =
   | 'wallet.send_transaction'
   | 'wallet.sign'
   | 'wallet.switch_chain'
+  | 'jocPrice.get'
 
 export type TraceContext = {
   /** The human-readable name of the trace. */
@@ -46,4 +47,5 @@ export type TraceContext = {
   | { op: 'http.graphql.query'; tags: { host: string; chain?: Chain; operation?: string; address?: string } }
   | { op: 'http.json_rpc'; tags: { host: string; chain?: Chain; method?: string } }
   | { op: 'wallet.connect' | 'wallet.connect.eager'; tags: { id: string; wallet?: string } }
+  | { op: 'jocPrice.get'; tags: { symbol: string; chainId: string; tokenAddress: string } }
 )
