@@ -30,3 +30,17 @@ export function currencyKeyFromGraphQL(contract: {
   }
   return buildCurrencyKey(chainId, address)
 }
+export function deduplicateCurrencies(currencies: Currency[]): Currency[] {
+  const seenKeys = new Set<CurrencyKey>()
+  const deduplicated: Currency[] = []
+
+  for (const currency of currencies) {
+    const key = currencyKey(currency)
+    if (!seenKeys.has(key)) {
+      seenKeys.add(key)
+      deduplicated.push(currency)
+    }
+  }
+
+  return deduplicated
+}
