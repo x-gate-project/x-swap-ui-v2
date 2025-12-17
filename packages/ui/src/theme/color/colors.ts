@@ -346,6 +346,7 @@ export const colorsLight = {
   chain_42220: networkColors.celo.light,
   chain_43114: networkColors.avalanche.light,
   chain_324: networkColors.zksync.light,
+
   chain_10081: networkColors.jocTestnet.light,
   chain_81: networkColors.jocMainnet.light,
   // Testnets
@@ -421,6 +422,7 @@ export const colorsDark = {
   chain_42220: networkColors.celo.dark,
   chain_43114: networkColors.avalanche.dark,
   chain_324: networkColors.zksync.dark,
+
   chain_10081: networkColors.jocTestnet.dark,
   chain_81: networkColors.jocMainnet.dark,
   // Testnets
