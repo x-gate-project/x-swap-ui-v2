@@ -1,7 +1,3 @@
-import { CreditCardIcon } from 'components/Icons/CreditCard'
-import { Limit } from 'components/Icons/Limit'
-import { Send } from 'components/Icons/Send'
-import { SwapV2 } from 'components/Icons/SwapV2'
 import { MenuItem } from 'components/NavBar/CompanyMenu/Content'
 import { useTabsVisible } from 'components/NavBar/ScreenSizes'
 import { useTranslation } from 'react-i18next'
@@ -15,12 +11,14 @@ export type TabsSection = {
   href: string
   isActive?: boolean
   items?: TabsItem[]
+  target?: string
   closeMenu?: () => void
 }
 
 export type TabsItem = MenuItem & {
   icon?: JSX.Element
   quickKey: string
+  target?: string
 }
 
 export const useTabsContent = (): TabsSection[] => {
@@ -48,64 +46,36 @@ export const useTabsContent = (): TabsSection[] => {
       ]
     : [
         {
-          title: t('common.trade'),
-          href: '/swap',
-          isActive: pathname.startsWith('/swap') || pathname.startsWith('/limit') || pathname.startsWith('/send'),
-          items: [
-            {
-              label: t('common.swap'),
-              icon: <SwapV2 fill={theme.neutral2} />,
-              quickKey: t(`quickKey.swap`),
-              href: '/swap',
-              internal: true,
-            },
-            {
-              label: t('swap.limit'),
-              icon: <Limit fill={theme.neutral2} />,
-              quickKey: t(`quickKey.limit`),
-              href: '/limit',
-              internal: true,
-            },
-            {
-              label: t('common.send.button'),
-              icon: <Send fill={theme.neutral2} />,
-              quickKey: t(`quickKey.send`),
-              href: '/send',
-              internal: true,
-            },
-            ...(forAggregatorEnabled
-              ? [
-                  {
-                    label: t('common.buy.label'),
-                    icon: <CreditCardIcon fill={theme.neutral2} />,
-                    quickKey: t(`quickKey.buy`),
-                    href: '/buy',
-                    internal: true,
-                  },
-                ]
-              : []),
-          ],
+          title: t('common.transfer2'),
+          href: 'https://www.x-gate.org/',
         },
         {
-          title: t('common.explore'),
-          href: '/explore',
-          isActive: pathname.startsWith('/explore') || pathname.startsWith('/nfts'),
-          items: [
-            { label: t('common.tokens'), quickKey: t(`quickKey.tokens`), href: '/explore/tokens', internal: true },
-            { label: t('common.pools'), quickKey: t(`quickKey.pools`), href: '/explore/pools', internal: true },
-            {
-              label: t('common.transactions'),
-              quickKey: t(`quickKey.transactions`),
-              href: '/explore/transactions',
-              internal: true,
-            },
-            { label: t('common.nfts'), quickKey: t(`quickKey.nfts`), href: '/nfts', internal: true },
-          ],
+          title: t('common.swap'),
+          href: '/swap',
+          isActive: pathname.startsWith('/swap') || pathname.startsWith('/limit') || pathname.startsWith('/send'),
         },
         {
           title: t('common.pool'),
           href: '/pool',
           isActive: pathname.startsWith('/pool'),
+        },
+        {
+          title: t('common.staking'),
+          href: '/pool',
+          items: [
+            {
+              label: 'JOCX',
+              quickKey: t(`quickKey.swap`),
+              href: 'https://staker.x-swap.org/',
+              internal: true,
+              target: '_blank',
+            },
+          ]
+        },
+        {
+          title: t('common.help'),
+          href: 'https://docs.x-gate.org/',
+          target: '_blank',
         },
         ...(!areTabsVisible
           ? [

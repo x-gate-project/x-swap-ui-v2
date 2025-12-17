@@ -43,31 +43,52 @@ const QuickKey = styled.div`
   opacity: 0.54;
   background: ${({ theme }) => theme.surface3};
 `
+
 interface TItemProps {
   icon?: JSX.Element
   label: string
   quickKey: string
   path: string
+  target?: string
   closeMenu: () => void
 }
-function Item({ icon, label, quickKey, path, closeMenu }: TItemProps) {
+function Item({ icon, label, quickKey, path, target, closeMenu }: TItemProps) {
   const navHotkeysEnabled = useFeatureFlag(FeatureFlags.NavigationHotkeys)
+
+  const itemContent = (
+    <ItemContainer>
+      {icon}
+      <Text variant="buttonLabel2" width="100%" color="$neutral2">
+        {label}
+      </Text>
+      {navHotkeysEnabled && (
+        <QuickKey>
+          <Text variant="body3" color="$neutral2">
+            {quickKey}
+          </Text>
+        </QuickKey>
+      )}
+    </ItemContainer>
+  )
+
+  // If a target is provided, treat this as an external link (e.g. target="_blank")
+  if (target) {
+    return (
+      <a
+        href={path}
+        target={target}
+        rel={target === '_blank' ? 'noopener noreferrer' : undefined}
+        style={{ textDecoration: 'none' }}
+        onClick={closeMenu}
+      >
+        {itemContent}
+      </a>
+    )
+  }
 
   return (
     <NavLink to={path} style={{ textDecoration: 'none' }} onClick={closeMenu}>
-      <ItemContainer>
-        {icon}
-        <Text variant="buttonLabel2" width="100%" color="$neutral2">
-          {label}
-        </Text>
-        {navHotkeysEnabled && (
-          <QuickKey>
-            <Text variant="body3" color="$neutral2">
-              {quickKey}
-            </Text>
-          </QuickKey>
-        )}
-      </ItemContainer>
+      {itemContent}
     </NavLink>
   )
 }
@@ -76,11 +97,13 @@ const Tab = ({
   label,
   isActive,
   path,
+  target,
   items,
 }: {
   label: string
   isActive?: boolean
-  path: string
+  path?: string
+  target?: string
   items?: TabsItem[]
 }) => {
   const [isOpen, setIsOpen] = useState(false)
@@ -94,19 +117,37 @@ const Tab = ({
   }, [popoverRef])
   useEffect(() => closeMenu(), [location, closeMenu])
 
-  const Label = (
-    <NavLink to={path} style={{ textDecoration: 'none' }}>
-      <TabText
-        variant="subheading1"
-        color={isActive || isOpen ? '$neutral1' : '$neutral2'}
-        m="8px"
-        gap="4px"
-        cursor="pointer"
-        userSelect="none"
+  const tabTextContent = (
+    <TabText
+      variant="subheading1"
+      color={isActive || isOpen ? '$neutral1' : '$neutral2'}
+      m="8px"
+      gap="4px"
+      cursor="pointer"
+      userSelect="none"
+    >
+      {label}
+    </TabText>
+  )
+
+  const Label = path ? (
+    // If a target is provided, open as a regular link (likely external)
+    target ? (
+      <a
+        href={path}
+        target={target}
+        rel={target === '_blank' ? 'noopener noreferrer' : undefined}
+        style={{ textDecoration: 'none' }}
       >
-        {label}
-      </TabText>
-    </NavLink>
+        {tabTextContent}
+      </a>
+    ) : (
+      <NavLink to={path} style={{ textDecoration: 'none' }}>
+        {tabTextContent}
+      </NavLink>
+    )
+  ) : (
+    tabTextContent
   )
 
   const handleKeyDown = useCallback(
@@ -150,6 +191,7 @@ const Tab = ({
               label={item.label}
               quickKey={item.quickKey}
               path={item.href}
+              target={item.target}
               closeMenu={closeMenu}
             />
           ))}
@@ -163,8 +205,8 @@ export function Tabs() {
   const tabsContent: TabsSection[] = useTabsContent()
   return (
     <>
-      {tabsContent.map(({ title, isActive, href, items }, index) => (
-        <Tab key={`${title}_${index}`} label={title} isActive={isActive} path={href} items={items} />
+      {tabsContent.map(({ title, isActive, href, target, items }, index) => (
+        <Tab key={`${title}_${index}`} label={title} isActive={isActive} path={href} items={items} target={target} />
       ))}
     </>
   )

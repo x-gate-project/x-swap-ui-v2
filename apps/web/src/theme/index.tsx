@@ -3,6 +3,7 @@ import { CONNECTION } from 'components/Web3Provider/constants'
 import { WalletConnectConnector } from 'components/Web3Provider/walletConnect'
 import { rootCssString } from 'nft/css/cssStringFromTheme'
 import { navDimensions } from 'nft/css/sprinkles.css'
+import { transparentize } from 'polished'
 import { PropsWithChildren, useEffect, useMemo } from 'react'
 import { ThemeProvider as StyledComponentsThemeProvider, createGlobalStyle, css } from 'styled-components'
 import { ThemeColors, darkTheme, lightTheme } from 'theme/colors'
@@ -172,8 +173,19 @@ export const ThemedGlobalStyle = createGlobalStyle`
     display:none;
   }
 
+  body {
+    min-height: 100vh;
+    background-position: 0 0;
+    background-repeat: no-repeat;
+    background-image: ${({ theme }) =>
+      `radial-gradient(50% 50% at 50% 0%, ${transparentize(0.9, theme.accent1)} 0%, ${transparentize(
+        1,
+        theme.surface2
+      )} 100%)`} !important;
+  }
+
   a {
-    color: ${({ theme }) => theme.accent1}; 
+    color: ${({ theme }) => theme.accent1};
   }
 
   :root {
