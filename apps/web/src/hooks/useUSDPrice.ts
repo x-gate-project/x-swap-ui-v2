@@ -111,7 +111,7 @@ export function useUSDPrice(
     !chainId || !currency || !currencyAmount || !isWindowVisible || !isJocChain
   const jocArgs = jocShouldSkip
     ? skipToken
-    : { symbol: currency?.symbol || 'JOC', chainId: chainId!.toString(), tokenAddress }
+    : [{ symbol: currency?.symbol || 'JOC', chainId: chainId!.toString(), tokenAddress }]
 
   const {
     isError: isJocError,
@@ -137,7 +137,7 @@ export function useUSDPrice(
         return { data: undefined, isLoading: true }
       }
 
-      const jocUSDPrice = jocPriceResult?.price
+      const jocUSDPrice = jocPriceResult?.prices[0]
       if (jocUSDPrice) {
         return { data: parseFloat(currencyAmount.toExact()) * jocUSDPrice, isLoading: false }
       }
@@ -160,7 +160,7 @@ export function useUSDPrice(
     isJocError,
     jocError,
     isJocFetching,
-    jocPriceResult?.price,
+    jocPriceResult?.prices  ,
     data?.token?.project?.markets,
     tokenEthPrice,
     isTokenEthPriceLoading,

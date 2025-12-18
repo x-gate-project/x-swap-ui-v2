@@ -214,7 +214,7 @@ export const jocPriceAPi = createApi({
   reducerPath: 'jocPriceApi',
   baseQuery: fetchBaseQuery(),
   endpoints: (build) => ({
-    getJocPrice: build.query<{ price: number }, { symbol: string, chainId: string, tokenAddress: string }>({
+    getJocPrice: build.query<{ prices: number[] }, { symbol: string, chainId: string, tokenAddress: string }[]>({
       queryFn(args, _api, _extraOptions, fetch) {
         return trace({ name: 'JocPrice', op: 'jocPrice.get', data: { ...args } }, async (trace) => {
 
@@ -225,18 +225,18 @@ export const jocPriceAPi = createApi({
                 method: 'GET',
                 url: `${baseUrl}/prices/crypto`,
                 params: {
-                  fsymbols: args.symbol,
+                  fsymbols: args.map((arg) => arg.symbol).join(','),
                   tsymbols: 'USD',
                   types: 'evm',
-                  chainIds: args.chainId,
-                  tokenAddresses: args.tokenAddress,
+                  chainIds: args.map((arg) => arg.chainId).join(','),
+                  tokenAddresses: args.map((arg) => arg.tokenAddress).join(','),
                 },
               })
 
               if (response.error) {
                 throw response.error
               }
-              return { data: { price: (response.data as any)[0]?.price }, latencyMs: trace.now() }
+              return { data: { prices: (response.data as any).map((item: any) => item.price) }, latencyMs: trace.now() }
             })
           } catch (error: any) {
             logger.warn(
