@@ -1,16 +1,10 @@
-import { useAccountDrawer } from 'components/AccountDrawer/MiniPortfolio/hooks'
-import { UniIcon } from 'components/Logo/UniIcon'
 import { Bag } from 'components/NavBar/Bag'
 import { ChainSelector } from 'components/NavBar/ChainSelector'
 import { GetTheAppButton } from 'components/NavBar/DownloadApp/GetTheAppButton'
 import Blur from 'components/NavBar/LEGACY/Blur'
-import { More } from 'components/NavBar/LEGACY/Menu'
 import { SearchBar } from 'components/NavBar/LEGACY/SearchBar/SearchBar'
 import * as styles from 'components/NavBar/LEGACY/style.css'
 import Web3Status from 'components/Web3Status'
-import { chainIdToBackendChain } from 'constants/chains'
-import { useAccount } from 'hooks/useAccount'
-import { useDisableNFTRoutes } from 'hooks/useDisableNFTRoutes'
 import { useIsLandingPage } from 'hooks/useIsLandingPage'
 import { useIsLimitPage } from 'hooks/useIsLimitPage'
 import { useIsNftPage } from 'hooks/useIsNftPage'
@@ -23,11 +17,10 @@ import { Row } from 'nft/components/Flex'
 import { useProfilePageState } from 'nft/hooks'
 import { useIsNavSearchInputVisible } from 'nft/hooks/useIsNavSearchInputVisible'
 import { ProfilePageStateType } from 'nft/types'
-import { ReactNode, useCallback } from 'react'
-import { NavLink, NavLinkProps, useLocation, useNavigate } from 'react-router-dom'
+import { ReactNode } from 'react'
+import { NavLink, NavLinkProps, useLocation } from 'react-router-dom'
 import styled from 'styled-components'
 import { Z_INDEX } from 'theme/zIndex'
-import { Chain } from 'uniswap/src/data/graphql/uniswap-data-api/__generated__/types-and-hooks'
 import { FeatureFlags } from 'uniswap/src/features/gating/flags'
 import { useFeatureFlag } from 'uniswap/src/features/gating/hooks'
 
@@ -45,17 +38,33 @@ interface MenuItemProps {
   isActive?: boolean
   children: ReactNode
   dataTestId?: string
+  target?: string
 }
 
-const MenuItem = ({ href, dataTestId, id, isActive, children }: MenuItemProps) => {
+const MenuItem = ({ href, dataTestId, id, isActive, children, target }: MenuItemProps) => {
+  const className = isActive ? styles.activeMenuItem : styles.menuItem
+  const commonProps = {
+    className,
+    id,
+    style: { textDecoration: 'none' as const },
+    'data-testid': dataTestId,
+  }
+
+  if (target) {
+    return (
+      <a
+        href={href}
+        target={target}
+        rel={target === '_blank' ? 'noopener noreferrer' : undefined}
+        {...commonProps}
+      >
+        {children}
+      </a>
+    )
+  }
+
   return (
-    <NavLink
-      to={href}
-      className={isActive ? styles.activeMenuItem : styles.menuItem}
-      id={id}
-      style={{ textDecoration: 'none' }}
-      data-testid={dataTestId}
-    >
+    <NavLink to={href} {...commonProps}>
       {children}
     </NavLink>
   )
@@ -63,36 +72,28 @@ const MenuItem = ({ href, dataTestId, id, isActive, children }: MenuItemProps) =
 
 export const PageTabs = () => {
   const { pathname } = useLocation()
-  const account = useAccount()
-  const chainName = chainIdToBackendChain({ chainId: account.chainId, withFallback: true })
 
   const isPoolActive = useIsPoolsPage()
-  const isNftPage = useIsNftPage()
-
-  const shouldDisableNFTRoutes = useDisableNFTRoutes()
 
   return (
     <>
+      <MenuItem href="https://www.x-gate.org/">
+        <Trans i18nKey="common.transfer2" />
+      </MenuItem>
       <MenuItem href="/swap" isActive={pathname.startsWith('/swap')}>
         <Trans i18nKey="common.swap" />
       </MenuItem>
-      <MenuItem
-        href={'/explore' + (chainName !== Chain.Ethereum ? `/${chainName.toLowerCase()}` : '')}
-        isActive={pathname.startsWith('/explore')}
-      >
-        <Trans i18nKey="common.explore" />
-      </MenuItem>
-      {!shouldDisableNFTRoutes && (
-        <MenuItem dataTestId="nft-nav" href="/nfts" isActive={isNftPage}>
-          <Trans i18nKey="common.nfts" />
-        </MenuItem>
-      )}
       <Box display={{ sm: 'flex', lg: 'none', xxl: 'flex' }} width="full">
         <MenuItem href="/pool" dataTestId="pool-nav-link" isActive={isPoolActive}>
           <Trans i18nKey="common.pool" />
         </MenuItem>
       </Box>
-      <More />
+      <MenuItem href="https://staker.x-swap.org/" target="_blank">
+        <Trans i18nKey="common.staking" />
+      </MenuItem>
+      <MenuItem href="https://docs.x-gate.org/" target="_blank">
+        <Trans i18nKey="common.help" />
+      </MenuItem>
     </>
   )
 }
@@ -104,25 +105,10 @@ const LegacyNavbar = ({ blur }: { blur: boolean }) => {
   const isLimitPage = useIsLimitPage()
   const isLandingPage = useIsLandingPage()
   const sellPageState = useProfilePageState((state) => state.state)
-  const navigate = useNavigate()
   const isNavSearchInputVisible = useIsNavSearchInputVisible()
   const multichainUXEnabled = useFeatureFlag(FeatureFlags.MultichainUX)
 
-  const account = useAccount()
-  const accountDrawer = useAccountDrawer()
-
   const hideChainSelector = multichainUXEnabled ? isSendPage || isSwapPage || isLimitPage || isNftPage : isNftPage
-
-  const handleUniIconClick = useCallback(() => {
-    if (account.isConnected) {
-      return
-    }
-    accountDrawer.close()
-    navigate({
-      pathname: '/',
-      search: '?intro=true',
-    })
-  }, [account.isConnected, accountDrawer, navigate])
 
   return (
     <>
@@ -130,16 +116,6 @@ const LegacyNavbar = ({ blur }: { blur: boolean }) => {
       <Nav>
         <Box display="flex" height="full" flexWrap="nowrap">
           <Box className={styles.leftSideContainer}>
-            <Box className={styles.logoContainer}>
-              <UniIcon
-                width="48"
-                height="48"
-                data-testid="uniswap-logo"
-                className={styles.logo}
-                clickable={!account}
-                onClick={handleUniIconClick}
-              />
-            </Box>
             {hideChainSelector ? null : (
               <Box display={{ sm: 'flex', lg: 'none' }}>
                 <ChainSelector leftAlign={true} />

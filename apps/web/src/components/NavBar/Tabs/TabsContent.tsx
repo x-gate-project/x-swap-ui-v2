@@ -61,7 +61,7 @@ export const useTabsContent = (): TabsSection[] => {
         },
         {
           title: t('common.staking'),
-          href: '/pool',
+          href: '',
           items: [
             {
               label: 'JOCX',
