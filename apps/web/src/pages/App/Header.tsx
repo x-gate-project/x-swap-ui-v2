@@ -37,16 +37,10 @@ export const Header = memo(function Header() {
   const isExplorePage = pathname.startsWith('/explore')
   const isBagExpanded = useBag((state) => state.bagExpanded)
   const isHeaderTransparent = !isScrolledDown && !isBagExpanded
-  const renderUkBanner = useRenderUkBanner()
-  const extensionEligible = useMobileAppPromoBannerEligible()
   const isLegacyNav = !useFeatureFlag(FeatureFlags.NavRefresh)
 
   return (
     <AppHeader id="AppHeader">
-      <Banners>
-        {extensionEligible && <MobileAppPromoBanner />}
-        {renderUkBanner && <UkBanner />}
-      </Banners>
       <NavOnScroll
         $hide={!isExplorePage && !isLegacyNav && scrollDirection === ScrollDirection.DOWN}
         $transparent={isHeaderTransparent}
