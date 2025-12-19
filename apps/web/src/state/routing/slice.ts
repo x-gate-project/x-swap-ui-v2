@@ -179,7 +179,7 @@ export const routingApi = createApi({
             return trace.child({ name: 'Quote on client', op: 'quote.client' }, async () => {
               const { getRouter, getClientSideQuote } = await import('lib/hooks/routing/clientSideSmartOrderRouter')
               const router = getRouter(args.tokenInChainId)
-              const quoteResult = await getClientSideQuote(args, router, CLIENT_PARAMS)
+              const quoteResult = await getClientSideQuote(args, router, args.protocolPreferences ? { protocols: args.protocolPreferences } : CLIENT_PARAMS)
               if (quoteResult.state === QuoteState.SUCCESS) {
                 const trade = await transformQuoteToTrade(args, quoteResult.data, QuoteMethod.CLIENT_SIDE_FALLBACK)
                 return {
