@@ -1,4 +1,4 @@
-import { NATIVE_CHAIN_ID, nativeOnChain } from 'constants/tokens'
+import { NATIVE_CHAIN_ID, isJoc, nativeOnChain } from 'constants/tokens'
 import { SearchToken } from 'graphql/data/SearchTokens'
 import { supportedChainIdFromGQLChain } from 'graphql/data/util'
 import { useAtom } from 'jotai'
@@ -12,6 +12,7 @@ import {
 } from 'uniswap/src/data/graphql/uniswap-data-api/__generated__/types-and-hooks'
 import { logger } from 'utilities/src/logger/logger'
 import { getNativeTokenDBAddress } from 'utils/nativeTokens'
+import { useJocTokensToSearchTokens } from '../../../hooks/useJocTokensToSearchTokens'
 
 type RecentlySearchedAsset = {
   isNft?: boolean
@@ -50,52 +51,117 @@ export function useRecentlySearchedAssets() {
   const history = useAtomValue(recentlySearchedAssetsAtom)
   const shortenedHistory = useMemo(() => history.slice(0, 4), [history])
 
-  const { data: queryData, loading } = useRecentlySearchedAssetsQuery({
+  const hasJocAssets = useMemo(
+    () =>
+      shortenedHistory.some(
+        (asset) =>
+          asset.chain === ('JOC' as any) ||
+          asset.chain === ('JOCT' as any) ||
+          (asset.chain && supportedChainIdFromGQLChain(asset.chain) && isJoc(supportedChainIdFromGQLChain(asset.chain)!))
+      ),
+    [shortenedHistory],
+  )
+
+  const nonJocHistory = useMemo(
+    () =>
+      shortenedHistory.filter(
+        (asset) =>
+          asset.chain !== ('JOC' as any) &&
+          asset.chain !== ('JOCT' as any) &&
+          (!asset.chain || !supportedChainIdFromGQLChain(asset.chain) || !isJoc(supportedChainIdFromGQLChain(asset.chain)!))
+      ),
+    [shortenedHistory],
+  )
+
+  const { data: queryData, loading: queryLoading } = useRecentlySearchedAssetsQuery({
     variables: {
-      collectionAddresses: shortenedHistory.filter((asset) => asset.isNft).map((asset) => asset.address),
-      contracts: shortenedHistory
+      collectionAddresses: nonJocHistory.filter((asset) => asset.isNft).map((asset) => asset.address),
+      contracts: nonJocHistory
         .filter((asset) => !asset.isNft)
         .map((token) => ({
           address: token.address === NATIVE_CHAIN_ID ? getQueryAddress(token.chain) : token.address,
           chain: token.chain,
         })),
     },
+    skip: hasJocAssets && nonJocHistory.length === 0,
   })
+
+  const jocAssets = useMemo(
+    () =>
+      shortenedHistory.filter(
+        (asset) => asset.chain === ('JOC' as any) || asset.chain === ('JOCT' as any)
+      ),
+    [shortenedHistory],
+  )
+
+  const jocTokenInputs = useMemo(
+    () =>
+      jocAssets.map((asset) => ({
+        address: asset.address,
+        chain: asset.chain as any,
+      })),
+    [jocAssets],
+  )
+
+  const { data: jocTokens, isLoading: jocTokensLoading } = useJocTokensToSearchTokens(jocTokenInputs)
+
+  const loading = useMemo(() => queryLoading || jocTokensLoading, [queryLoading, jocTokensLoading])
 
   const data = useMemo(() => {
     if (shortenedHistory.length === 0) {
       return []
-    } else if (!queryData) {
-      return undefined
     }
+
     // Collects both tokens and collections in a map, so they can later be returned in original order
     const resultsMap: { [key: string]: GenieCollection | SearchToken } = {}
 
-    const queryCollections = queryData?.nftCollections?.edges.map((edge) => edge.node as NonNullable<NftCollection>)
-    const collections = queryCollections?.map(
-      (queryCollection): GenieCollection => {
-        return {
-          address: queryCollection.nftContracts?.[0]?.address ?? '',
-          isVerified: queryCollection?.isVerified,
-          name: queryCollection?.name,
-          stats: {
-            floor_price: queryCollection?.markets?.[0]?.floorPrice?.value,
-            total_supply: queryCollection?.numAssets,
-          },
-          imageUrl: queryCollection?.image?.url ?? '',
+    if (queryData) {
+      const queryCollections = queryData?.nftCollections?.edges.map((edge) => edge.node as NonNullable<NftCollection>)
+      const collections = queryCollections?.map(
+        (queryCollection): GenieCollection => {
+          return {
+            address: queryCollection.nftContracts?.[0]?.address ?? '',
+            isVerified: queryCollection?.isVerified,
+            name: queryCollection?.name,
+            stats: {
+              floor_price: queryCollection?.markets?.[0]?.floorPrice?.value,
+              total_supply: queryCollection?.numAssets,
+            },
+            imageUrl: queryCollection?.image?.url ?? '',
+          }
+        },
+        [queryCollections],
+      )
+      collections?.forEach((collection) => (resultsMap[collection.address] = collection))
+      queryData.tokens?.filter(Boolean).forEach((token) => {
+        if (token) {
+          resultsMap[token.address ?? getNativeQueryAddress(token.chain)] = token
         }
-      },
-      [queryCollections],
-    )
-    collections?.forEach((collection) => (resultsMap[collection.address] = collection))
-    queryData.tokens?.filter(Boolean).forEach((token) => {
-      if (token) {
-        resultsMap[token.address ?? getNativeQueryAddress(token.chain)] = token
-      }
-    })
+      })
+    }
 
-    const data: (SearchToken | GenieCollection)[] = []
+    const resultData: (SearchToken | GenieCollection)[] = []
     shortenedHistory.forEach((asset) => {
+      const isJocChain = asset.chain === ('JOC' as any) || asset.chain === ('JOCT' as any)
+
+      if (isJocChain) {
+        const jocToken = jocTokens.find(
+          (token) =>
+            (asset.address === NATIVE_CHAIN_ID || !asset.address
+              ? token.address === undefined
+              : token.address?.toLowerCase() === asset.address.toLowerCase()) &&
+            token.chain === asset.chain
+        )
+        if (jocToken) {
+          resultData.push(jocToken)
+        }
+        return
+      }
+
+      if (!queryData) {
+        return
+      }
+
       if (asset.address === NATIVE_CHAIN_ID) {
         // Handles special case where wMATIC data needs to be used for MATIC
         const chain = supportedChainIdFromGQLChain(asset.chain)
@@ -113,17 +179,17 @@ export function useRecentlySearchedAssets() {
         const queryAddress = getQueryAddress(asset.chain)?.toLowerCase() ?? getNativeQueryAddress(asset.chain)
         const result = resultsMap[queryAddress]
         if (result) {
-          data.push({ ...result, address: NATIVE_CHAIN_ID, ...native })
+          resultData.push({ ...result, address: NATIVE_CHAIN_ID, ...native })
         }
       } else {
         const result = resultsMap[asset.address]
         if (result) {
-          data.push(result)
+          resultData.push(result)
         }
       }
     })
-    return data
-  }, [queryData, shortenedHistory])
+    return resultData
+  }, [queryData, shortenedHistory, jocTokens])
 
   return { data, loading }
 }
