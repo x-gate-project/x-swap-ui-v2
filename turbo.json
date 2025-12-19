@@ -171,6 +171,7 @@
         "{packages,apps}/src/**.tsx"
       ],
       "outputs": [
+        "**/build/**",
         "**/dist/**",
         "./apps/next/.next/**"
       ],
