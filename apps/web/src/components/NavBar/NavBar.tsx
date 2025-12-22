@@ -92,12 +92,12 @@ export const RefreshedNavbar = () => {
           {areTabsVisible && <Tabs />}
         </Left>
 
-        <SearchContainer data-cy="center-search-container">
+        {/* <SearchContainer data-cy="center-search-container">
           {!collapseSearchBar && <SearchBar maxHeight={NAV_SEARCH_MAX_HEIGHT} fullScreen={isSmallScreen} />}
-        </SearchContainer>
+        </SearchContainer> */}
 
         <Right>
-          {collapseSearchBar && <SearchBar maxHeight={NAV_SEARCH_MAX_HEIGHT} fullScreen={isSmallScreen} />}
+          {/* {collapseSearchBar && <SearchBar maxHeight={NAV_SEARCH_MAX_HEIGHT} fullScreen={isSmallScreen} />} */}
           {isNftPage && sellPageState !== ProfilePageStateType.LISTING && <Bag />}
           {isLandingPage && !isSmallScreen && <GetTheAppButton showIcons={false} />}
           {!account.isConnected && !account.isConnecting && <PreferenceMenu />}
