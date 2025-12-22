@@ -58,7 +58,7 @@ export default function WalletModal({ openSettings }: { openSettings: () => void
         <ThemedText.SubHeader>Connect a wallet</ThemedText.SubHeader>
         <IconButton Icon={Settings} onClick={openSettings} data-testid="wallet-settings" />
       </AutoRow>
-      {showUniswapWalletOptions && (
+      {/* {showUniswapWalletOptions && (
         <>
           <UniswapWalletOptions />
           <Row align="center" padding="8px 0px">
@@ -69,7 +69,7 @@ export default function WalletModal({ openSettings }: { openSettings: () => void
             <Line />
           </Row>
         </>
-      )}
+      )} */}
       <Column gap="md" flex="1">
         <Row flex="1" align="flex-start">
           <OptionGrid data-testid="option-grid">
@@ -80,7 +80,7 @@ export default function WalletModal({ openSettings }: { openSettings: () => void
         </Row>
         <Column gap="md">
           <TextSectionWrapper>
-            <PrivacyPolicyNotice />
+            {/* <PrivacyPolicyNotice /> */}
           </TextSectionWrapper>
           {showMoonpayText && (
             <>
