@@ -8,15 +8,19 @@ import { BREAKPOINTS } from 'theme'
 import { Z_INDEX } from 'theme/zIndex'
 import { FeatureFlags } from 'uniswap/src/features/gating/flags'
 import { useFeatureFlag } from 'uniswap/src/features/gating/hooks'
+import { useLocation } from 'react-router-dom'
 
-const AppContainer = styled.div`
+const AppContainer = styled.div<{ $hideHeader?: boolean }>`
   min-height: 100vh;
 
   // grid container settings
   display: grid;
   grid-template-columns: 1fr;
-  grid-template-rows: auto auto 1fr;
-  grid-template-areas: '${GRID_AREAS.HEADER}' '${GRID_AREAS.MAIN}' '${GRID_AREAS.MOBILE_BOTTOM_BAR}';
+  grid-template-rows: ${({ $hideHeader }) => ($hideHeader ? '1fr auto' : 'auto auto 1fr')};
+  grid-template-areas: ${({ $hideHeader }) =>
+    $hideHeader
+      ? `'${GRID_AREAS.MAIN}' '${GRID_AREAS.MOBILE_BOTTOM_BAR}'`
+      : `'${GRID_AREAS.HEADER}' '${GRID_AREAS.MAIN}' '${GRID_AREAS.MOBILE_BOTTOM_BAR}'`};
 `
 const AppBody = styled.div`
   grid-area: ${GRID_AREAS.MAIN};
@@ -46,10 +50,12 @@ const MobileBar = styled.div`
 
 export function AppLayout() {
   const isLegacyNav = !useFeatureFlag(FeatureFlags.NavRefresh)
+  const location = useLocation()
+  const hideHeader = location.pathname === '/about'
 
   return (
-    <AppContainer>
-      <Header />
+    <AppContainer $hideHeader={hideHeader}>
+      {!hideHeader && <Header />}
       <AppBody>
         <Body />
       </AppBody>
