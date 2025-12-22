@@ -1,6 +1,6 @@
 import { Currency, CurrencyAmount, TradeType } from '@uniswap/sdk-core'
 import { Field } from 'components/swap/constants'
-import { useSupportedChainId } from 'constants/chains'
+import { TESTNET_CHAIN_IDS, useSupportedChainId } from 'constants/chains'
 import { NATIVE_CHAIN_ID } from 'constants/tokens'
 import { supportedChainIdFromGQLChain } from 'graphql/data/util'
 import { useCurrency } from 'hooks/Tokens'
@@ -220,9 +220,13 @@ export function useDerivedSwapInfo(state: SwapState): SwapInfo {
   // slippage amount used to submit the trade
   const allowedSlippage = uniswapXAutoSlippage ?? classicAllowedSlippage
 
+  const isTestnet = chainId !== undefined && TESTNET_CHAIN_IDS.includes(chainId)
+
   // totalGasUseEstimateUSD is greater than native token balance
   const insufficientGas =
-    isClassicTrade(trade.trade) && (nativeCurrencyBalanceUSD ?? 0) < (trade.trade.totalGasUseEstimateUSDWithBuffer ?? 0)
+    !isTestnet &&
+    isClassicTrade(trade.trade) &&
+    (nativeCurrencyBalanceUSD ?? 0) < (trade.trade.totalGasUseEstimateUSDWithBuffer ?? 0)
 
   const { isDisconnected } = useAccount()
   const inputError = useMemo(() => {
