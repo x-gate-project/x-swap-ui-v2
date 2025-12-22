@@ -1,11 +1,14 @@
 import { Percent, Token, V2_FACTORY_ADDRESSES } from '@uniswap/sdk-core'
 import { Pair, computePairAddress } from '@uniswap/v2-sdk'
 import { L2_CHAIN_IDS, chainIdToBackendChain, useSupportedChainId } from 'constants/chains'
+import { X_SWAP_LIST } from 'constants/lists'
 import { SupportedLocale } from 'constants/locales'
 import { L2_DEADLINE_FROM_NOW } from 'constants/misc'
 import { BASES_TO_TRACK_LIQUIDITY_FOR, PINNED_PAIRS } from 'constants/routing'
+import { isJoc } from 'constants/tokens'
 import { gqlToCurrency } from 'graphql/data/util'
 import { useAccount } from 'hooks/useAccount'
+import { tokensToChainTokenMap } from 'lib/hooks/useTokenList/utils'
 import JSBI from 'jsbi'
 import { useCallback, useMemo } from 'react'
 import { useAppDispatch, useAppSelector } from 'state/hooks'
@@ -205,6 +208,8 @@ export function useTrackedTokenPairs(): [Token, Token][] {
   const { chainId } = useAccount()
   const supportedChainId = useSupportedChainId(chainId)
 
+  const tokenList = useAppSelector((state) => state.lists.byUrl[X_SWAP_LIST]?.current)
+
   // TODO(WEB-4001): use an "all tokens" query for better LP detection
   const { data: popularTokens } = useTopTokensQuery({
     variables: {
@@ -218,10 +223,43 @@ export function useTrackedTokenPairs(): [Token, Token][] {
   // pinned pairs
   const pinnedPairs = useMemo(() => (chainId ? PINNED_PAIRS[chainId] ?? [] : []), [chainId])
 
+  const jocPairs: [Token, Token][] = useMemo(() => {
+    if (!chainId || !isJoc(chainId) || !tokenList) {
+      return []
+    }
+
+    const tokenMap = tokensToChainTokenMap(tokenList)
+    const chainTokens = tokenMap[chainId]
+
+    if (!chainTokens) {
+      return []
+    }
+
+    const tokens = Object.values(chainTokens).map(({ token }) => token as Token)
+
+    const pairs: [Token, Token][] = []
+    for (let i = 0; i < tokens.length; i++) {
+      for (let j = i + 1; j < tokens.length; j++) {
+        const tokenA = tokens[i]
+        const tokenB = tokens[j]
+        if (tokenA && tokenB && !tokenA.equals(tokenB)) {
+          pairs.push([tokenA, tokenB])
+        }
+      }
+    }
+
+    return pairs
+  }, [chainId, tokenList])
+
   // pairs for every token against every base
   const generatedPairs: [Token, Token][] = useMemo(
-    () =>
-      chainId && popularTokens?.topTokens
+    () => {
+      // Skip if JOC network (we use jocPairs instead)
+      if (chainId && isJoc(chainId)) {
+        return []
+      }
+
+      return chainId && popularTokens?.topTokens
         ? popularTokens.topTokens.flatMap((gqlToken) => {
             if (!gqlToken) {
               return []
@@ -242,7 +280,8 @@ export function useTrackedTokenPairs(): [Token, Token][] {
                 .filter((p): p is [Token, Token] => p !== null)
             )
           })
-        : [],
+        : []
+    },
     [popularTokens, chainId],
   )
 
@@ -264,8 +303,8 @@ export function useTrackedTokenPairs(): [Token, Token][] {
   }, [savedSerializedPairs, chainId])
 
   const combinedList = useMemo(
-    () => userPairs.concat(generatedPairs).concat(pinnedPairs),
-    [pinnedPairs, userPairs, generatedPairs],
+    () => userPairs.concat(generatedPairs).concat(pinnedPairs).concat(jocPairs),
+    [pinnedPairs, userPairs, generatedPairs, jocPairs],
   )
 
   return useMemo(() => {
