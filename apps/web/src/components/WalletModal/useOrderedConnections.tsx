@@ -49,9 +49,9 @@ function getInjectedConnectors(connectors: readonly Connector[], excludeUniswapC
     }
 
     // Special-case: Ignore the Uniswap Extension injection here if it's being displayed separately.
-    if (c.id === CONNECTION.UNISWAP_EXTENSION_RDNS && excludeUniswapConnections) {
-      return false
-    }
+    // if (c.id === CONNECTION.UNISWAP_EXTENSION_RDNS && excludeUniswapConnections) {
+    //   return false
+    // }
 
     return c.type === CONNECTION.INJECTED_CONNECTOR_TYPE && c.id !== CONNECTION.INJECTED_CONNECTOR_ID
   })
@@ -110,9 +110,9 @@ export function useOrderedConnections(excludeUniswapConnections?: boolean) {
     const shouldDisplayUniswapWallet = !excludeUniswapConnections && (isWebIOS || isWebAndroid || !isTouchable)
 
     // Place the Uniswap Wallet at the top of the list by default.
-    if (shouldDisplayUniswapWallet) {
-      orderedConnectors.push(uniswapWalletConnectConnector)
-    }
+    // if (shouldDisplayUniswapWallet) {
+    //   orderedConnectors.push(uniswapWalletConnectConnector)
+    // }
 
     // Injected connectors should appear next in the list, as the user intentionally installed/uses them.
     orderedConnectors.push(...injectedConnectors)

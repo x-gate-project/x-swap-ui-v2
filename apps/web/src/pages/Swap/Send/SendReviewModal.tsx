@@ -102,7 +102,7 @@ export function SendReviewModal({ onConfirm, onDismiss }: { onConfirm: () => voi
             </ThemedText.SubHeader>
           </Row>
           <Row justify="right" gap="10px">
-            <GetHelp />
+            {/* <GetHelp /> */}
             <StyledReviewCloseIcon onClick={onDismiss} />
           </Row>
         </Row>

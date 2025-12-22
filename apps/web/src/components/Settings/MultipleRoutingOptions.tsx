@@ -181,13 +181,13 @@ export default function MultipleRoutingOptions({ chainId }: { chainId?: number }
         isActive={routePreferenceOptions[RoutePreferenceOption.Optimal]}
         text={<Trans i18nKey="routing.cheapest" />}
         subheading={
-          routePreferenceOptions[RoutePreferenceOption.Optimal] &&
-          uniswapXSupportedChain && (
-            <Row gap="xs">
-              <Trans i18nKey="common.includes" />
-              <UniswapXBrandMark />
-            </Row>
-          )
+          routePreferenceOptions[RoutePreferenceOption.Optimal]
+          // uniswapXSupportedChain && (
+          //   <Row gap="xs">
+          //     <Trans i18nKey="common.includes" />
+          //     <UniswapXBrandMark />
+          //   </Row>
+          // )
         }
         toggle={() => handleRoutePreferenceToggle(RoutePreferenceOption.Optimal)}
       />

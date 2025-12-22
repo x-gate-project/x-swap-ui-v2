@@ -160,11 +160,11 @@ export function useCurrencyInfo(
       }
     }
 
-    if (!data?.token || !address || skip) {
+    if (!address || skip) {
       return
     }
 
-    if(gqlTokenToCurrencyInfo(data.token as GqlToken)) {
+    if(data?.token && gqlTokenToCurrencyInfo(data.token as GqlToken)) {
       return gqlTokenToCurrencyInfo(data.token as GqlToken)
     }
 

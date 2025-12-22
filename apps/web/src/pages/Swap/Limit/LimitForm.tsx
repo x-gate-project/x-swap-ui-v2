@@ -384,9 +384,9 @@ function LimitForm({ onCurrencyChange }: LimitFormProps) {
         <DisclaimerText>
           {!isUniswapXSupportedChain(chainId) ? (
             <Trans i18nKey="limits.onlyMainnet">
-              <ExternalLink href={uniswapUrls.helpArticleUrls.limitsNetworkSupport}>
+              {/* <ExternalLink href={uniswapUrls.helpArticleUrls.limitsNetworkSupport}>
                 <Trans i18nKey="common.learnMore.link" />
-              </ExternalLink>
+              </ExternalLink> */}
             </Trans>
           ) : (
             <Trans i18nKey="limits.priceWarning">

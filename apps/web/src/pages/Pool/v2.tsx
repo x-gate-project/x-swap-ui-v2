@@ -155,7 +155,7 @@ export default function Pool() {
                     <Trans i18nKey="pool.liquidity.earn.fee" />
                   </ThemedText.DeprecatedWhite>
                 </RowBetween>
-                <ExternalLink
+                {/* <ExternalLink
                   style={{ color: theme.white, textDecoration: 'underline' }}
                   target="_blank"
                   href="https://docs.uniswap.org/contracts/v2/concepts/core-concepts/pools"
@@ -163,7 +163,7 @@ export default function Pool() {
                   <ThemedText.DeprecatedWhite fontSize={14}>
                     <Trans i18nKey="pool.learnAbout" />
                   </ThemedText.DeprecatedWhite>
-                </ExternalLink>
+                </ExternalLink> */}
               </AutoColumn>
             </CardSection>
             <CardBGImage />
@@ -217,14 +217,14 @@ export default function Pool() {
                   </EmptyProposals>
                 ) : allV2PairsWithLiquidity?.length > 0 || stakingPairs?.length > 0 ? (
                   <>
-                    <ButtonSecondary>
+                    {/* <ButtonSecondary>
                       <RowBetween>
                         <ExternalLink href={'https://v2.info.uniswap.org/account/' + account}>
                           <Trans i18nKey="pool.account.analyticsFees" />
                         </ExternalLink>
                         <span> ↗ </span>
                       </RowBetween>
-                    </ButtonSecondary>
+                    </ButtonSecondary> */}
                     {v2PairsWithoutStakedAmount.map((v2Pair) => (
                       <FullPositionCard key={v2Pair.liquidityToken.address} pair={v2Pair} />
                     ))}
