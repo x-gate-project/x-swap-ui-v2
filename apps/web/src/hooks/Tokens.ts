@@ -164,8 +164,28 @@ export function useCurrencyInfo(
       return
     }
 
-    if(data?.token && gqlTokenToCurrencyInfo(data.token as GqlToken)) {
-      return gqlTokenToCurrencyInfo(data.token as GqlToken)
+    const gqlTokenToCurrencyInfoResult = gqlTokenToCurrencyInfo(data?.token as GqlToken)
+    if(data?.token && gqlTokenToCurrencyInfoResult) {
+      // If the logo URL is not set for the GQL token, try to get it from the token list
+      if(!gqlTokenToCurrencyInfoResult.logoUrl && tokenList && supportedChainId) {
+        const tokenMap = tokensToChainTokenMap(tokenList)
+        const chainTokens = tokenMap[supportedChainId]
+
+        if (chainTokens) {
+          const addressLower = address.toLowerCase()
+          const tokenEntry = Object.values(chainTokens).find(
+            ({ token }) => isSameAddress(token.address, addressLower)
+          )
+
+          if (tokenEntry && tokenEntry.token instanceof TokenFromList) {
+            return {
+              ...gqlTokenToCurrencyInfoResult,
+              logoUrl: tokenEntry.token.tokenInfo.logoURI,
+            }
+          }
+        }
+      }
+      return gqlTokenToCurrencyInfoResult
     }
 
     if (supportedChainId && tokenList) {
