@@ -1,7 +1,7 @@
 import { isBetaEnv, isProdEnv } from 'utilities/src/environment'
 
 function isAppUniswapOrg({ hostname }: { hostname: string }): boolean {
-  return hostname === process.env.REACT_APP_UNISWAP_HOSTNAME
+  return true
 }
 
 function isAppUniswapStagingOrg({ hostname }: { hostname: string }): boolean {
