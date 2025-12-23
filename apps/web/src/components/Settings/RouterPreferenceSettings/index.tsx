@@ -29,9 +29,9 @@ export default function RouterPreferenceSettings() {
           </ThemedText.BodySecondary>
           <ThemedText.BodySmall color="neutral2">
             <Trans i18nKey="routing.aggregateLiquidity" />{' '}
-            <ExternalLink href="https://support.uniswap.org/hc/en-us/articles/17515415311501">
+            {/* <ExternalLink href="https://support.uniswap.org/hc/en-us/articles/17515415311501">
               <InlineLink>Learn more</InlineLink>
-            </ExternalLink>
+            </ExternalLink> */}
           </ThemedText.BodySmall>
         </Column>
       </RowFixed>

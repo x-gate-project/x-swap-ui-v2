@@ -73,7 +73,7 @@ function ChooseProviderModalContent({ closeModal }: ChooseProviderModal) {
           </Text>
         </Row>
         <Row justify="right" gap="xs">
-          <GetHelpButton url={uniswapUrls.helpArticleUrls.fiatOnRampHelp} />
+          {/* <GetHelpButton url={uniswapUrls.helpArticleUrls.fiatOnRampHelp} /> */}
           <CloseIcon data-testid="ChooseProviderModal-close" onClick={onClose} />
         </Row>
       </RowBetween>

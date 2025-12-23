@@ -66,9 +66,9 @@ function UniswapXPreferenceLabel() {
         text={
           <>
             <Trans i18nKey="routing.aggregateLiquidity" />{' '}
-            <ExternalLink href={uniswapUrls.helpArticleUrls.uniswapXInfo}>
+            {/* <ExternalLink href={uniswapUrls.helpArticleUrls.uniswapXInfo}>
               <Trans i18nKey="common.learnMore.link" />
-            </ExternalLink>
+            </ExternalLink> */}
           </>
         }
         placement="right"
