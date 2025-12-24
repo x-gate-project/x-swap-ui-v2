@@ -576,7 +576,7 @@ class JocNativeCurrency extends NativeCurrency {
     if (!isJoc(chainId)) {
       throw new Error('Not joc')
     }
-    super(chainId, 18, 'JOC', 'Japan Open Chain Token')
+    super(chainId, 18, 'JOC', 'JOC Coin')
   }
 }
 

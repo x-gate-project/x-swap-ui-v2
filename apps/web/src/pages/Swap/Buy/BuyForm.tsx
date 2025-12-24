@@ -2,7 +2,7 @@ import Column from 'components/Column'
 import Row from 'components/Row'
 import { useActiveLocalCurrencyComponents } from 'hooks/useActiveLocalCurrency'
 import { BuyFormButton } from 'pages/Swap/Buy/BuyFormButton'
-import { BuyFormContextProvider, ethCurrencyInfo, useBuyFormContext } from 'pages/Swap/Buy/BuyFormContext'
+import { BuyFormContextProvider, ethCurrencyInfo, jocCurrencyInfo, useBuyFormContext } from 'pages/Swap/Buy/BuyFormContext'
 import { ChooseProviderModal } from 'pages/Swap/Buy/ChooseProviderModal'
 import { FiatOnRampCurrencyModal } from 'pages/Swap/Buy/FiatOnRampCurrencyModal'
 import { PredefinedAmount } from 'pages/Swap/Buy/PredefinedAmount'
@@ -111,7 +111,7 @@ function BuyFormInner({ disabled }: BuyFormProps) {
             onPress={() => {
               setBuyFormState((state) => ({ ...state, currencyModalOpen: true }))
             }}
-            selectedCurrencyInfo={quoteCurrency.currencyInfo ?? ethCurrencyInfo}
+            selectedCurrencyInfo={quoteCurrency.currencyInfo ?? jocCurrencyInfo}
             formattedAmount={formatNumberOrString({
               input: amountOut || '0',
               type: NumberType.TokenNonTx,
