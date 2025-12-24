@@ -1,13 +1,10 @@
-import { skipToken } from '@reduxjs/toolkit/query/react'
 import { buildCurrencyInfo } from 'constants/routing'
 import { nativeOnChain } from 'constants/tokens'
 import { useUSDTokenUpdater } from 'hooks/useUSDTokenUpdater'
-import { t } from 'i18next'
-import { useFiatOnRampSupportedTokens, useMeldFiatCurrencyInfo } from 'pages/Swap/Buy/hooks'
+import { useAlchemyPaySupportedTokens, useMeldFiatCurrencyInfo } from 'pages/Swap/Buy/hooks'
 import { Dispatch, PropsWithChildren, SetStateAction, createContext, useContext, useMemo, useState } from 'react'
 import {
   useFiatOnRampAggregatorCountryListQuery,
-  useFiatOnRampAggregatorCryptoQuoteQuery,
 } from 'uniswap/src/features/fiatOnRamp/api'
 import {
   FORCountry,
@@ -16,15 +13,7 @@ import {
   FiatCurrencyInfo,
   FiatOnRampCurrency,
 } from 'uniswap/src/features/fiatOnRamp/types'
-import {
-  InvalidRequestAmountTooLow,
-  isFiatOnRampApiError,
-  isInvalidRequestAmountTooHigh,
-  isInvalidRequestAmountTooLow,
-} from 'uniswap/src/features/fiatOnRamp/utils'
 import { UniverseChainId } from 'uniswap/src/types/chains'
-import { NumberType, useFormatter } from 'utils/formatNumbers'
-import { useAccount } from 'wagmi'
 
 class BuyFormError extends Error {
   constructor(public readonly message: string) {
@@ -91,63 +80,43 @@ export function useBuyFormContext() {
 }
 
 function useDerivedBuyFormInfo(state: BuyFormState): BuyInfo {
-  const account = useAccount()
   const amountOut = useUSDTokenUpdater(
     true /* inputInFiat */,
     state.inputAmount,
     state.quoteCurrency?.currencyInfo?.currency,
   )
-  const { formatNumberOrString } = useFormatter()
 
   const { meldSupportedFiatCurrency, notAvailableInThisRegion } = useMeldFiatCurrencyInfo(state.selectedCountry)
   const { data: countryOptionsResult } = useFiatOnRampAggregatorCountryListQuery()
-  const supportedTokens = useFiatOnRampSupportedTokens(meldSupportedFiatCurrency, state.selectedCountry?.countryCode)
+  const supportedTokens = useAlchemyPaySupportedTokens()
 
-  const {
-    data: quotes,
-    isFetching: fetchingQuotes,
-    error: quotesError,
-  } = useFiatOnRampAggregatorCryptoQuoteQuery(
-    state.inputAmount &&
-      state.inputAmount !== '' &&
-      account.address &&
-      state.selectedCountry?.countryCode &&
-      state.quoteCurrency &&
-      meldSupportedFiatCurrency
-      ? {
-          sourceAmount: parseFloat(state.inputAmount),
-          sourceCurrencyCode: meldSupportedFiatCurrency.code,
-          destinationCurrencyCode: state.quoteCurrency.meldCurrencyCode ?? 'ETH',
-          countryCode: state.selectedCountry.countryCode,
-          walletAddress: account.address,
-          state: state.selectedCountry.state,
-        }
-      : skipToken,
-    {
-      refetchOnMountOrArgChange: true,
-    },
-  )
-
-  const error = useMemo(() => {
-    if (quotesError && isFiatOnRampApiError(quotesError)) {
-      if (isInvalidRequestAmountTooLow(quotesError)) {
-        const formattedAmount = formatNumberOrString({
-          input: (quotesError as InvalidRequestAmountTooLow).data.context.minimumAllowed,
-          type: NumberType.FiatTokenQuantity,
-        })
-        return new BuyFormError(t(`fiatOnRamp.error.min`, { amount: formattedAmount }))
-      }
-      if (isInvalidRequestAmountTooHigh(quotesError)) {
-        const formattedAmount = formatNumberOrString({
-          input: quotesError.data.context.maximumAllowed,
-          type: NumberType.FiatTokenQuantity,
-        })
-        return new BuyFormError(t(`fiatOnRamp.error.max`, { amount: formattedAmount }))
-      }
-      return new BuyFormError(t('common.somethingWentWrong.error'))
+  const quotes: FORQuoteResponse = useMemo(() => {
+    return {
+    quotes: [
+      {
+        countryCode: 'US',
+        destinationAmount: 0,
+        destinationCurrencyCode: state.quoteCurrency.meldCurrencyCode ?? 'ETH',
+        serviceProvider: 'ALCHEMYPAY',
+        serviceProviderDetails: {
+          logos: {
+            darkLogo: 'https://images-serviceprovider.meld.io/ALCHEMYPAY/short_logo_light.png',
+            lightLogo: 'https://images-serviceprovider.meld.io/ALCHEMYPAY/short_logo_light.png',
+          },
+          name: 'AlchemyPay',
+          paymentMethods: ['Debit Card', 'Apple Pay', 'Google Pay'],
+          serviceProvider: 'ALCHEMYPAY',
+          url: 'https://alchemypay.org/',
+        },
+        sourceAmount: parseFloat(state.inputAmount) || 0,
+        sourceCurrencyCode: 'USD',
+        totalFee: 0,
+      },
+    ],
+      message: null,
+      error: null,
     }
-    return undefined
-  }, [formatNumberOrString, quotesError])
+  }, [state.inputAmount, state.quoteCurrency.meldCurrencyCode])
 
   return useMemo(
     () => ({
@@ -156,18 +125,15 @@ function useDerivedBuyFormInfo(state: BuyFormState): BuyInfo {
       meldSupportedFiatCurrency,
       supportedTokens,
       countryOptionsResult,
-      quotes,
-      fetchingQuotes,
-      error,
+      quotes: quotes,
+      fetchingQuotes: false,
+      error: undefined,
     }),
     [
       amountOut,
       countryOptionsResult,
-      error,
-      fetchingQuotes,
       meldSupportedFiatCurrency,
       notAvailableInThisRegion,
-      quotes,
       supportedTokens,
     ],
   )

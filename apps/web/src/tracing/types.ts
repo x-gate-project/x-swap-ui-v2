@@ -29,6 +29,8 @@ export type OpCode =
   | 'wallet.sign'
   | 'wallet.switch_chain'
   | 'jocPrice.get'
+  | 'alchemyPay.getBuyUrl'
+  | 'alchemyPay.getCryptoList'
 
 export type TraceContext = {
   /** The human-readable name of the trace. */
@@ -48,4 +50,6 @@ export type TraceContext = {
   | { op: 'http.json_rpc'; tags: { host: string; chain?: Chain; method?: string } }
   | { op: 'wallet.connect' | 'wallet.connect.eager'; tags: { id: string; wallet?: string } }
   | { op: 'jocPrice.get'; tags: { symbol: string; chainId: string; tokenAddress: string } }
+  | { op: 'alchemyPay.getCryptoList'; tags: {} }
+  | { op: 'alchemyPay.getBuyUrl'; tags: {} }
 )
