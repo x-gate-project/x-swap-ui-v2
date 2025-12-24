@@ -82,14 +82,14 @@ export default function SwapHeader({ compact, syncTabToUrl }: { compact: boolean
         >
           <Trans i18nKey="common.swap" />
         </SwapHeaderTabButton>
-        <SwapHeaderTabButton
+        {/* <SwapHeaderTabButton
           $isActive={currentTab === SwapTab.Limit}
           onClick={() => {
             onTabClick(SwapTab.Limit)
           }}
         >
           <Trans i18nKey="swap.limit" />
-        </SwapHeaderTabButton>
+        </SwapHeaderTabButton> */}
         {!isIFramed() && (
           <SwapHeaderTabButton
             $isActive={currentTab === SwapTab.Send}
