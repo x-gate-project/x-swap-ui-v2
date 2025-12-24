@@ -48,11 +48,15 @@ type BuyFormContextType = {
 }
 
 export const ethCurrencyInfo = buildCurrencyInfo(nativeOnChain(UniverseChainId.Mainnet))
+export const jocCurrencyInfo = {
+  ...buildCurrencyInfo(nativeOnChain(UniverseChainId.JocMainnet)),
+  logoUrl: 'https://static.alchemypay.org/alchemypay/crypto-images/JOC.png'
+}
 const DEFAULT_BUY_FORM_STATE: BuyFormState = {
   inputAmount: '',
   quoteCurrency: {
-    currencyInfo: ethCurrencyInfo,
-    meldCurrencyCode: 'ETH',
+    currencyInfo: jocCurrencyInfo,
+    meldCurrencyCode: 'JOC',
   },
   selectedCountry: undefined,
   countryModalOpen: false,
