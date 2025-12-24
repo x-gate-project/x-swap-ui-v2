@@ -16,7 +16,7 @@ import { Field as FieldV3 } from 'state/mint/v3/actions'
 import { FullRange, MintState as MintV3State } from 'state/mint/v3/reducer'
 import { AppState } from 'state/reducer'
 import { quickRouteApi } from 'state/routing/quickRouteSlice'
-import { jocPriceAPi, routingApi } from 'state/routing/slice'
+import { alchemyPayAggregatorApi, jocPriceAPi, routingApi } from 'state/routing/slice'
 import { RouterPreference } from 'state/routing/types'
 import { SignatureState } from 'state/signatures/reducer'
 import { TransactionState } from 'state/transactions/reducer'
@@ -64,6 +64,7 @@ type ExpectedAppState = CombinedState<{
   logs: LogsState
   [routingApi.reducerPath]: ReturnType<typeof routingApi.reducer>
   [jocPriceAPi.reducerPath]: ReturnType<typeof jocPriceAPi.reducer>
+  [alchemyPayAggregatorApi.reducerPath]: ReturnType<typeof alchemyPayAggregatorApi.reducer>
   [quickRouteApi.reducerPath]: ReturnType<typeof quickRouteApi.reducer>
   [fiatOnRampAggregatorApi.reducerPath]: ReturnType<typeof fiatOnRampAggregatorApi.reducer>
 }>

@@ -3,11 +3,12 @@ import { useActiveLocalCurrency } from 'hooks/useActiveLocalCurrency'
 import { useActiveLocale } from 'hooks/useActiveLocale'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useGetAlchemyPayCryptoListQuery } from 'state/routing/slice'
 import {
   useFiatOnRampAggregatorSupportedFiatCurrenciesQuery,
   useFiatOnRampAggregatorSupportedTokensQuery,
 } from 'uniswap/src/features/fiatOnRamp/api'
-import { FORCountry, FiatCurrencyInfo, FiatOnRampCurrency } from 'uniswap/src/features/fiatOnRamp/types'
+import { FORCountry, FORSupportedToken, FiatCurrencyInfo, FiatOnRampCurrency } from 'uniswap/src/features/fiatOnRamp/types'
 import { getFiatCurrencyComponents } from 'utilities/src/format/localeBased'
 import { getFiatCurrencyName } from 'utils/fiatCurrency'
 
@@ -58,6 +59,33 @@ export function useMeldFiatCurrencyInfo(selectedCountry?: FORCountry): FiatOnRam
     meldSupportedFiatCurrency,
     notAvailableInThisRegion: supportedFiatCurrencies?.fiatCurrencies?.length === 0,
   }
+}
+
+export function useAlchemyPaySupportedTokens(): FiatOnRampCurrency[] {
+  const { data: alchemyPaySupportedTokens } = useGetAlchemyPayCryptoListQuery();
+
+  const supportedTokens: FORSupportedToken[] = alchemyPaySupportedTokens?.map((token) => {
+    return {
+      cryptoCurrencyCode: `${token.crypto}`,
+      displayName: token.crypto,
+      address: token.address,
+      cryptoCurrencyChain: token.network,
+      chainId: token.chainId,
+      symbol: token.icon,
+    }
+  }) ?? []
+
+  return useMemo(() => {
+    return supportedTokens
+      .map((token) => {
+        const currencyInfo = meldSupportedCurrencyToCurrencyInfo(token)
+        return {
+          currencyInfo,
+          meldCurrencyCode: token.cryptoCurrencyCode,
+        }
+      })
+      .filter((item) => item.currencyInfo !== undefined) as FiatOnRampCurrency[]
+  }, [supportedTokens])
 }
 
 export function useFiatOnRampSupportedTokens(

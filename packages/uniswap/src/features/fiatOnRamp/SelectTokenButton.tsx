@@ -47,9 +47,9 @@ export function SelectTokenButton({
         ) : (
           <CurrencyLogo currencyInfo={selectedCurrencyInfo} networkLogoBorderWidth={spacing.spacing1} size={iconSize} />
         )}
-        <Text color={textColor} pl="$spacing8" variant="body1">
+        {/* <Text color={textColor} pl="$spacing8" variant="body1">
           {formattedAmount}
-        </Text>
+        </Text> */}
         <Text color={textColor} pl="$spacing4" variant="body1">
           {getSymbolDisplayText(selectedCurrencyInfo.currency.symbol)}
         </Text>

@@ -40,7 +40,7 @@ export function meldSupportedCurrencyToCurrencyInfo(forCurrency: FORSupportedTok
   const supportedChainId = Number(forCurrency.chainId) as SupportedInterfaceChainId
   const commonBases = COMMON_BASES[supportedChainId]
 
-  const currencyInfo = commonBases.find((base) => {
+  let currencyInfo = commonBases.find((base) => {
     if (base.currency.isNative) {
       return !forCurrency.address
     }
@@ -48,6 +48,10 @@ export function meldSupportedCurrencyToCurrencyInfo(forCurrency: FORSupportedTok
   })
 
   if (currencyInfo) {
+    currencyInfo = {
+      ...currencyInfo,
+      logoUrl: forCurrency.symbol,
+    }
     return currencyInfo
   }
 

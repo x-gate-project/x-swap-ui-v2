@@ -5,7 +5,7 @@ import { updateVersion } from 'state/global/actions'
 import { sentryEnhancer } from 'state/logging'
 import reducer from 'state/reducer'
 import { quickRouteApi } from 'state/routing/quickRouteSlice'
-import { jocPriceAPi, routingApi } from 'state/routing/slice'
+import { alchemyPayAggregatorApi, jocPriceAPi, routingApi } from 'state/routing/slice'
 import { fiatOnRampAggregatorApi } from 'uniswap/src/features/fiatOnRamp/api'
 import { isTestEnv } from 'utilities/src/environment'
 
@@ -40,6 +40,7 @@ export function createDefaultStore() {
       })
         .concat(routingApi.middleware)
         .concat(jocPriceAPi.middleware)
+        .concat(alchemyPayAggregatorApi.middleware)
         .concat(quickRouteApi.middleware)
         .concat(fiatOnRampAggregatorApi.middleware),
   })

@@ -83,7 +83,7 @@ function ChooseProviderModalContent({ closeModal }: ChooseProviderModal) {
             key={q.serviceProvider}
             quote={q}
             selectedCountry={selectedCountry}
-            quoteCurrencyCode={quoteCurrencyCode}
+            quoteCurrency={quoteCurrency}
             inputAmount={inputAmount}
             meldSupportedFiatCurrency={meldSupportedFiatCurrency}
             walletAddress={recipientAddress}

@@ -259,3 +259,111 @@ export const jocPriceAPi = createApi({
 
 export const { useGetJocPriceQuery } = jocPriceAPi
 export const useGetJocPriceQueryState = jocPriceAPi.endpoints.getJocPrice.useQueryState
+
+export type AlchemyPayCryptoListResponse = {
+  symbol: string
+  chainId: string
+  type: string
+  crypto: string
+  address: string
+  network: string
+  icon: string
+  buyEnable: number
+  sellEnable: number
+  minPurchaseAmount: number
+  maxPurchaseAmount: number
+  minSellAmount: number | null
+  maxSellAmount: number | null
+  timestamp: string
+}
+
+export type GetAlchemyPayBuyUrlParams = {
+  tokenAddress?: string;
+  chainId?: string;
+  network?: string | number;
+  merchantOrderNo?: string;
+  fiat?: string;
+  fiatAmount?: string;
+  crypto?: string;
+  address?: string;
+  memo?: string;
+  email?: string;
+  token?: string;
+  language?: string;
+  showTable?: string;
+  redirectUrl?: string;
+  callbackUrl?: string;
+  merchantName?: string;
+  displayAddress?: string;
+};
+
+export const alchemyPayAggregatorApi = createApi({
+  reducerPath: 'alchemyPayAggregatorApi',
+  baseQuery: fetchBaseQuery(),
+  endpoints: (build) => ({
+    getAlchemyPayCryptoList: build.query<AlchemyPayCryptoListResponse[], void>({
+      queryFn(_, _api, _extraOptions, fetch) {
+        return trace({ name: 'AlchemyPay', op: 'alchemyPay.getCryptoList' }, async (trace: any) => {
+          const baseUrl = 'https://api.gu.net/v1'
+          try {
+            return await trace.child({ name: 'AlchemyPay', op: 'alchemyPay.getCryptoList' }, async () => {
+              const response = await fetch({
+                method: 'GET',
+                url: `${baseUrl}/payment-providers/alchemy-pay/crypto/list`,
+              })
+
+              if (response.error) {
+                throw response.error
+              }
+              return { data: response.data as AlchemyPayCryptoListResponse[], latencyMs: trace.now() }
+            })
+          } catch (error: any) {
+            trace.setError(error)
+            return {
+              error: { status: 'CUSTOM_ERROR', error: error?.detail ?? error?.message ?? error },
+            }
+          }
+        })
+      },
+      keepUnusedDataFor: ms(`10s`),
+      extraOptions: {
+        maxRetries: 0,
+      },
+    }),
+    getAlchemyPayBuyUrl: build.query<{ url: string }, GetAlchemyPayBuyUrlParams>({
+      queryFn(params, _api, _extraOptions, fetch) {
+        return trace({ name: 'AlchemyPay', op: 'alchemyPay.getBuyUrl', data: { ...params } }, async (trace: any) => {
+          const baseUrl = 'https://api.gu.net/v1'
+          try {
+            return await trace.child({ name: 'AlchemyPay', op: 'alchemyPay.getBuyUrl' }, async () => {
+              const response = await fetch({
+                method: 'GET',
+                url: `${baseUrl}/payment-providers/alchemy-pay/crypto/buy`,
+                params: params,
+              })
+
+              if (response.error) {
+                throw response.error
+              }
+              return { data: { url: (response.data as any).url }, latencyMs: trace.now() }
+            })
+          } catch (error: any) {
+            trace.setError(error)
+            return {
+              error: { status: 'CUSTOM_ERROR', error: error?.detail ?? error?.message ?? error },
+            }
+          }
+        })
+      },
+      keepUnusedDataFor: ms(`10s`),
+      extraOptions: {
+        maxRetries: 0,
+      },
+    }),
+  }),
+})
+
+export const { useGetAlchemyPayCryptoListQuery } = alchemyPayAggregatorApi
+export const useGetAlchemyPayCryptoListQueryState = alchemyPayAggregatorApi.endpoints.getAlchemyPayCryptoList.useQueryState
+export const { useGetAlchemyPayBuyUrlQuery } = alchemyPayAggregatorApi
+export const useGetAlchemyPayBuyUrlQueryState = alchemyPayAggregatorApi.endpoints.getAlchemyPayBuyUrl.useQueryState

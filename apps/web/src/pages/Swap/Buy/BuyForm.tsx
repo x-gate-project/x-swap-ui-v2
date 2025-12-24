@@ -4,7 +4,6 @@ import { useActiveLocalCurrencyComponents } from 'hooks/useActiveLocalCurrency'
 import { BuyFormButton } from 'pages/Swap/Buy/BuyFormButton'
 import { BuyFormContextProvider, ethCurrencyInfo, useBuyFormContext } from 'pages/Swap/Buy/BuyFormContext'
 import { ChooseProviderModal } from 'pages/Swap/Buy/ChooseProviderModal'
-import { CountryListModal } from 'pages/Swap/Buy/CountryListModal'
 import { FiatOnRampCurrencyModal } from 'pages/Swap/Buy/FiatOnRampCurrencyModal'
 import { PredefinedAmount } from 'pages/Swap/Buy/PredefinedAmount'
 import {
@@ -58,9 +57,9 @@ function BuyFormInner({ disabled }: BuyFormProps) {
   const { symbol: fiatSymbol } = useActiveLocalCurrencyComponents()
 
   const { buyFormState, setBuyFormState, derivedBuyFormInfo } = useBuyFormContext()
-  const { inputAmount, selectedCountry, quoteCurrency, currencyModalOpen, countryModalOpen, providerModalOpen } =
+  const { inputAmount, selectedCountry, quoteCurrency, currencyModalOpen, providerModalOpen } =
     buyFormState
-  const { amountOut, supportedTokens, countryOptionsResult, error, notAvailableInThisRegion } = derivedBuyFormInfo
+  const { amountOut, supportedTokens, error, notAvailableInThisRegion } = derivedBuyFormInfo
 
   const postWidthAdjustedDisplayValue = useWidthAdjustedDisplayValue(inputAmount)
   const hiddenObserver = useResizeObserver<HTMLElement>()
@@ -84,12 +83,12 @@ function BuyFormInner({ disabled }: BuyFormProps) {
             <Text variant="body3" userSelect="none" color="$neutral2">
               <Trans i18nKey="common.youreBuying" />
             </Text>
-            <FiatOnRampCountryPicker
+            {/* <FiatOnRampCountryPicker
               onPress={() => {
                 setBuyFormState((state) => ({ ...state, countryModalOpen: true }))
               }}
               countryCode={selectedCountry?.countryCode}
-            />
+            /> */}
           </HeaderRow>
           {error && (
             <Text variant="body3" userSelect="none" color="$statusCritical">
@@ -163,7 +162,7 @@ function BuyFormInner({ disabled }: BuyFormProps) {
           currencies={supportedTokens}
         />
       )}
-      {countryOptionsResult?.supportedCountries && (
+      {/* {countryOptionsResult?.supportedCountries && (
         <CountryListModal
           onSelectCountry={(selectedCountry) => setBuyFormState((state) => ({ ...state, selectedCountry }))}
           countryList={countryOptionsResult?.supportedCountries}
@@ -171,7 +170,7 @@ function BuyFormInner({ disabled }: BuyFormProps) {
           onDismiss={() => setBuyFormState((state) => ({ ...state, countryModalOpen: false }))}
           selectedCountry={selectedCountry}
         />
-      )}
+      )} */}
       <ChooseProviderModal
         isOpen={providerModalOpen}
         closeModal={() => setBuyFormState((prev) => ({ ...prev, providerModalOpen: false }))}

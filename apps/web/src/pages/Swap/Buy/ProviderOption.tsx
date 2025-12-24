@@ -1,17 +1,13 @@
 import { useMemo } from 'react'
-import { useAddFiatOnRampTransaction } from 'state/fiatOnRampTransactions/hooks'
-import { FiatOnRampTransactionStatus, FiatOnRampTransactionType } from 'state/fiatOnRampTransactions/types'
+import { useGetAlchemyPayBuyUrlQuery } from 'state/routing/slice'
 import { ExternalLink } from 'ui/src/components/icons'
-import { UNISWAP_WEB_URL } from 'uniswap/src/constants/urls'
 import { FORQuoteItem } from 'uniswap/src/features/fiatOnRamp/FORQuoteItem'
-import { useFiatOnRampAggregatorWidgetQuery } from 'uniswap/src/features/fiatOnRamp/api'
-import { FORCountry, FORQuote, FORServiceProvider, FiatCurrencyInfo } from 'uniswap/src/features/fiatOnRamp/types'
-import { v4 as uuid } from 'uuid'
+import { FORCountry, FORQuote, FORServiceProvider, FiatCurrencyInfo, FiatOnRampCurrency } from 'uniswap/src/features/fiatOnRamp/types'
 
 interface ProviderOptionProps {
   quote: FORQuote
   selectedCountry: FORCountry
-  quoteCurrencyCode: string
+  quoteCurrency: FiatOnRampCurrency
   inputAmount: string
   meldSupportedFiatCurrency: FiatCurrencyInfo
   walletAddress: string
@@ -21,39 +17,25 @@ interface ProviderOptionProps {
 
 export function ProviderOption({
   quote,
-  selectedCountry,
-  quoteCurrencyCode,
+  quoteCurrency,
   inputAmount,
-  meldSupportedFiatCurrency,
   walletAddress,
   setConnectedProvider,
   setErrorProvider,
 }: ProviderOptionProps) {
-  const addFiatOnRampTransaction = useAddFiatOnRampTransaction()
 
-  const widgetQueryParams = useMemo(() => {
-    const sessionIdPrefix = quote.serviceProvider === 'moonpay' ? 'MOONPAY' : ''
+  const alchemyPayParams = useMemo(() => {
     return {
-      serviceProvider: quote.serviceProvider,
-      countryCode: selectedCountry.countryCode,
-      destinationCurrencyCode: quoteCurrencyCode,
-      sourceAmount: parseFloat(inputAmount),
-      sourceCurrencyCode: meldSupportedFiatCurrency.code,
-      walletAddress,
-      externalSessionId: sessionIdPrefix + uuid(),
-      redirectUrl: `${UNISWAP_WEB_URL}/buy`,
+      fiat: 'USD',
+      fiatAmount: inputAmount,
+      tokenAddress: (quoteCurrency.currencyInfo?.currency as any).address,
+      crypto: quoteCurrency.currencyInfo?.currency.symbol,
+      chainId: quoteCurrency.currencyInfo?.currency.chainId.toString(),
+      address: walletAddress,
     }
-  }, [
-    inputAmount,
-    meldSupportedFiatCurrency.code,
-    quote.serviceProvider,
-    quoteCurrencyCode,
-    selectedCountry.countryCode,
-    walletAddress,
-  ])
+  }, [inputAmount, quoteCurrency, walletAddress])
 
-  // TODO(WEB-4417): use the widgetUrl from the /quote response instead of prefetching for every provider.
-  const { data, error } = useFiatOnRampAggregatorWidgetQuery(widgetQueryParams)
+  const { data, error } = useGetAlchemyPayBuyUrlQuery(alchemyPayParams)
 
   return (
     <FORQuoteItem
@@ -62,17 +44,8 @@ export function ProviderOption({
       hoverIcon={<ExternalLink position="absolute" right="$spacing12" size={20} />}
       onPress={async () => {
         if (data) {
-          window.open(data.widgetUrl, '_blank')
+          window.open(data.url, '_blank')
           setConnectedProvider(quote.serviceProviderDetails)
-          addFiatOnRampTransaction({
-            externalSessionId: widgetQueryParams.externalSessionId,
-            account: walletAddress,
-            status: FiatOnRampTransactionStatus.INITIATED,
-            forceFetched: false,
-            addedAt: Date.now(),
-            type: FiatOnRampTransactionType.BUY,
-            syncedWithBackend: false,
-          })
         } else if (error) {
           setErrorProvider(quote.serviceProviderDetails)
         }
