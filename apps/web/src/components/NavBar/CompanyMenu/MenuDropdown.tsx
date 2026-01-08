@@ -39,15 +39,17 @@ const StyledExternalLink = styled(ExternalLink)`
   padding: 0;
 `
 
-export function MenuLink({ label, href, internal, closeMenu }: MenuItem) {
-  return internal ? (
+export function MenuLink({ label, href, internal, target, closeMenu }: MenuItem) {
+  const isExternal = !internal || target !== undefined
+
+  return isExternal ? (
+    <StyledExternalLink href={href} target={target} onClick={closeMenu}>
+      {label}
+    </StyledExternalLink>
+  ) : (
     <StyledInternalLink to={href} onClick={closeMenu}>
       {label}
     </StyledInternalLink>
-  ) : (
-    <StyledExternalLink href={href} onClick={closeMenu}>
-      {label}
-    </StyledExternalLink>
   )
 }
 function Section({ title, items, closeMenu }: MenuSection) {

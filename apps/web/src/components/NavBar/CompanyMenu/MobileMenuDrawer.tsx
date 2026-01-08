@@ -26,6 +26,17 @@ const StyledMenuLink = styled(MenuLink)`
 const MobileDrawer = styled(Column)`
   padding: 12px 24px 32px 24px;
 `
+const StyledAccordionTrigger = styled(Accordion.Trigger)`
+  color: ${({ theme }) => theme.neutral2} !important;
+  &:hover {
+    color: ${({ theme }) => theme.neutral2} !important;
+  }
+  padding: 0;
+`
+const IndentedContent = styled(Column)`
+  margin-left: 16px;
+  gap: 10px;
+`
 
 function MenuSection({
   title,
@@ -57,6 +68,38 @@ function MenuSection({
         </Accordion.Trigger>
         <Accordion.Content p="0" forceMount={!collapsible || undefined}>
           <Column gap="10px">{children}</Column>
+        </Accordion.Content>
+      </Column>
+    </Accordion.Item>
+  )
+}
+
+function TabMenuSection({
+  title,
+  children,
+}: {
+  title: string
+  children: JSX.Element | JSX.Element[]
+}) {
+  const theme = useTheme()
+
+  return (
+    <Accordion.Item value={title}>
+      <Column gap="10px">
+        <StyledAccordionTrigger flexDirection="row" p="0" gap="4px">
+          {({ open }: { open: boolean }) => (
+            <>
+              <Text fontSize="16px" color="$neutral2">
+                {title}
+              </Text>
+              <Square animation="200ms" rotate={open ? '-180deg' : '0deg'}>
+                <ChevronDown size="16px" color={theme.neutral2} />
+              </Square>
+            </>
+          )}
+        </StyledAccordionTrigger>
+        <Accordion.Content p="0">
+          <IndentedContent>{children}</IndentedContent>
         </Accordion.Content>
       </Column>
     </Accordion.Item>
@@ -106,15 +149,31 @@ export function MobileMenuDrawer({ isOpen, closeMenu }: { isOpen: boolean; close
           >
             <Column gap="24px">
               <MenuSection title={t('common.app')} collapsible={false}>
-                {tabsContent.map((tab, index) => (
-                  <StyledMenuLink
-                    key={`${tab.title}_${index}}`}
-                    label={tab.title}
-                    href={tab.href}
-                    internal
-                    closeMenu={closeMenu}
-                  />
-                ))}
+                {tabsContent.map((tab, index) =>
+                  tab.items && tab.items.length > 0 ? (
+                    <TabMenuSection key={`${tab.title}_${index}`} title={tab.title}>
+                      {tab.items.map((item, itemIndex) => (
+                        <StyledMenuLink
+                          key={`${tab.title}_${index}_${itemIndex}}`}
+                          label={item.label}
+                          href={item.href}
+                          internal={item.internal}
+                          target={item.target}
+                          closeMenu={closeMenu}
+                        />
+                      ))}
+                    </TabMenuSection>
+                  ) : (
+                    <StyledMenuLink
+                      key={`${tab.title}_${index}}`}
+                      label={tab.title}
+                      href={tab.href}
+                      internal
+                      target={tab.target}
+                      closeMenu={closeMenu}
+                    />
+                  )
+                )}
               </MenuSection>
 
               {menuContent.map((sectionContent, index) => (
