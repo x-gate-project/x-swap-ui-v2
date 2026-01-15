@@ -103,7 +103,9 @@
     "wss://www.walletlink.org",
     "https://rpc-1.testnet.japanopenchain.org:8545",
     "https://rpc-1.japanopenchain.org:8545",
-    "https://api.gu.net"
+    "https://api.gu.net",
+    "https://*.vercel.app",
+    "https://www.x-swap.org"
   ],
   "workerSrc": [
     "'self'",
