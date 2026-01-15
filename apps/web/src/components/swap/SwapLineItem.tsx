@@ -59,10 +59,10 @@ function BaseTooltipContent({ children, url }: { children: ReactNode; url: strin
   return (
     <>
       {children}
-      <br />
+      {/* <br />
       <ExternalLink href={url}>
         <Trans i18nKey="common.learnMore.link" />
-      </ExternalLink>
+      </ExternalLink> */}
     </>
   )
 }
