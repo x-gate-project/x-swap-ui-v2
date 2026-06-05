@@ -111,7 +111,7 @@ export function Footer() {
             <Box direction="row" gap="16px">
               <Box direction="column" gap="10px">
                 <Body1>App</Body1>
-                <StyledInternalLink to="/swap">
+                <StyledInternalLink to="/">
                   <Trans i18nKey="common.swap" />
                 </StyledInternalLink>
                 <StyledInternalLink to="/tokens/ethereum">
