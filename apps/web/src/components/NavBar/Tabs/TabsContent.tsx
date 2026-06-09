@@ -67,7 +67,7 @@ export const useTabsContent = (): TabsSection[] => {
             {
               label: 'JOCX',
               quickKey: t(`quickKey.swap`),
-              href: 'https://staker.x-swap.org/',
+              href: 'https://staker.japanopenchain.org/',
               internal: true,
               target: '_blank',
             },
