@@ -47,12 +47,13 @@ export const useTabsContent = (): TabsSection[] => {
     : [
         {
           title: t('common.transfer2'),
-          href: 'https://www.x-gate.org/',
+          href: window.location.origin,
+          target: '_self',
         },
         {
           title: t('common.swap'),
-          href: '/swap',
-          isActive: pathname.startsWith('/swap') || pathname.startsWith('/limit') || pathname.startsWith('/send'),
+          href: '/',
+          isActive: pathname === '/' || pathname.startsWith('/swap') || pathname.startsWith('/limit') || pathname.startsWith('/send'),
         },
         {
           title: t('common.pool'),
