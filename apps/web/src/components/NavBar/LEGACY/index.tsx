@@ -88,7 +88,7 @@ export const PageTabs = () => {
           <Trans i18nKey="common.pool" />
         </MenuItem>
       </Box>
-      <MenuItem href="https://staker.x-swap.org/" target="_blank">
+      <MenuItem href="https://staker.japanopenchain.org/" target="_blank">
         <Trans i18nKey="common.staking" />
       </MenuItem>
       <MenuItem href="https://docs.x-gate.org/" target="_blank">
