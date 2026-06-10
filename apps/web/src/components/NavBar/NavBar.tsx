@@ -99,7 +99,7 @@ export const RefreshedNavbar = () => {
         <Right>
           {/* {collapseSearchBar && <SearchBar maxHeight={NAV_SEARCH_MAX_HEIGHT} fullScreen={isSmallScreen} />} */}
           {isNftPage && sellPageState !== ProfilePageStateType.LISTING && <Bag />}
-          {isLandingPage && !isSmallScreen && <GetTheAppButton showIcons={false} />}
+          {/* {isLandingPage && !isSmallScreen && <GetTheAppButton showIcons={false} />} */}
           {!account.isConnected && !account.isConnecting && <PreferenceMenu />}
           {!hideChainSelector && <ChainSelector />}
           <Web3Status />
