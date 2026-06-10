@@ -149,7 +149,7 @@ const LegacyNavbar = ({ blur }: { blur: boolean }) => {
                   <ChainSelector />
                 </Box>
               )}
-              {isLandingPage && <GetTheAppButton />}
+              {/* {isLandingPage && <GetTheAppButton />} */}
               <Web3Status />
             </Row>
           </Box>
