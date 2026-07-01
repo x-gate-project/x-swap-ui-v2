@@ -77,6 +77,21 @@ export default class AppJsonRpcProvider extends ConfiguredJsonRpcProvider {
     this.providers = providers.map((provider) => ({ provider, controller: new Controller(minimumBackoffTime) }))
   }
 
+  async send(method: string, params: Array<any>): Promise<any> {
+    const sortedProviders = AppJsonRpcProvider.sortProviders(this.providers)
+    for (const { provider, controller } of sortedProviders) {
+      try {
+        const result = await provider.send(method, params)
+        controller.onSuccess()
+        return result
+      } catch (error) {
+        logger.warn('AppJsonRpcProvider', 'send', 'rpc action failed', error)
+        controller.onError()
+      }
+    }
+    throw new Error(`All providers failed to perform the operation: ${method}`)
+  }
+
   async perform(method: string, params: { [name: string]: any }): Promise<any> {
     const sortedProviders = AppJsonRpcProvider.sortProviders(this.providers)
     for (const { provider, controller } of sortedProviders) {
