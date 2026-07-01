@@ -172,7 +172,7 @@ export const UNIVERSE_CHAIN_INFO: ChainInfo = {
         http: ['https://rpc.ankr.com/eth', 'https://eth-mainnet.public.blastapi.io'],
       },
       appOnly: {
-        http: [`https://mainnet.infura.io/v3/${config.infuraKey}`, config.quicknodeMainnetRpcUrl],
+        http: [`https://api.gu.net/v1/json-rpc/evm/1`, config.quicknodeMainnetRpcUrl],
       },
     },
     urlParam: 'ethereum',
@@ -239,7 +239,7 @@ export const UNIVERSE_CHAIN_INFO: ChainInfo = {
           'https://rpc.bordel.wtf/sepolia',
         ],
       },
-      appOnly: { http: [`https://sepolia.infura.io/v3/${config.infuraKey}`] },
+      appOnly: { http: [`https://api.gu.net/v1/json-rpc/evm/11155111`] },
     },
     spotPriceStablecoinAmount: CurrencyAmount.fromRawAmount(USDC_SEPOLIA, 10_000e6),
     stablecoins: [USDC_SEPOLIA],
@@ -363,7 +363,7 @@ export const UNIVERSE_CHAIN_INFO: ChainInfo = {
       default: { http: ['https://arb1.arbitrum.io/rpc'] },
       fallback: { http: ['https://arbitrum.public-rpc.com'] },
       appOnly: {
-        http: [`https://arbitrum-mainnet.infura.io/v3/${config.infuraKey}`, config.quicknodeArbitrumRpcUrl],
+        http: [`https://api.gu.net/v1/json-rpc/evm/42161`, config.quicknodeArbitrumRpcUrl],
       },
       [RPCType.PublicAlt]: { http: ['https://arb1.arbitrum.io/rpc'] },
     },
@@ -527,7 +527,7 @@ export const UNIVERSE_CHAIN_INFO: ChainInfo = {
       [RPCType.Public]: { http: ['https://mainnet.base.org'] },
       default: { http: ['https://mainnet.base.org/'] },
       fallback: { http: ['https://1rpc.io/base', 'https://base.meowrpc.com'] },
-      appOnly: { http: [`https://base-mainnet.infura.io/v3/${config.infuraKey}`] },
+      appOnly: { http: [`https://api.gu.net/v1/json-rpc/evm/8453`] },
     },
     spotPriceStablecoinAmount: CurrencyAmount.fromRawAmount(USDC_BASE, 10_000e6),
     assetRepoNetworkName: 'base',
@@ -689,7 +689,7 @@ export const UNIVERSE_CHAIN_INFO: ChainInfo = {
     rpcUrls: {
       [RPCType.PublicAlt]: { http: ['https://polygon-rpc.com/'] },
       default: { http: ['https://polygon-rpc.com/'] },
-      appOnly: { http: [`https://polygon-mainnet.infura.io/v3/${config.infuraKey}`] },
+      appOnly: { http: [`https://api.gu.net/v1/json-rpc/evm/137`] },
     },
     spotPriceStablecoinAmount: CurrencyAmount.fromRawAmount(USDC_POLYGON, 10_000e6),
     stablecoins: [USDC_POLYGON, DAI_POLYGON],
@@ -847,7 +847,7 @@ export const UNIVERSE_CHAIN_INFO: ChainInfo = {
     rpcUrls: {
       [RPCType.Public]: { http: ['https://api.avax.network/ext/bc/C/rpc'] },
       default: { http: ['https://api.avax.network/ext/bc/C/rpc'] },
-      appOnly: { http: [`https://avalanche-mainnet.infura.io/v3/${config.infuraKey}`] },
+      appOnly: { http: [`https://api.gu.net/v1/json-rpc/evm/43114`] },
     },
     spotPriceStablecoinAmount: CurrencyAmount.fromRawAmount(USDC_AVALANCHE, 10_000e6),
     stablecoins: [USDC_AVALANCHE],
@@ -908,7 +908,7 @@ export const UNIVERSE_CHAIN_INFO: ChainInfo = {
     rpcUrls: {
       [RPCType.Public]: { http: ['https://forno.celo.org'] },
       default: { http: [`https://forno.celo.org`] },
-      appOnly: { http: [`https://celo-mainnet.infura.io/v3/${config.infuraKey}`] },
+      appOnly: { http: [`https://api.gu.net/v1/json-rpc/evm/42220`] },
     },
     wrappedNativeCurrency: {
       name: 'Celo',
