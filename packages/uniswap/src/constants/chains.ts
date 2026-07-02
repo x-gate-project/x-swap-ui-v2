@@ -634,7 +634,7 @@ export const UNIVERSE_CHAIN_INFO: ChainInfo = {
     rpcUrls: {
       [RPCType.Public]: { http: [config.quicknodeBnbRpcUrl] },
       default: { http: ['https://bsc-dataseed1.bnbchain.org'] },
-      appOnly: { http: [config.quicknodeBnbRpcUrl] },
+      appOnly: { http: [`https://bsc-mainnet.infura.io/v3/${config.infuraKey}`] },
     },
     spotPriceStablecoinAmount: CurrencyAmount.fromRawAmount(USDT_BSC, 100e18),
     stablecoins: [USDC_BSC],
