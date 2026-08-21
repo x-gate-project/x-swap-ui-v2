@@ -83,6 +83,11 @@ type SwapAndLimitContextType = {
   // The chainId of the context - can be different from the connected Chain ID
   // if multichain UX is enabled, otherwise it will be the same as the connected chain ID
   chainId?: InterfaceChainId
+  // Per-field chain IDs — independent of each other and of the global chainId.
+  // Derived from the selected currency for each field; falls back to chainId.
+  // Use these for cross-chain swap support so sell/buy networks are decoupled.
+  inputChainId?: InterfaceChainId
+  outputChainId?: InterfaceChainId
   // The initial chain ID - used by TDP and PDP pages to keep swap scoped to the initial chain
   initialChainId?: InterfaceChainId
   multichainUXEnabled?: boolean
@@ -127,4 +132,15 @@ export interface SwapState {
   readonly independentField: Field
   readonly typedValue: string
   routerPreferenceOverride?: RouterPreference.API
+  // Index into CrossChainRoute.candidateIntermediateTokens for SWAP_BRIDGE sequential
+  // fallback (see lib/crossChain/PLAN.md). Lives here (not local SwapForm state) because
+  // useDerivedSwapInfo needs it to pick the SOR quote's effective output currency.
+  // Reused (mutually exclusive) for SWAP_BRIDGE_SWAP and BRIDGE_SWAP when either is the
+  // main route — see PLAN_SWAP_BRIDGE_VS_BRIDGE_SWAP.md §2.4.
+  crossChainCandidateIndex?: number
+  // Index into CrossChainRoute.alternateRoute.candidateIntermediateTokens — only used when
+  // BRIDGE_SWAP is quoted alongside SWAP_BRIDGE as the alternate (both active at once).
+  crossChainCandidateIndexAlt?: number
 }
+
+

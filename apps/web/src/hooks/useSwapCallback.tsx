@@ -52,8 +52,12 @@ export function useSwapCallback(
   const addTransaction = useTransactionAdder()
   const addOrder = useAddOrder()
   const account = useAccount()
+  const { chainId: contextChainId } = useSwapAndLimitContext()
+  // Use trade's input currency chainId when available — supports cross-chain where
+  // sellToken chain differs from the global swap context chain.
+  const tradeChainId = trade?.inputAmount.currency.chainId ?? contextChainId
   const supportedConnectedChainId = useSupportedChainId(account.chainId)
-  const { chainId: swapChainId } = useSwapAndLimitContext()
+  const swapChainId = tradeChainId
 
   const uniswapXSwapCallback = useUniswapXSwapCallback({
     trade: isUniswapXTrade(trade) ? trade : undefined,

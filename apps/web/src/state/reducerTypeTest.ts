@@ -15,6 +15,7 @@ import { MintState } from 'state/mint/reducer'
 import { Field as FieldV3 } from 'state/mint/v3/actions'
 import { FullRange, MintState as MintV3State } from 'state/mint/v3/reducer'
 import { AppState } from 'state/reducer'
+import { bridgeQuoteApi } from 'state/routing/bridgeQuoteSlice'
 import { quickRouteApi } from 'state/routing/quickRouteSlice'
 import { alchemyPayAggregatorApi, jocPriceAPi, routingApi } from 'state/routing/slice'
 import { RouterPreference } from 'state/routing/types'
@@ -67,6 +68,7 @@ type ExpectedAppState = CombinedState<{
   [alchemyPayAggregatorApi.reducerPath]: ReturnType<typeof alchemyPayAggregatorApi.reducer>
   [quickRouteApi.reducerPath]: ReturnType<typeof quickRouteApi.reducer>
   [fiatOnRampAggregatorApi.reducerPath]: ReturnType<typeof fiatOnRampAggregatorApi.reducer>
+  [bridgeQuoteApi.reducerPath]: ReturnType<typeof bridgeQuoteApi.reducer>
 }>
 
 assert<Equals<AppState, ExpectedAppState>>()

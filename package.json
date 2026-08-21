@@ -6,6 +6,8 @@
     "@commitlint/config-conventional": "^17.4.2",
     "@crowdin/cli": "3.14.0",
     "@ethersproject/keccak256": "5.7.0",
+    "@layerzerolabs/lz-definitions": "3.1.6",
+    "@layerzerolabs/lz-v2-utilities": "3.0.168",
     "@manypkg/cli": "^0.19.2",
     "danger": "11.2.6",
     "depcheck": "1.4.7",

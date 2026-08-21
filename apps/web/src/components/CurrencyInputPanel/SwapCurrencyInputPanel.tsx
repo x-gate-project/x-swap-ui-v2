@@ -13,6 +13,7 @@ import { StyledNumericalInput } from 'components/NumericalInput'
 import { RowBetween, RowFixed } from 'components/Row'
 import { CurrencySearchFilters } from 'components/SearchModal/CurrencySearch'
 import CurrencySearchModal from 'components/SearchModal/CurrencySearchModal'
+import { Field } from 'components/swap/constants'
 import Tooltip from 'components/Tooltip'
 import { useIsSupportedChainId } from 'constants/chains'
 import { PrefetchBalancesWrapper } from 'graphql/data/apollo/TokenBalancesProvider'
@@ -233,6 +234,8 @@ interface SwapCurrencyInputPanelProps {
   loading?: boolean
   disabled?: boolean
   currencySearchFilters?: CurrencySearchFilters
+  /** Which swap field this panel is for. Passed to CurrencySearchModal for per-field chain selection. */
+  field?: Field
   numericalInputSettings?: {
     disabled?: boolean
     onDisabledClick?: () => void
@@ -261,6 +264,7 @@ const SwapCurrencyInputPanel = forwardRef<HTMLInputElement, SwapCurrencyInputPan
       loading = false,
       disabled = false,
       currencySearchFilters,
+      field,
       numericalInputSettings,
       label,
       ...rest
@@ -431,6 +435,7 @@ const SwapCurrencyInputPanel = forwardRef<HTMLInputElement, SwapCurrencyInputPan
             selectedCurrency={currency}
             otherSelectedCurrency={otherCurrency}
             currencySearchFilters={currencySearchFilters}
+            field={field}
           />
         )}
       </InputPanel>

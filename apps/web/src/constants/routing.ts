@@ -46,7 +46,19 @@ import {
   nativeOnChain,
 } from 'constants/tokens'
 import { getNativeLogoURI, getTokenLogoURI } from 'lib/hooks/useCurrencyLogoURIs'
-import { USDC_ZKSYNC, USDC_ZORA } from 'uniswap/src/constants/tokens'
+import {
+  JOCX,
+  USDC_ARBITRUM_SEPOLIA,
+  USDC_AVAX_FUJI,
+  USDC_BASE_SEPOLIA,
+  USDC_SEPOLIA,
+  USDC_ZKSYNC,
+  USDC_ZORA,
+  USDCX,
+  USDT_SEPOLIA,
+  USDTX,
+} from 'uniswap/src/constants/tokens'
+
 import { SafetyLevel } from 'uniswap/src/data/graphql/uniswap-data-api/__generated__/types-and-hooks'
 import { CurrencyInfo } from 'uniswap/src/features/dataApi/types'
 import { UniverseChainId } from 'uniswap/src/types/chains'
@@ -96,7 +108,37 @@ export const COMMON_BASES: ChainCurrencyList = {
   [UniverseChainId.Sepolia]: [
     nativeOnChain(UniverseChainId.Sepolia),
     WRAPPED_NATIVE_CURRENCY[UniverseChainId.Sepolia] as Token,
+    USDC_SEPOLIA,
+    USDT_SEPOLIA,
+    USDTX[UniverseChainId.Sepolia],
+    USDCX[UniverseChainId.Sepolia],
+    JOCX[UniverseChainId.Sepolia],
   ].map(buildCurrencyInfo),
+  [UniverseChainId.ArbitrumSepolia]: [
+    nativeOnChain(UniverseChainId.ArbitrumSepolia),
+    WRAPPED_NATIVE_CURRENCY[UniverseChainId.ArbitrumSepolia] as Token,
+    USDC_ARBITRUM_SEPOLIA,
+    USDTX[UniverseChainId.ArbitrumSepolia],
+    USDCX[UniverseChainId.ArbitrumSepolia],
+    JOCX[UniverseChainId.ArbitrumSepolia],
+  ].map(buildCurrencyInfo),
+  [UniverseChainId.Base_Sepolia]: [
+    nativeOnChain(UniverseChainId.Base_Sepolia),
+    WRAPPED_NATIVE_CURRENCY[UniverseChainId.Base_Sepolia] as Token,
+    USDC_BASE_SEPOLIA,
+    USDTX[UniverseChainId.Base_Sepolia],
+    USDCX[UniverseChainId.Base_Sepolia],
+    JOCX[UniverseChainId.Base_Sepolia],
+  ].map(buildCurrencyInfo),
+  [UniverseChainId.Avalanche_Fuji]: [
+    nativeOnChain(UniverseChainId.Avalanche_Fuji),
+    WRAPPED_NATIVE_CURRENCY[UniverseChainId.Avalanche_Fuji] as Token,
+    USDC_AVAX_FUJI,
+    USDTX[UniverseChainId.Avalanche_Fuji],
+    USDCX[UniverseChainId.Avalanche_Fuji],
+    JOCX[UniverseChainId.Avalanche_Fuji],
+  ].map(buildCurrencyInfo),
+
   [UniverseChainId.ArbitrumOne]: [
     nativeOnChain(UniverseChainId.ArbitrumOne),
     ARB,

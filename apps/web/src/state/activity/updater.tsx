@@ -1,7 +1,8 @@
 import { DEFAULT_TXN_DISMISS_MS, L2_TXN_DISMISS_MS } from 'constants/misc'
 import { useCallback } from 'react'
 import { usePollPendingOrders } from 'state/activity/polling/orders'
-import { usePollPendingTransactions } from 'state/activity/polling/transactions'
+import { usePollPendingBridgeTransactions, usePollPendingTransactions } from 'state/activity/polling/transactions'
+
 import { useOnAssetActivity } from 'state/activity/subscription'
 import { ActivityUpdate, OnActivityUpdate } from 'state/activity/types'
 import { useAddPopup } from 'state/application/hooks'
@@ -36,7 +37,9 @@ function SubscriptionActivityStateUpdater({ onActivityUpdate }: { onActivityUpda
 function PollingActivityStateUpdater({ onActivityUpdate }: { onActivityUpdate: OnActivityUpdate }) {
   usePollPendingTransactions(onActivityUpdate)
   usePollPendingOrders(onActivityUpdate)
+  usePollPendingBridgeTransactions(onActivityUpdate)
   return null
+
 }
 
 function useOnActivityUpdate(): OnActivityUpdate {

@@ -59,14 +59,27 @@ interface ChainSelectorRowProps {
   targetChain: InterfaceChainId
   onSelectChain: (targetChain: number) => void
   isPending: boolean
+  // The chainId to compare targetChain against for the "active" checkmark.
+  // Callers should pass the effective chainId (per-field chain when in a per-field
+  // context, e.g. CurrencySearch modal) instead of relying on the global context chainId.
+  // Falls back to the global context chainId when not provided (legacy/global usage).
+  activeChainId?: InterfaceChainId
 }
-export default function ChainSelectorRow({ disabled, targetChain, onSelectChain, isPending }: ChainSelectorRowProps) {
+export default function ChainSelectorRow({
+  disabled,
+  targetChain,
+  onSelectChain,
+  isPending,
+  activeChainId,
+}: ChainSelectorRowProps) {
   const theme = useTheme()
-  const { chainId } = useSwapAndLimitContext()
+  const { chainId: contextChainId } = useSwapAndLimitContext()
+  const chainId = activeChainId !== undefined ? activeChainId : contextChainId
   const supportedChain = useSupportedChainId(targetChain)
   const active = chainId === targetChain
 
   const chainInfo = getChain({ chainId: supportedChain })
+
   const label = chainInfo?.label
 
   return (
