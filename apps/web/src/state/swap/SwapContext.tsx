@@ -2,6 +2,7 @@ import { Currency } from '@uniswap/sdk-core'
 import { useAccount } from 'hooks/useAccount'
 import usePrevious from 'hooks/usePrevious'
 import { PropsWithChildren, useEffect, useMemo, useState } from 'react'
+
 import { useDerivedSwapInfo } from 'state/swap/hooks'
 import { CurrencyState, SwapAndLimitContext, SwapContext, SwapState, initialSwapState } from 'state/swap/types'
 import { InterfaceChainId } from 'uniswap/src/types/chains'
@@ -36,7 +37,6 @@ export function SwapAndLimitContextProvider({
   )
 
   const account = useAccount()
-  const previousConnectedChainId = usePrevious(account.chainId)
   const previousInitialInputCurrency = usePrevious(initialInputCurrency)
   const previousInitialOutputCurrency = usePrevious(initialOutputCurrency)
 
@@ -59,8 +59,11 @@ export function SwapAndLimitContextProvider({
   const previousPrefilledState = usePrevious(prefilledState)
 
   useEffect(() => {
+    // Cross-chain: wallet network can now change independently of sellToken/buyToken
+    // (user switches network via navbar ChainSelector, or wallet silently switches during
+    // cross-chain swap execution). Neither case should reset the currently selected tokens —
+    // only an actual change to prefilled (URL/prop) currencies should reset the form.
     const combinedCurrencyState = { ...currencyState, ...prefilledState }
-    const chainChanged = previousConnectedChainId && previousConnectedChainId !== account.chainId
     const prefilledInputChanged = Boolean(
       previousPrefilledState?.inputCurrency
         ? !prefilledState.inputCurrency?.equals(previousPrefilledState.inputCurrency)
@@ -72,20 +75,13 @@ export function SwapAndLimitContextProvider({
         : prefilledState.outputCurrency,
     )
 
-    if ((!multichainUXEnabled && chainChanged) || prefilledInputChanged || prefilledOutputChanged) {
+    if (prefilledInputChanged || prefilledOutputChanged) {
       setCurrencyState({
         inputCurrency: combinedCurrencyState.inputCurrency ?? undefined,
         outputCurrency: combinedCurrencyState.outputCurrency ?? undefined,
       })
     }
-  }, [
-    multichainUXEnabled,
-    account.chainId,
-    currencyState,
-    prefilledState,
-    previousConnectedChainId,
-    previousPrefilledState,
-  ])
+  }, [currencyState, prefilledState, previousPrefilledState])
 
   useEffect(() => {
     if (initialChainId) {
@@ -93,7 +89,13 @@ export function SwapAndLimitContextProvider({
     }
   }, [initialChainId, setSelectedChainId])
 
+  const globalChainId = (multichainUXEnabled ? selectedChainId : account.chainId) ?? undefined
+
   const value = useMemo(() => {
+    // Per-field chain IDs derived from the selected currency.
+    // Falls back to globalChainId so non-swap usages still work.
+    const inputChainId = (currencyState.inputCurrency?.chainId ?? globalChainId) as typeof globalChainId
+    const outputChainId = (currencyState.outputCurrency?.chainId ?? globalChainId) as typeof globalChainId
     return {
       currencyState,
       setCurrencyState,
@@ -102,39 +104,35 @@ export function SwapAndLimitContextProvider({
       setCurrentTab,
       prefilledState,
       initialChainId,
-      chainId: (multichainUXEnabled ? selectedChainId : account.chainId) ?? undefined,
+      chainId: globalChainId,
+      inputChainId,
+      outputChainId,
       multichainUXEnabled,
       isSwapAndLimitContext: true,
     }
-  }, [initialChainId, account.chainId, selectedChainId, currencyState, currentTab, prefilledState, multichainUXEnabled])
+  }, [
+    initialChainId,
+    account.chainId,
+    selectedChainId,
+    currencyState,
+    currentTab,
+    prefilledState,
+    multichainUXEnabled,
+    globalChainId,
+  ])
 
   return <SwapAndLimitContext.Provider value={value}>{children}</SwapAndLimitContext.Provider>
 }
 
-export function SwapContextProvider({
-  multichainUXEnabled,
-  children,
-}: {
-  multichainUXEnabled?: boolean
-  children: React.ReactNode
-}) {
+export function SwapContextProvider({ children }: { multichainUXEnabled?: boolean; children: React.ReactNode }) {
   const [swapState, setSwapState] = useState<SwapState>({
     ...initialSwapState,
   })
   const derivedSwapInfo = useDerivedSwapInfo(swapState)
 
-  const { chainId: connectedChainId } = useAccount()
-  const previousConnectedChainId = usePrevious(connectedChainId)
-
-  useEffect(() => {
-    const chainChanged = previousConnectedChainId && previousConnectedChainId !== connectedChainId
-    if (multichainUXEnabled) {
-      return
-    }
-    if (chainChanged) {
-      setSwapState((prev) => ({ ...prev, typedValue: '' }))
-    }
-  }, [connectedChainId, previousConnectedChainId, multichainUXEnabled])
+  // Cross-chain: wallet network switches independently of sellToken/buyToken now, so the
+  // typed amount is no longer cleared on network change (navbar ChainSelector, or wallet
+  // silently switching during cross-chain swap execution).
 
   return <SwapContext.Provider value={{ swapState, setSwapState, derivedSwapInfo }}>{children}</SwapContext.Provider>
 }

@@ -98,12 +98,15 @@ export function Pending({
   wrapTxHash,
   tokenApprovalPending = false,
   revocationPending = false,
+  forceSubmitted = false,
 }: {
   trade?: InterfaceTrade
   swapResult?: SwapResult
   wrapTxHash?: string
   tokenApprovalPending?: boolean
   revocationPending?: boolean
+  /** Cross-chain: force "submitted" icon+title without swapResult */
+  forceSubmitted?: boolean
 }) {
   // This component is only rendered after the user signs, so we don't want to
   // accept new trades with different quotes. We should only display the quote
@@ -124,8 +127,8 @@ export function Pending({
   const wrapPending = wrapTxHash != undefined && !wrapConfirmed
   const transactionPending = revocationPending || tokenApprovalPending || wrapPending || swapPending
 
-  const showSubmitted = swapPending && !swapConfirmed && chainId === UniverseChainId.Mainnet
-  const showSuccess = swapConfirmed || (chainId !== UniverseChainId.Mainnet && swapPending)
+  const showSubmitted = forceSubmitted || (swapPending && !swapConfirmed && chainId === UniverseChainId.Mainnet)
+  const showSuccess = !forceSubmitted && (swapConfirmed || (chainId !== UniverseChainId.Mainnet && swapPending))
 
   const currentStepContainerRef = useRef<HTMLDivElement>(null)
   useUnmountingAnimation(currentStepContainerRef, () => AnimationType.EXITING)

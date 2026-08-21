@@ -14,13 +14,16 @@ export enum UniverseChainId {
   OptimismGoerli = UniswapSDKChainId.OPTIMISM_GOERLI,
   ArbitrumOne = UniswapSDKChainId.ARBITRUM_ONE,
   ArbitrumGoerli = UniswapSDKChainId.ARBITRUM_GOERLI,
+  ArbitrumSepolia = UniswapSDKChainId.ARBITRUM_SEPOLIA,
   Polygon = UniswapSDKChainId.POLYGON,
   PolygonMumbai = UniswapSDKChainId.POLYGON_MUMBAI,
   Avalanche = UniswapSDKChainId.AVALANCHE,
+  Avalanche_Fuji = UniswapSDKChainId.AVALANCHE_FUJI,
   Celo = UniswapSDKChainId.CELO,
   CeloAlfajores = UniswapSDKChainId.CELO_ALFAJORES,
   Bnb = UniswapSDKChainId.BNB,
   Base = UniswapSDKChainId.BASE,
+  Base_Sepolia = UniswapSDKChainId.BASE_SEPOLIA,
   Blast = UniswapSDKChainId.BLAST,
   Zora = UniswapSDKChainId.ZORA,
   Zksync = UniswapSDKChainId.ZKSYNC,
@@ -31,9 +34,13 @@ export enum UniverseChainId {
 export type WalletChainId =
   | UniverseChainId.Mainnet
   | UniverseChainId.Goerli
+  | UniverseChainId.Sepolia
   | UniverseChainId.ArbitrumOne
+  | UniverseChainId.ArbitrumSepolia
   | UniverseChainId.Avalanche
+  | UniverseChainId.Avalanche_Fuji
   | UniverseChainId.Base
+  | UniverseChainId.Base_Sepolia
   | UniverseChainId.Celo
   | UniverseChainId.Optimism
   | UniverseChainId.Polygon
@@ -51,14 +58,18 @@ export const WALLET_SUPPORTED_CHAIN_IDS: WalletChainId[] = [
   UniverseChainId.Mainnet,
   UniverseChainId.Polygon,
   UniverseChainId.ArbitrumOne,
-  UniverseChainId.Optimism,
+  // UniverseChainId.Optimism,
   UniverseChainId.Base,
-  UniverseChainId.Bnb,
+  // UniverseChainId.Bnb,
   // UniverseChainId.Blast,
   UniverseChainId.Avalanche,
   UniverseChainId.Celo,
   // UniverseChainId.Zora,
   // UniverseChainId.Zksync,
+  UniverseChainId.Sepolia,
+  UniverseChainId.ArbitrumSepolia,
+  UniverseChainId.Base_Sepolia,
+  UniverseChainId.Avalanche_Fuji,
   UniverseChainId.JocTestnet,
   UniverseChainId.JocMainnet,
 ]
@@ -67,19 +78,22 @@ export type InterfaceChainId = UniverseChainId
 
 export const WEB_SUPPORTED_CHAIN_IDS: InterfaceChainId[] = [
   UniverseChainId.Mainnet,
-  UniverseChainId.Goerli,
+  // UniverseChainId.Goerli,
   UniverseChainId.Sepolia,
-  UniverseChainId.Optimism,
-  UniverseChainId.OptimismGoerli,
+  // UniverseChainId.Optimism,
+  // UniverseChainId.OptimismGoerli,
   UniverseChainId.ArbitrumOne,
-  UniverseChainId.ArbitrumGoerli,
+  // UniverseChainId.ArbitrumGoerli,
+  UniverseChainId.ArbitrumSepolia,
   UniverseChainId.Polygon,
-  UniverseChainId.PolygonMumbai,
+  // UniverseChainId.PolygonMumbai,
   UniverseChainId.Avalanche,
   UniverseChainId.Celo,
-  UniverseChainId.CeloAlfajores,
-  UniverseChainId.Bnb,
+  // UniverseChainId.CeloAlfajores,
+  // UniverseChainId.Bnb,
   UniverseChainId.Base,
+  UniverseChainId.Base_Sepolia,
+  UniverseChainId.Avalanche_Fuji,
   // UniverseChainId.Blast,
   // UniverseChainId.Zora,
   // UniverseChainId.Zksync,

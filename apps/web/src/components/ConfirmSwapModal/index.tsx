@@ -7,10 +7,12 @@ import { SwapModal } from 'components/ConfirmSwapModal/Modal'
 import { Pending } from 'components/ConfirmSwapModal/Pending'
 import SwapProgressIndicator from 'components/ConfirmSwapModal/ProgressIndicator'
 import { MODAL_TRANSITION_DURATION } from 'components/Modal'
-import { SwapDetails } from 'components/swap/SwapDetails'
+import { CrossChainDetailsProps, SwapDetails } from 'components/swap/SwapDetails'
+import { CrossChainSwapPreview } from 'components/swap/CrossChainSwapPreview'
 import { SwapPreview } from 'components/swap/SwapPreview'
 import { Field } from 'components/swap/constants'
 import { useConfirmModalState } from 'hooks/useConfirmModalState'
+import { useCrossChainConfirmModalState } from 'hooks/useCrossChainConfirmModalState'
 import { Allowance, AllowanceState } from 'hooks/usePermit2Allowance'
 import { SwapResult } from 'hooks/useSwapCallback'
 import { useCallback, useEffect, useMemo } from 'react'
@@ -42,6 +44,184 @@ export enum ConfirmModalState {
   APPROVING_TOKEN,
   PERMITTING,
   PENDING_CONFIRMATION,
+}
+
+interface CrossChainConfirmProps {
+  crossChainProps: CrossChainDetailsProps
+  onCrossChainHandle: (permit2Data: `0x${string}` | undefined) => void
+  spender: string | undefined
+  crossChainTxHash?: `0x${string}`
+  crossChainError?: Error
+  crossChainStatus?: 'idle' | 'pending' | 'success' | 'error'
+}
+
+export function ConfirmCrossChainModal({
+  crossChainProps,
+  onCrossChainHandle,
+  spender,
+  crossChainTxHash,
+  crossChainError,
+  crossChainStatus = 'idle',
+  swapError,
+  onDismiss,
+}: CrossChainConfirmProps & {
+  swapError?: Error
+  onDismiss: () => void
+}) {
+  const inputAmount = crossChainProps.crossChainInputAmount?.currency.isToken
+    ? (crossChainProps.crossChainInputAmount as any)
+    : undefined
+
+  const {
+    confirmModalState,
+    pendingModalSteps,
+    approvalError,
+    startBridgeFlow,
+    onCancel,
+    resetToReviewScreen,
+    allowance,
+    permit2Data,
+  } = useCrossChainConfirmModalState({
+    inputAmount,
+    spender,
+    onCrossChainHandle: (p2d) => onCrossChainHandle(p2d),
+  })
+
+  const isPending = crossChainStatus === 'pending' && !crossChainTxHash
+  const isSuccess = crossChainStatus === 'success' || (crossChainStatus === 'pending' && !!crossChainTxHash)
+  const isError = crossChainStatus === 'error'
+
+  const localSwapFailure = Boolean(swapError) && !didUserReject(swapError)
+  const errorType = useMemo(() => {
+    if (approvalError) return approvalError
+    if (crossChainError && !didUserReject(crossChainError)) return PendingModalError.CONFIRMATION_ERROR
+    if (swapError && !didUserReject(swapError)) return PendingModalError.CONFIRMATION_ERROR
+    return undefined
+  }, [approvalError, crossChainError, swapError])
+
+  const { showDetails, showProgressIndicator, showConfirming, showSuccess, showError } = useMemo(() => {
+    let showDetails, showProgressIndicator, showConfirming, showSuccess, showError
+    if (errorType) {
+      showError = true
+    } else if (isSuccess) {
+      showSuccess = true
+    } else if (confirmModalState === ConfirmModalState.REVIEWING) {
+      showDetails = true
+    } else if (pendingModalSteps.length > 1) {
+      showProgressIndicator = true
+    } else {
+      showConfirming = true
+    }
+    return { showDetails, showProgressIndicator, showConfirming, showSuccess, showError }
+  }, [confirmModalState, errorType, isSuccess, pendingModalSteps.length])
+
+  useEffect(() => {
+    if (swapError && !localSwapFailure) {
+      onCancel()
+    }
+  }, [onCancel, swapError, localSwapFailure])
+
+  useEffect(() => {
+    if (crossChainError && didUserReject(crossChainError)) {
+      onCancel()
+    }
+  }, [onCancel, crossChainError])
+
+
+  const { suppressPopups, unsuppressPopups } = useSuppressPopups([PopupType.Transaction, PopupType.Order])
+
+  const onModalDismiss = useCallback(() => {
+    onDismiss()
+    setTimeout(() => onCancel(), MODAL_TRANSITION_DURATION)
+    unsuppressPopups()
+  }, [onCancel, onDismiss, unsuppressPopups])
+
+  return (
+    <ThemeProvider>
+      <SwapModal confirmModalState={confirmModalState} onDismiss={onModalDismiss}>
+        <Container $height="24px" $padding="6px 12px 4px 12px">
+          <SwapHead onDismiss={onModalDismiss} isLimitTrade={false} confirmModalState={confirmModalState} />
+        </Container>
+
+        {showDetails && (
+          <Container $padding="12px 12px 0px 12px">
+            <CrossChainSwapPreview
+              inputCurrency={crossChainProps.inputCurrency}
+              outputCurrency={crossChainProps.outputCurrency}
+              inputAmount={crossChainProps.crossChainInputAmount}
+              outputAmount={crossChainProps.crossChainOutputAmount}
+            />
+          </Container>
+        )}
+
+        {showDetails && (
+          <Container>
+            <FadePresence>
+              <AutoColumn gap="md">
+                <SwapDetails
+                  onConfirm={() => {
+                    suppressPopups()
+                    startBridgeFlow()
+                  }}
+                  crossChainProps={crossChainProps}
+                  allowance={allowance}
+                  isLoading={false}
+                  disabledConfirm={allowance.state === AllowanceState.LOADING}
+                  showAcceptChanges={false}
+                />
+              </AutoColumn>
+            </FadePresence>
+          </Container>
+        )}
+
+        {confirmModalState !== ConfirmModalState.REVIEWING && showProgressIndicator && (
+          <Container>
+            <FadePresence>
+              <SwapProgressIndicator
+                steps={pendingModalSteps}
+                currentStep={confirmModalState}
+                trade={undefined as any}
+                swapResult={undefined}
+                wrapTxHash={undefined}
+                tokenApprovalPending={allowance.state === AllowanceState.REQUIRED && allowance.isApprovalPending}
+                revocationPending={allowance.state === AllowanceState.REQUIRED && allowance.isRevocationPending}
+                swapError={swapError}
+                onRetryUniswapXSignature={() => onCrossChainHandle(permit2Data)}
+              />
+            </FadePresence>
+          </Container>
+        )}
+
+        {(showConfirming || showSuccess) && (
+          <Container>
+            <FadePresence>
+              <Pending
+                trade={undefined as any}
+                swapResult={undefined}
+                wrapTxHash={undefined}
+                tokenApprovalPending={allowance.state === AllowanceState.REQUIRED && allowance.isApprovalPending}
+                revocationPending={allowance.state === AllowanceState.REQUIRED && allowance.isRevocationPending}
+                forceSubmitted={isSuccess}
+              />
+            </FadePresence>
+          </Container>
+        )}
+
+        {/* Error */}
+        {errorType && showError && (
+          <Container $padding="16px">
+            <SwapError
+              trade={undefined as any}
+              showTrade={false}
+              swapResult={undefined}
+              errorType={errorType}
+              onRetry={() => startBridgeFlow()}
+            />
+          </Container>
+        )}
+      </SwapModal>
+    </ThemeProvider>
+  )
 }
 
 export function ConfirmSwapModal({
@@ -165,7 +345,6 @@ export function ConfirmSwapModal({
       }
     }, [confirmModalState, doesTradeDiffer, errorType, limitPlaced, pendingModalSteps.length, swapConfirmed])
 
-  // Reset modal state if user rejects the swap
   useEffect(() => {
     if (swapError && !swapFailed) {
       onCancel()

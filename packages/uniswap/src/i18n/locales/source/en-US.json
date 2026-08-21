@@ -773,7 +773,7 @@
   "swap.settings.routingPreference.title": "Trade options",
   "swap.settings.slippage.control.auto": "Auto",
   "swap.settings.slippage.control.title": "Max slippage",
-  "swap.settings.slippage.description": "Your transaction will revert if the price changes more than the slippage percentage.",
+  "swap.settings.slippage.description": "Your transaction will revert if the price changes more than the slippage percentage. For crosschain swaps involving multiple steps, this slippage will apply to each swap.",
   "swap.settings.slippage.input.message": "If the price slips any further, your transaction will revert. Below is the minimum amount you are guaranteed to receive.",
   "swap.settings.slippage.input.receive.title": "Receive at least",
   "swap.settings.slippage.output.message": "If the price slips any further, your transaction will revert. Below is the maximum amount you would need to spend.",

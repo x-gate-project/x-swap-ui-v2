@@ -396,6 +396,28 @@ export const WRAPPED_NATIVE_CURRENCY: { [chainId: number]: Token | undefined } =
     'WETH',
     'Wrapped Ether',
   ),
+  [UniverseChainId.ArbitrumSepolia]: new Token(
+    UniverseChainId.ArbitrumSepolia,
+    '0x980B62Da83eFf3D4576C647993b0c1D7faf17c73',
+    18,
+    'WETH',
+    'Wrapped Ether',
+  ),
+  [UniverseChainId.Base_Sepolia]: new Token(
+    UniverseChainId.Base_Sepolia,
+    '0x4200000000000000000000000000000000000006',
+    18,
+    'WETH',
+    'Wrapped Ether',
+  ),
+  [UniverseChainId.Avalanche_Fuji]: new Token(
+    UniverseChainId.Avalanche_Fuji,
+    '0xd00ae08403B9bbb9124bB305C09058E32C39A48c',
+    18,
+    'WAVAX',
+    'Wrapped AVAX',
+  ),
+
   [UniverseChainId.Polygon]: new Token(
     UniverseChainId.Polygon,
     '0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270',
@@ -458,6 +480,20 @@ export const WRAPPED_NATIVE_CURRENCY: { [chainId: number]: Token | undefined } =
     18,
     'WETH',
     'Wrapped Ether',
+  ),
+  [UniverseChainId.JocTestnet]: new Token(
+    UniverseChainId.JocTestnet,
+    '0x8B85219c0767Ce4FA5ae5944d71aB4a3De27090d',
+    18,
+    'WJOCT',
+    'Wrapped JOCT',
+  ),
+  [UniverseChainId.JocMainnet]: new Token(
+    UniverseChainId.JocMainnet,
+    '0x03527b82f384184097295fc60be0B59B8FE06E00',
+    18,
+    'WJOC',
+    'Wrapped JOC',
   ),
 }
 
@@ -528,8 +564,10 @@ class BscNativeCurrency extends NativeCurrency {
   }
 }
 
-export function isAvalanche(chainId: number): chainId is UniverseChainId.Avalanche {
-  return chainId === UniverseChainId.Avalanche
+export function isAvalanche(
+  chainId: number,
+): chainId is UniverseChainId.Avalanche | UniverseChainId.Avalanche_Fuji {
+  return chainId === UniverseChainId.Avalanche || chainId === UniverseChainId.Avalanche_Fuji
 }
 
 class AvaxNativeCurrency extends NativeCurrency {

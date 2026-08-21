@@ -1,0 +1,26 @@
+[
+  {
+    "name": "quoteBridge",
+    "type": "function",
+    "stateMutability": "pure",
+    "inputs": [
+      {
+        "name": "data",
+        "type": "tuple",
+        "components": [
+          { "name": "inputToken", "type": "bytes32" },
+          { "name": "outputToken", "type": "bytes32" },
+          { "name": "inputAmount", "type": "uint256" },
+          { "name": "outputAmount", "type": "uint256" },
+          { "name": "refundRecipient", "type": "address" },
+          { "name": "target", "type": "address" },
+          { "name": "data", "type": "bytes" },
+          { "name": "destinationChainId", "type": "uint256" },
+          { "name": "recipient", "type": "bytes32" },
+          { "name": "recipientMessage", "type": "bytes" }
+        ]
+      }
+    ],
+    "outputs": [{ "name": "", "type": "uint256" }]
+  }
+]

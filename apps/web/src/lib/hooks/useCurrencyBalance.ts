@@ -4,6 +4,7 @@ import { nativeOnChain } from 'constants/tokens'
 import { useAccount } from 'hooks/useAccount'
 import { useInterfaceMulticall } from 'hooks/useContract'
 import { useTokenBalances } from 'hooks/useTokenBalances'
+import { useCrossChainCurrencyBalances } from 'hooks/useCrossChainCurrencyBalances'
 import JSBI from 'jsbi'
 import { useMultipleContractSingleData, useSingleContractMultipleData } from 'lib/hooks/multicall'
 import { useMemo } from 'react'
@@ -185,13 +186,20 @@ export function useCurrencyBalances(
   const gqlCurrencyBalances = useGqlCurrencyBalances(account, currencies)
   const rpcCurrencyBalances = useRpcCurrencyBalances(account, currencies)
 
+  const crossChainBalances = useCrossChainCurrencyBalances(
+    !isSynced ? account : undefined,
+    !isSynced ? currencies : undefined,
+  )
+
   return useMemo(() => {
     if (!account || !currencies) {
       return []
     }
 
-    return isSynced ? rpcCurrencyBalances : gqlCurrencyBalances
-  }, [account, currencies, isSynced, gqlCurrencyBalances, rpcCurrencyBalances])
+    if (isSynced) return rpcCurrencyBalances
+    // Cross-chain: use direct RPC call with token's own chainId
+    return crossChainBalances
+  }, [account, currencies, isSynced, rpcCurrencyBalances, crossChainBalances])
 }
 
 // get the balance for a single token/account combo

@@ -142,6 +142,16 @@ const TransactionTitleTable: { [key in TransactionType]: { [state in Transaction
     [TransactionStatus.Confirmed]: t('common.limit.executed'),
     [TransactionStatus.Failed]: t('common.limit.failed'),
   },
+  [TransactionType.BRIDGE]: {
+    [TransactionStatus.Pending]: t('Bridging'),
+    [TransactionStatus.Confirmed]: t('Bridged'),
+    [TransactionStatus.Failed]: t('Bridge failed'),
+  },
+  [TransactionType.CROSS_CHAIN_SWAP]: {
+    [TransactionStatus.Pending]: t('common.swapping'),
+    [TransactionStatus.Confirmed]: t('common.swapped'),
+    [TransactionStatus.Failed]: t('common.swap.failed'),
+  },
 }
 
 export const CancelledTransactionTitleTable: { [key in TransactionType]: string } = {
@@ -172,6 +182,8 @@ export const CancelledTransactionTitleTable: { [key in TransactionType]: string 
   [TransactionType.MIGRATE_LIQUIDITY_V3]: t('common.migrate.liquidity.cancelled'),
   [TransactionType.SUBMIT_PROPOSAL]: t('common.submit.proposal.cancelled'),
   [TransactionType.LIMIT]: t('common.limit.cancelled'),
+  [TransactionType.BRIDGE]: t('Bridge cancelled'),
+  [TransactionType.CROSS_CHAIN_SWAP]: t('common.swap.cancelled'),
 }
 
 const AlternateTransactionTitleTable: { [key in TransactionType]?: { [state in TransactionStatus]: string } } = {

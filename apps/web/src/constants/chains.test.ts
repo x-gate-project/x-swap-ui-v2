@@ -64,12 +64,15 @@ const chainIdNames: { [chainId in SupportedInterfaceChainId]: string } = {
   [UniverseChainId.OptimismGoerli]: 'optimism_goerli',
   [UniverseChainId.Bnb]: 'bnb',
   [UniverseChainId.Avalanche]: 'avalanche',
+  [UniverseChainId.Avalanche_Fuji]: 'avalanche_fuji',
   [UniverseChainId.Base]: 'base',
+  [UniverseChainId.Base_Sepolia]: 'base_sepolia',
   [UniverseChainId.Blast]: 'blast',
   [UniverseChainId.Zora]: 'zora',
   [UniverseChainId.Zksync]: 'zksync',
   [UniverseChainId.JocTestnet]: 'joc_testnet',
   [UniverseChainId.JocMainnet]: 'joc_mainnet',
+  [UniverseChainId.ArbitrumSepolia]: 'arbitrum_sepolia',
 } as const
 
 test.each(Object.keys(chainIdNames).map((key) => parseInt(key) as SupportedInterfaceChainId))(

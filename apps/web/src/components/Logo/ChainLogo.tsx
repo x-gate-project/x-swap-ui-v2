@@ -40,6 +40,7 @@ export function getChainUI(chainId: InterfaceChainId, darkMode: boolean): ChainU
       }
     case UniverseChainId.ArbitrumOne:
     case UniverseChainId.ArbitrumGoerli:
+    case UniverseChainId.ArbitrumSepolia:
       return {
         symbol: ARBITRUM_LOGO,
         bgColor: '#00A3FF33',
@@ -66,6 +67,7 @@ export function getChainUI(chainId: InterfaceChainId, darkMode: boolean): ChainU
             textColor: '#655947',
           }
     case UniverseChainId.Avalanche:
+    case UniverseChainId.Avalanche_Fuji:
       return {
         symbol: AVALANCHE_LOGO,
         bgColor: '#E8414233',
@@ -78,6 +80,7 @@ export function getChainUI(chainId: InterfaceChainId, darkMode: boolean): ChainU
         textColor: '#EAB200',
       }
     case UniverseChainId.Base:
+    case UniverseChainId.Base_Sepolia:
       return {
         symbol: BASE_LOGO,
         bgColor: '#0052FF33',

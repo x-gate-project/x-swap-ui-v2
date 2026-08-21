@@ -10,13 +10,15 @@ import {
   AddLiquidityV2PoolTransactionInfo,
   AddLiquidityV3PoolTransactionInfo,
   ApproveTransactionInfo,
+  BridgeTransactionInfo,
   ClaimTransactionInfo,
   CollectFeesTransactionInfo,
   CreateV3PoolTransactionInfo,
+  CrossChainSwapTransactionInfo,
   DelegateTransactionInfo,
+  ExecuteTransactionInfo,
   ExactInputSwapTransactionInfo,
   ExactOutputSwapTransactionInfo,
-  ExecuteTransactionInfo,
   MigrateV2LiquidityToV3TransactionInfo,
   QueueTransactionInfo,
   RemoveLiquidityV3TransactionInfo,
@@ -328,6 +330,24 @@ function SendSummary({ info }: { info: SendTransactionInfo }) {
   )
 }
 
+function BridgeSummary({ info }: { info: BridgeTransactionInfo }) {
+  return (
+    <Trans
+      i18nKey="account.transactionSummary.bridgeSummary"
+      components={{
+        amount: (
+          <FormattedCurrencyAmountManaged
+            rawAmount={info.inputCurrencyAmountRaw}
+            currencyId={info.inputCurrencyId}
+            sigFigs={6}
+          />
+        ),
+      }}
+      defaults="Bridge <amount />"
+    />
+  )
+}
+
 function SwapSummary({ info }: { info: ExactInputSwapTransactionInfo | ExactOutputSwapTransactionInfo }) {
   if (info.tradeType === TradeType.EXACT_INPUT) {
     return (
@@ -430,5 +450,11 @@ export function TransactionSummary({ info }: { info: TransactionInfo }) {
 
     case TransactionType.SEND:
       return <SendSummary info={info} />
+
+    case TransactionType.BRIDGE:
+      return <BridgeSummary info={info} />
+
+    case TransactionType.CROSS_CHAIN_SWAP:
+      return <BridgeSummary info={info as unknown as BridgeTransactionInfo} />
   }
 }

@@ -312,6 +312,7 @@ function LimitForm({ onCurrencyChange }: LimitFormProps) {
             currency={inputCurrency ?? null}
             onUserInput={onTypeInput('inputAmount')}
             onCurrencySelect={(currency) => onSelectCurrency('inputCurrency', currency)}
+            field={Field.INPUT}
             otherCurrency={outputCurrency}
             onMax={handleMaxInput}
             currencySearchFilters={LIMIT_FORM_CURRENCY_SEARCH_FILTERS}
@@ -339,6 +340,7 @@ function LimitForm({ onCurrencyChange }: LimitFormProps) {
             currency={outputCurrency ?? null}
             onUserInput={onTypeInput('outputAmount')}
             onCurrencySelect={(currency) => onSelectCurrency('outputCurrency', currency)}
+            field={Field.OUTPUT}
             otherCurrency={inputCurrency}
             currencySearchFilters={LIMIT_FORM_CURRENCY_SEARCH_FILTERS}
             id={InterfaceSectionName.CURRENCY_OUTPUT_PANEL}

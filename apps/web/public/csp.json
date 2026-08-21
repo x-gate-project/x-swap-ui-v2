@@ -106,7 +106,11 @@
     "https://rpc-1.japanopenchain.org:8545",
     "https://api.gu.net",
     "https://*.vercel.app",
-    "https://www.x-swap.org"
+    "https://www.x-swap.org",
+    "https://gateway.thegraph.com",
+    "https://scan-testnet.layerzero-api.com",
+    "https://testnet.across.to",
+    "https://api.avax-test.network/ext/bc/C/rpc"
   ],
   "workerSrc": [
     "'self'",
