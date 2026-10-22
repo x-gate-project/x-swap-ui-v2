@@ -28,6 +28,7 @@ const LogoContainer = styled.div`
 
 interface PortfolioLogoProps {
   chainId: InterfaceChainId
+  dstChainId?: InterfaceChainId
   accountAddress?: string
   currencies?: Array<Currency | undefined>
   images?: Array<string | undefined>
@@ -54,10 +55,25 @@ const LOGO_DEFAULT_SIZE = 40
  * Renders an image by prioritizing a list of sources, and then eventually a fallback contract icon
  */
 export function PortfolioLogo(props: PortfolioLogoProps) {
+  const size = props.size ?? LOGO_DEFAULT_SIZE
+  // Cross-chain: src badge bottom-left (under src token half), dst badge bottom-right.
+  if (props.dstChainId && props.dstChainId !== props.chainId) {
+    return (
+      <LogoContainer style={props.style}>
+        {getLogo(props)}
+        <L2LogoContainer $size={size} style={{ left: 'auto', right: '60%' }}>
+          <ChainLogo fillContainer={true} chainId={props.chainId} />
+        </L2LogoContainer>
+        <L2LogoContainer $size={size}>
+          <ChainLogo fillContainer={true} chainId={props.dstChainId} />
+        </L2LogoContainer>
+      </LogoContainer>
+    )
+  }
   return (
     <LogoContainer style={props.style}>
       {getLogo(props)}
-      <SquareL2Logo chainId={props.chainId} size={props.size ?? LOGO_DEFAULT_SIZE} />
+      <SquareL2Logo chainId={props.chainId} size={size} />
     </LogoContainer>
   )
 }

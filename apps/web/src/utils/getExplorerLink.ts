@@ -20,6 +20,9 @@ const BLOCK_EXPLORER_PREFIXES: { [chainId: number]: string } = {
   [UniverseChainId.Zksync]: 'https://explorer.zksync.io',
   [UniverseChainId.JocTestnet]: 'https://explorer.testnet.japanopenchain.org',
   [UniverseChainId.JocMainnet]: 'https://explorer.japanopenchain.org',
+  [UniverseChainId.ArbitrumSepolia]: 'https://sepolia.arbiscan.io',
+  [UniverseChainId.Base_Sepolia]: 'https://sepolia.basescan.org',
+  [UniverseChainId.Avalanche_Fuji]: 'https://43113.testnet.snowtrace.io',
 }
 
 export enum ExplorerDataType {

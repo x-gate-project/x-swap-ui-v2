@@ -13,6 +13,7 @@ import {
 import { SupportedInterfaceChainId } from 'constants/chains'
 import { nativeOnChain } from 'constants/tokens'
 import { t } from 'i18n'
+import { BRIDGE_PROVIDERS } from 'lib/crossChain/engine/registry'
 import { isOnChainOrder, useAllSignatures } from 'state/signatures/hooks'
 import { SignatureDetails, SignatureType } from 'state/signatures/types'
 import { isConfirmedTx, useMultichainTransactions } from 'state/transactions/hooks'
@@ -20,8 +21,10 @@ import {
   AddLiquidityV2PoolTransactionInfo,
   AddLiquidityV3PoolTransactionInfo,
   ApproveTransactionInfo,
+  BridgeTransactionInfo,
   CollectFeesTransactionInfo,
   CreateV3PoolTransactionInfo,
+  CrossChainSwapTransactionInfo,
   ExactInputSwapTransactionInfo,
   ExactOutputSwapTransactionInfo,
   MigrateV2LiquidityToV3TransactionInfo,
@@ -186,6 +189,33 @@ async function parseMigrateCreateV3(
   return { descriptor, currencies: [baseCurrency, quoteCurrency] }
 }
 
+async function parseBridge(
+  bridge: BridgeTransactionInfo,
+  hash: string,
+  formatNumber: FormatNumberFunctionType,
+): Promise<Partial<Activity>> {
+  const [tokenIn, tokenOut] = await Promise.all([
+    getCurrency(bridge.inputCurrencyId, bridge.srcChainId as SupportedInterfaceChainId),
+    getCurrency(bridge.outputCurrencyId, bridge.dstChainId as SupportedInterfaceChainId),
+  ])
+  return {
+    descriptor: buildCurrencyDescriptor(
+      tokenIn,
+      bridge.inputCurrencyAmountRaw,
+      tokenOut,
+      bridge.expectedOutputCurrencyAmountRaw,
+      formatNumber,
+      undefined,
+    ),
+    currencies: [tokenIn, tokenOut],
+    dstChainId: bridge.dstChainId as InterfaceChainId,
+    explorerUrl: BRIDGE_PROVIDERS.find((p) => p.id === (bridge.bridgeProtocol ?? 'lz'))?.getExplorerUrl?.(
+      bridge.srcChainId,
+      hash,
+    ),
+  }
+}
+
 async function parseSend(
   send: SendTransactionInfo,
   chainId: SupportedInterfaceChainId,
@@ -247,6 +277,10 @@ export async function transactionToActivity(
       additionalFields = await parseMigrateCreateV3(info, chainId)
     } else if (info.type === TransactionType.SEND) {
       additionalFields = await parseSend(info, chainId, formatNumber)
+    } else if (info.type === TransactionType.BRIDGE) {
+      additionalFields = await parseBridge(info, details.hash, formatNumber)
+    } else if (info.type === TransactionType.CROSS_CHAIN_SWAP) {
+      additionalFields = await parseBridge(info as unknown as BridgeTransactionInfo, details.hash, formatNumber)
     }
 
     const activity = { ...defaultFields, ...additionalFields }

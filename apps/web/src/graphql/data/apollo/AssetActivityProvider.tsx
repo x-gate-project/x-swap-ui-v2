@@ -1,6 +1,6 @@
 import { SubscriptionResult } from '@apollo/client'
 import { createAdaptiveRefetchContext } from 'graphql/data/apollo/AdaptiveRefetch'
-import { GQL_MAINNET_CHAINS_MUTABLE } from 'graphql/data/util'
+import { useGqlPortfolioChains } from 'graphql/data/util'
 import { useAccount } from 'hooks/useAccount'
 import usePrevious from 'hooks/usePrevious'
 import ms from 'ms'
@@ -59,13 +59,15 @@ export function AssetActivityProvider({ children }: PropsWithChildren) {
 
   const fiatOnRampTransactions = useFiatOnRampTransactions()
 
+  const chains = useGqlPortfolioChains()
+  const previousChains = usePrevious(chains)
   const [lazyFetch, query] = useActivityWebLazyQuery()
   const fetch = useCallback(
     () =>
       lazyFetch({
         variables: {
           account: account.address ?? '',
-          chains: GQL_MAINNET_CHAINS_MUTABLE,
+          chains,
           // Include the externalsessionIDs of all fiat on-ramp transactions in the local store,
           // so that the backend can find the transactions without signature authentication.
           onRampTransactionIDs: Object.values(fiatOnRampTransactions).map(
@@ -73,7 +75,7 @@ export function AssetActivityProvider({ children }: PropsWithChildren) {
           ),
         },
       }),
-    [account.address, fiatOnRampTransactions, lazyFetch],
+    [account.address, chains, fiatOnRampTransactions, lazyFetch],
   )
 
   useInterval(async () => {
@@ -88,7 +90,11 @@ export function AssetActivityProvider({ children }: PropsWithChildren) {
 
   return (
     <SubscriptionContext.Provider value={result}>
-      <AdaptiveAssetActivityProvider query={query} fetch={fetch} stale={account.address !== previousAccount}>
+      <AdaptiveAssetActivityProvider
+        query={query}
+        fetch={fetch}
+        stale={account.address !== previousAccount || chains !== previousChains}
+      >
         {children}
       </AdaptiveAssetActivityProvider>
     </SubscriptionContext.Provider>

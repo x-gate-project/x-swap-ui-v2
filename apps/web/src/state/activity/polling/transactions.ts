@@ -5,13 +5,19 @@ import { useAccount } from 'hooks/useAccount'
 import useCurrentBlockTimestamp from 'hooks/useCurrentBlockTimestamp'
 import useBlockNumber, { useFastForwardBlockNumber } from 'lib/hooks/useBlockNumber'
 import ms from 'ms'
-import { useCallback, useEffect, useMemo } from 'react'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { CanceledError, RetryableError, retry } from 'state/activity/polling/retry'
 import { OnActivityUpdate } from 'state/activity/types'
 import { useAppDispatch } from 'state/hooks'
 import { isPendingTx, useMultichainTransactions, useTransactionRemover } from 'state/transactions/hooks'
-import { checkedTransaction } from 'state/transactions/reducer'
-import { PendingTransactionDetails } from 'state/transactions/types'
+import { checkedTransaction, markCrossChainSwapBridgePending } from 'state/transactions/reducer'
+
+import { PendingTransactionDetails, TransactionType } from 'state/transactions/types'
+import { waitForBridge, type BridgeProviderId } from 'lib/crossChain/bridge'
+import { getBridgeProvider } from 'lib/crossChain/engine/registry'
+import { trackerFor } from 'lib/crossChain/engine/pickRail'
+
+
 import { TransactionStatus } from 'uniswap/src/data/graphql/uniswap-data-api/__generated__/types-and-hooks'
 import { FeatureFlags } from 'uniswap/src/features/gating/flags'
 import { useFeatureFlag } from 'uniswap/src/features/gating/hooks'
@@ -127,6 +133,9 @@ export function usePollPendingTransactions(onActivityUpdate: OnActivityUpdate) {
 
     const cancels = pendingTransactions
       .filter((tx) => shouldCheck(lastBlockNumber, tx))
+      // Skip CROSS_CHAIN_SWAP txs that are already waiting for bridge leg delivery
+      .filter((tx) => !tx.bridgePending)
+
       .map((tx) => {
         const { promise, cancel } = getReceipt(tx)
         promise
@@ -135,6 +144,23 @@ export function usePollPendingTransactions(onActivityUpdate: OnActivityUpdate) {
               return
             }
             fastForwardBlockNumber(receipt.blockNumber)
+
+            // For BRIDGE / CROSS_CHAIN_SWAP: src-chain confirmed → keep Pending, start bridge-leg polling.
+            // Some providers (Across) need a depositId from the receipt to poll completion.
+            if (
+              (tx.info.type === TransactionType.CROSS_CHAIN_SWAP || tx.info.type === TransactionType.BRIDGE) &&
+              receipt.status === 1
+            ) {
+              // XChainSender providers read an id from the receipt; Relay txs track by order id.
+              const depositId =
+                tx.info.bridgeProtocol === 'relay'
+                  ? undefined
+                  : getBridgeProvider(tx.info.bridgeProtocol).getDepositId?.(receipt.logs)
+              dispatch(markCrossChainSwapBridgePending({ chainId: account.chainId, hash: tx.hash, depositId }))
+              return
+            }
+
+
             onActivityUpdate({
               type: 'transaction',
               chainId: account.chainId,
@@ -168,4 +194,106 @@ export function usePollPendingTransactions(onActivityUpdate: OnActivityUpdate) {
     dispatch,
     onActivityUpdate,
   ])
+}
+
+const BRIDGE_TIMEOUT = ms('2h')
+
+/**
+ * Poll the tx's bridge provider (`bridgeProtocol`, see lib/crossChain/engine) for pending bridge-leg txs:
+ * - BRIDGE txs (standalone bridge)
+ * - CROSS_CHAIN_SWAP txs once src-chain leg confirmed (tx.bridgePending === true)
+ * Dispatches per tx's `bridgeProtocol`. Uses a ref to track active polls so re-renders
+ * don't abort in-flight requests.
+ */
+export function usePollPendingBridgeTransactions(onActivityUpdate: OnActivityUpdate) {
+  const account = useAccount()
+  const multichainTransactions = useMultichainTransactions()
+
+  const pendingBridgeTxs = useMemo(() => {
+    return multichainTransactions.flatMap(([tx, txChainId]) => {
+      if (!isPendingTx(tx)) {
+        return []
+      }
+      // Only once the src-chain tx is confirmed (bridgePending), so the bridge leg is polled after it.
+      const isBridgeLeg =
+        (tx.info.type === TransactionType.BRIDGE || tx.info.type === TransactionType.CROSS_CHAIN_SWAP) &&
+        tx.bridgePending
+      if (isBridgeLeg) {
+        return [{ tx, chainId: txChainId }]
+      }
+      return []
+    })
+  }, [multichainTransactions])
+
+  const activePolls = useRef(new Map<string, AbortController>())
+
+  const onActivityUpdateRef = useRef(onActivityUpdate)
+  useEffect(() => {
+    onActivityUpdateRef.current = onActivityUpdate
+  }, [onActivityUpdate])
+
+  // Unmount: stop every poll (otherwise they keep fetching and dispatching forever).
+  useEffect(() => {
+    const polls = activePolls.current
+    return () => {
+      polls.forEach((ctrl) => ctrl.abort())
+      polls.clear()
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!account.isConnected) {
+      activePolls.current.forEach((ctrl) => ctrl.abort())
+      activePolls.current.clear()
+      return
+    }
+
+    const currentHashes = new Set(pendingBridgeTxs.map((t) => t.tx.hash))
+
+    // Abort polls for txs no longer pending
+    for (const [hash, ctrl] of activePolls.current) {
+      if (!currentHashes.has(hash)) {
+        ctrl.abort()
+        activePolls.current.delete(hash)
+      }
+    }
+
+    // Start polls only for new txs
+    for (const { tx, chainId } of pendingBridgeTxs) {
+      if (activePolls.current.has(tx.hash)) {continue}
+
+      const ctrl = new AbortController()
+      activePolls.current.set(tx.hash, ctrl)
+
+      const info = tx.info as { bridgeProtocol?: BridgeProviderId; depositId?: string; aggregatorOrderId?: string }
+      const waitPromise = waitForBridge(
+        trackerFor(info, tx.hash),
+        { hash: tx.hash, srcChainId: chainId, depositId: info.depositId },
+        ctrl.signal,
+        // Both BRIDGE and CROSS_CHAIN_SWAP: past this the tx is marked Failed (funds sit with fallbackReceiver/bridge refund).
+        tx.addedTime + BRIDGE_TIMEOUT,
+      )
+
+      waitPromise
+        .then(() => {
+          activePolls.current.delete(tx.hash)
+          onActivityUpdateRef.current({
+            type: 'transaction',
+            chainId,
+            original: tx,
+            update: { status: TransactionStatus.Confirmed, info: tx.info },
+          })
+        })
+        .catch((err) => {
+          activePolls.current.delete(tx.hash)
+          if (err?.message === 'Aborted') {return}
+          onActivityUpdateRef.current({
+            type: 'transaction',
+            chainId,
+            original: tx,
+            update: { status: TransactionStatus.Failed, info: tx.info },
+          })
+        })
+    }
+  }, [pendingBridgeTxs, account.isConnected])
 }

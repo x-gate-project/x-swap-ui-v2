@@ -55,7 +55,10 @@ export function useUniversalRouterSwapCallback(
   options: SwapOptions,
 ) {
   const account = useAccount()
-  const provider = useEthersWeb3Provider()
+  // Use trade's input currency chainId so gas estimation targets the correct chain,
+  // even when the wallet is connected to a different chain (cross-chain support).
+  const tradeChainId = trade?.inputAmount.currency.chainId ?? account.chainId
+  const provider = useEthersWeb3Provider({ chainId: tradeChainId })
   const connectorName = useAccount().connector?.name
 
   const analyticsContext = useTrace()
@@ -78,7 +81,8 @@ export function useUniversalRouterSwapCallback(
             throw new Error('missing trade')
           }
           const connectedChainId = await provider.getSigner().getChainId()
-          if (account.chainId !== connectedChainId) {
+          // Compare against tradeChainId (sell token chain) not account.chainId
+          if (tradeChainId !== connectedChainId) {
             throw new WrongChainError()
           }
 
@@ -94,7 +98,7 @@ export function useUniversalRouterSwapCallback(
           })
           const tx = {
             from: account.address,
-            to: UNIVERSAL_ROUTER_ADDRESS(account.chainId),
+            to: UNIVERSAL_ROUTER_ADDRESS(tradeChainId),
             data,
             // TODO(https://github.com/Uniswap/universal-router-sdk/issues/113): universal-router-sdk returns a non-hexlified value.
             ...(value && !isZero(value) ? { value: toHex(value) } : {}),
@@ -179,6 +183,7 @@ export function useUniversalRouterSwapCallback(
       account.status,
       account.chainId,
       account.address,
+      tradeChainId,
       provider,
       trade,
       getDeadline,

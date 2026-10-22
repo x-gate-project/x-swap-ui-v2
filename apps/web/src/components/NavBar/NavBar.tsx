@@ -6,6 +6,7 @@ import { PreferenceMenu } from 'components/NavBar/PreferencesMenu'
 import { useTabsVisible } from 'components/NavBar/ScreenSizes'
 import { SearchBar } from 'components/NavBar/SearchBar'
 import { Tabs } from 'components/NavBar/Tabs/Tabs'
+import { TestnetModeBadge } from 'components/NavBar/TestnetModeBadge'
 import Row from 'components/Row'
 import Web3Status from 'components/Web3Status'
 import { useScreenSize } from 'hooks/screenSize'
@@ -102,6 +103,7 @@ export const RefreshedNavbar = () => {
           {/* {isLandingPage && !isSmallScreen && <GetTheAppButton showIcons={false} />} */}
           {!account.isConnected && !account.isConnecting && <PreferenceMenu />}
           {!hideChainSelector && <ChainSelector />}
+          <TestnetModeBadge />
           <Web3Status />
         </Right>
       </NavContents>

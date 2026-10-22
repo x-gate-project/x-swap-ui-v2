@@ -114,6 +114,7 @@ function ActivityPopupContent({ activity, onClick, onClose }: ActivityPopupConte
             <Column>
               <PortfolioLogo
                 chainId={activity.chainId}
+                dstChainId={activity.dstChainId}
                 currencies={activity.currencies}
                 images={activity.logos}
                 accountAddress={activity.otherAccount}
@@ -154,7 +155,10 @@ export function TransactionPopupContent({
   }
 
   const onClick = () =>
-    window.open(getExplorerLink(activity.chainId, activity.hash, ExplorerDataType.TRANSACTION), '_blank')
+    window.open(
+      activity.explorerUrl ?? getExplorerLink(activity.chainId, activity.hash, ExplorerDataType.TRANSACTION),
+      '_blank',
+    )
 
   return <ActivityPopupContent activity={activity} onClose={onClose} onClick={onClick} />
 }

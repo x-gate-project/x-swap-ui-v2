@@ -345,6 +345,8 @@ export const colorsLight = {
   chain_56: networkColors.bnb.light,
   chain_42220: networkColors.celo.light,
   chain_43114: networkColors.avalanche.light,
+  chain_43113: networkColors.avalanche.light,
+  chain_84532: networkColors.base.light,
   chain_324: networkColors.zksync.light,
 
   chain_10081: networkColors.jocTestnet.light,
@@ -353,6 +355,8 @@ export const colorsLight = {
   chain_3: colors.yellow400,
   chain_4: colors.pink400,
   chain_5: colors.green400,
+  chain_11155111: colors.green400,
+  chain_421614: networkColors.arbitrum.light,
 }
 
 export type ColorKeys = keyof typeof colorsLight
@@ -421,6 +425,8 @@ export const colorsDark = {
   chain_56: networkColors.bnb.dark,
   chain_42220: networkColors.celo.dark,
   chain_43114: networkColors.avalanche.dark,
+  chain_43113: networkColors.avalanche.dark,
+  chain_84532: networkColors.base.dark,
   chain_324: networkColors.zksync.dark,
 
   chain_10081: networkColors.jocTestnet.dark,
@@ -429,4 +435,6 @@ export const colorsDark = {
   chain_3: colors.yellow400,
   chain_4: colors.pink400,
   chain_5: colors.green400,
+  chain_11155111: colors.green400,
+  chain_421614: networkColors.arbitrum.dark,
 }

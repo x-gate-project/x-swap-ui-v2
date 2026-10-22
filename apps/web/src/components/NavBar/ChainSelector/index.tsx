@@ -77,8 +77,18 @@ function useWalletSupportedChains(): InterfaceChainId[] {
   }
 }
 
-export const ChainSelector = ({ leftAlign }: { leftAlign?: boolean }) => {
-  const { chainId, setSelectedChainId, multichainUXEnabled } = useSwapAndLimitContext()
+export const ChainSelector = ({
+  leftAlign,
+  chainId: chainIdProp,
+  onSelectChain: onSelectChainProp,
+}: {
+  leftAlign?: boolean
+  chainId?: InterfaceChainId | null
+  onSelectChain?: (chainId: UniverseChainId | null) => void
+}) => {
+
+  const { chainId: contextChainId, setSelectedChainId, multichainUXEnabled } = useSwapAndLimitContext()
+  const chainId = chainIdProp !== undefined ? chainIdProp : contextChainId
   // multichainFlagEnabled is different from multichainUXEnabled, multichainUXEnabled applies to swap
   // flag can be true but multichainUXEnabled can be false (TDP page)
   const multichainFlagEnabled = useFeatureFlag(FeatureFlags.MultichainUX)
@@ -95,8 +105,11 @@ export const ChainSelector = ({ leftAlign }: { leftAlign?: boolean }) => {
 
   const [supportedChains, unsupportedChains] = useMemo(() => {
     const { supported, unsupported } = NETWORK_SELECTOR_CHAINS.filter((chain: number) => {
-      return isSupportedChain(chain) && (showTestnets || !TESTNET_CHAIN_IDS.includes(chain))
+      // Cross-chain swap: mainnet and testnet chains can't be paired, so mutually exclude
+      // instead of the old OR-based "show testnets alongside mainnets" behavior.
+      return isSupportedChain(chain) && (showTestnets ? TESTNET_CHAIN_IDS.includes(chain) : !TESTNET_CHAIN_IDS.includes(chain))
     })
+
       .sort((a, b) => getChainPriority(a) - getChainPriority(b))
       .reduce(
         (acc, chain) => {
@@ -112,26 +125,32 @@ export const ChainSelector = ({ leftAlign }: { leftAlign?: boolean }) => {
     return [supported, unsupported]
   }, [isSupportedChain, showTestnets, walletSupportsChain])
 
+
   const [pendingChainId, setPendingChainId] = useState<InterfaceChainId | undefined>(undefined)
 
   const onSelectChain = useCallback(
     async (targetChainId: UniverseChainId | null) => {
-      if (multichainUXEnabled || !targetChainId) {
+      if (onSelectChainProp) {
+        // Controlled mode: caller manages chain state (e.g. per-field in CurrencySearch)
+        onSelectChainProp(targetChainId)
+      } else if (multichainUXEnabled || !targetChainId) {
         setSelectedChainId(targetChainId)
       } else {
         setPendingChainId(targetChainId)
         await selectChain(targetChainId)
         setPendingChainId(undefined)
       }
-      searchParams.delete('inputCurrency')
-      searchParams.delete('outputCurrency')
-      targetChainId && searchParams.set('chain', CHAIN_IDS_TO_NAMES[targetChainId])
-      setSearchParams(searchParams)
+      if (!onSelectChainProp) {
+        searchParams.delete('inputCurrency')
+        searchParams.delete('outputCurrency')
+        targetChainId && searchParams.set('chain', CHAIN_IDS_TO_NAMES[targetChainId])
+        setSearchParams(searchParams)
+      }
 
       setIsOpen(false)
       popoverRef.current?.close()
     },
-    [multichainUXEnabled, setSelectedChainId, selectChain, searchParams, setSearchParams],
+    [onSelectChainProp, multichainUXEnabled, setSelectedChainId, selectChain, searchParams, setSearchParams],
   )
 
   const styledMenuCss = css`
@@ -168,6 +187,7 @@ export const ChainSelector = ({ leftAlign }: { leftAlign?: boolean }) => {
                 targetChain={selectorChain}
                 key={selectorChain}
                 isPending={selectorChain === pendingChainId}
+                activeChainId={chainId ?? undefined}
               />
             ))}
             {unsupportedChains.map((selectorChain) => (
@@ -177,6 +197,7 @@ export const ChainSelector = ({ leftAlign }: { leftAlign?: boolean }) => {
                 targetChain={selectorChain}
                 key={selectorChain}
                 isPending={false}
+                activeChainId={chainId ?? undefined}
               />
             ))}
           </ChainsDropdownWrapper>
@@ -189,6 +210,7 @@ export const ChainSelector = ({ leftAlign }: { leftAlign?: boolean }) => {
     <DropdownSelector
       isOpen={isOpen}
       toggleOpen={() => setIsOpen(!isOpen)}
+
       menuLabel={menuLabel}
       tooltipText={chainId ? undefined : t`wallet.networkUnsupported`}
       dataTestId="chain-selector"

@@ -1,9 +1,10 @@
 import { usePendingActivity } from 'components/AccountDrawer/MiniPortfolio/Activity/hooks'
 import { hideSmallBalancesAtom } from 'components/AccountDrawer/SmallBalanceToggle'
 import { hideSpamAtom } from 'components/AccountDrawer/SpamToggle'
+import { showTestnetsAtom } from 'components/AccountDrawer/TestnetsToggle'
 import { createAdaptiveRefetchContext } from 'graphql/data/apollo/AdaptiveRefetch'
 import { useAssetActivitySubscription } from 'graphql/data/apollo/AssetActivityProvider'
-import { GQL_MAINNET_CHAINS_MUTABLE } from 'graphql/data/util'
+import { useGqlPortfolioChains } from 'graphql/data/util'
 import { useAccount } from 'hooks/useAccount'
 import { useAtomValue } from 'jotai/utils'
 import { PropsWithChildren, useCallback, useMemo } from 'react'
@@ -90,26 +91,30 @@ export function TokenBalancesProvider({ children }: PropsWithChildren) {
   const hasAccountUpdate = useHasAccountUpdate()
   const valueModifiers = usePortfolioValueModifiers()
   const prevValueModifiers = usePrevious(valueModifiers)
+  const chains = useGqlPortfolioChains()
+  const prevChains = usePrevious(chains)
+  const testnetMode = useAtomValue(showTestnetsAtom)
 
   const fetch = useCallback(() => {
-    if (!account.address) {
+    // Testnet mode reads balances on-chain (see Tokens/TestnetTokens); backend rejects testnet portfolio queries.
+    if (!account.address || testnetMode) {
       return
     }
     lazyFetch({
       variables: {
         ownerAddress: account.address,
-        chains: GQL_MAINNET_CHAINS_MUTABLE,
+        chains,
         includeSpamTokens: valueModifiers.includeSpamTokens,
         includeSmallBalances: valueModifiers.includeSmallBalances,
       },
     })
-  }, [account.address, lazyFetch, valueModifiers])
+  }, [account.address, chains, lazyFetch, testnetMode, valueModifiers])
 
   return (
     <AdaptiveTokenBalancesProvider
       query={query}
       fetch={fetch}
-      stale={hasAccountUpdate || valueModifiers !== prevValueModifiers}
+      stale={hasAccountUpdate || valueModifiers !== prevValueModifiers || chains !== prevChains}
     >
       {children}
     </AdaptiveTokenBalancesProvider>

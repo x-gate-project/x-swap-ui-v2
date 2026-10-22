@@ -4,6 +4,7 @@ import { persistStore } from 'redux-persist'
 import { updateVersion } from 'state/global/actions'
 import { sentryEnhancer } from 'state/logging'
 import reducer from 'state/reducer'
+import { bridgeQuoteApi } from 'state/routing/bridgeQuoteSlice'
 import { quickRouteApi } from 'state/routing/quickRouteSlice'
 import { alchemyPayAggregatorApi, jocPriceAPi, routingApi } from 'state/routing/slice'
 import { fiatOnRampAggregatorApi } from 'uniswap/src/features/fiatOnRamp/api'
@@ -42,6 +43,7 @@ export function createDefaultStore() {
         .concat(jocPriceAPi.middleware)
         .concat(alchemyPayAggregatorApi.middleware)
         .concat(quickRouteApi.middleware)
+        .concat(bridgeQuoteApi.middleware)
         .concat(fiatOnRampAggregatorApi.middleware),
   })
 }

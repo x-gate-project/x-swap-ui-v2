@@ -1,4 +1,7 @@
 import { Currency, Token, WETH9 } from '@uniswap/sdk-core'
+import EthereumLogo from 'assets/images/ethereum-logo.png'
+import AvaxLogo from 'assets/svg/avax_logo.svg'
+import JoctLogo from 'assets/svg/joct_logo.svg'
 import {
   ARB,
   BTC_BSC,
@@ -46,7 +49,20 @@ import {
   nativeOnChain,
 } from 'constants/tokens'
 import { getNativeLogoURI, getTokenLogoURI } from 'lib/hooks/useCurrencyLogoURIs'
-import { USDC_ZKSYNC, USDC_ZORA } from 'uniswap/src/constants/tokens'
+import {
+  JOCX,
+  USDC_ARBITRUM_SEPOLIA,
+  USDC_AVAX_FUJI,
+  USDC_BASE_SEPOLIA,
+  USDC_SEPOLIA,
+  USDC_ZKSYNC,
+  USDC_ZORA,
+  USDCX,
+  USDT_SEPOLIA,
+  USDTX,
+} from 'uniswap/src/constants/tokens'
+
+import { UNIVERSE_CHAIN_INFO } from 'uniswap/src/constants/chains'
 import { SafetyLevel } from 'uniswap/src/data/graphql/uniswap-data-api/__generated__/types-and-hooks'
 import { CurrencyInfo } from 'uniswap/src/features/dataApi/types'
 import { UniverseChainId } from 'uniswap/src/types/chains'
@@ -65,10 +81,34 @@ const WRAPPED_NATIVE_CURRENCIES_ONLY: ChainTokenList = Object.fromEntries(
     .filter(Boolean),
 )
 
+// ponytail: testnet chains lack assetRepoNetworkName, so reuse mainnet logos by symbol.
+// Drop once x-swap-token-list has testnet entries.
+const XGATE_ASSETS = 'https://raw.githubusercontent.com/x-gate-project/x-gate-token-list/main/assets'
+const UNI_ASSETS = 'https://raw.githubusercontent.com/Uniswap/assets/master/blockchains/ethereum/assets'
+const LOGO_BY_SYMBOL: Record<string, string> = {
+  WETH: EthereumLogo,
+  WAVAX: AvaxLogo,
+  USDC: `${UNI_ASSETS}/0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48/logo.png`,
+  USDT: `${UNI_ASSETS}/0xdAC17F958D2ee523a2206206994597C13D831ec7/logo.png`,
+  USDTX: `${XGATE_ASSETS}/1_usdtx.svg`,
+  USDCX: `${XGATE_ASSETS}/1_usdcx.svg`,
+  JOCX: `${XGATE_ASSETS}/1_jocx.svg`,
+}
+// Testnets reuse JOC testnet (10081) logos; JOCX has no 10081 asset, so it uses the JOCT logo.
+const TESTNET_LOGO_BY_SYMBOL: Record<string, string> = {
+  USDTX: `${XGATE_ASSETS}/10081_usdtx.svg`,
+  USDCX: `${XGATE_ASSETS}/10081_usdcx.svg`,
+  JOCX: JoctLogo,
+}
+
 export function buildCurrencyInfo(commonBase: Currency): CurrencyInfo {
+  const symbol = commonBase.symbol ?? ''
+  const isTestnet = UNIVERSE_CHAIN_INFO[commonBase.chainId as UniverseChainId]?.testnet
   const logoUrl = commonBase.isNative
     ? getNativeLogoURI(commonBase.chainId)
-    : getTokenLogoURI(commonBase.address, commonBase.chainId)
+    : getTokenLogoURI(commonBase.address, commonBase.chainId) ??
+      (isTestnet ? TESTNET_LOGO_BY_SYMBOL[symbol] : undefined) ??
+      LOGO_BY_SYMBOL[symbol]
   return {
     currency: commonBase,
     logoUrl,
@@ -96,7 +136,37 @@ export const COMMON_BASES: ChainCurrencyList = {
   [UniverseChainId.Sepolia]: [
     nativeOnChain(UniverseChainId.Sepolia),
     WRAPPED_NATIVE_CURRENCY[UniverseChainId.Sepolia] as Token,
+    USDC_SEPOLIA,
+    USDT_SEPOLIA,
+    USDTX[UniverseChainId.Sepolia],
+    USDCX[UniverseChainId.Sepolia],
+    JOCX[UniverseChainId.Sepolia],
   ].map(buildCurrencyInfo),
+  [UniverseChainId.ArbitrumSepolia]: [
+    nativeOnChain(UniverseChainId.ArbitrumSepolia),
+    WRAPPED_NATIVE_CURRENCY[UniverseChainId.ArbitrumSepolia] as Token,
+    USDC_ARBITRUM_SEPOLIA,
+    USDTX[UniverseChainId.ArbitrumSepolia],
+    USDCX[UniverseChainId.ArbitrumSepolia],
+    JOCX[UniverseChainId.ArbitrumSepolia],
+  ].map(buildCurrencyInfo),
+  [UniverseChainId.Base_Sepolia]: [
+    nativeOnChain(UniverseChainId.Base_Sepolia),
+    WRAPPED_NATIVE_CURRENCY[UniverseChainId.Base_Sepolia] as Token,
+    USDC_BASE_SEPOLIA,
+    USDTX[UniverseChainId.Base_Sepolia],
+    USDCX[UniverseChainId.Base_Sepolia],
+    JOCX[UniverseChainId.Base_Sepolia],
+  ].map(buildCurrencyInfo),
+  [UniverseChainId.Avalanche_Fuji]: [
+    nativeOnChain(UniverseChainId.Avalanche_Fuji),
+    WRAPPED_NATIVE_CURRENCY[UniverseChainId.Avalanche_Fuji] as Token,
+    USDC_AVAX_FUJI,
+    USDTX[UniverseChainId.Avalanche_Fuji],
+    USDCX[UniverseChainId.Avalanche_Fuji],
+    JOCX[UniverseChainId.Avalanche_Fuji],
+  ].map(buildCurrencyInfo),
+
   [UniverseChainId.ArbitrumOne]: [
     nativeOnChain(UniverseChainId.ArbitrumOne),
     ARB,

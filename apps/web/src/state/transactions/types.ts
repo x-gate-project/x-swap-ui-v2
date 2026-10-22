@@ -1,4 +1,5 @@
 import { TradeType } from '@uniswap/sdk-core'
+import type { BridgeProviderId } from 'lib/crossChain/bridge'
 import { VoteOption } from 'state/governance/types'
 import {
   AssetActivityPartsFragment,
@@ -40,6 +41,8 @@ export enum TransactionType {
   DEPLOY,
   CANCEL,
   LIMIT,
+  BRIDGE,
+  CROSS_CHAIN_SWAP,
 }
 
 interface BaseTransactionInfo {
@@ -183,6 +186,40 @@ export interface SendTransactionInfo {
   recipient: string
 }
 
+export interface BridgeTransactionInfo extends BaseTransactionInfo {
+  type: TransactionType.BRIDGE
+  inputCurrencyId: string
+  outputCurrencyId: string
+  inputCurrencyAmountRaw: string
+  expectedOutputCurrencyAmountRaw: string
+  srcChainId: number
+  dstChainId: number
+  /** Bridge provider used — selects completion polling + explorer link. Missing = 'lz' (legacy). */
+  bridgeProtocol?: BridgeProviderId
+  /** Across SpokePool depositId (from FundsDeposited event) — required to poll GET /deposit/status */
+  depositId?: string
+}
+
+
+
+/** Cross-chain swap: atomic swap+bridge in 1 tx (e.g. XChainSender: USDT→JOCX→JOCT) */
+export interface CrossChainSwapTransactionInfo extends BaseTransactionInfo {
+  type: TransactionType.CROSS_CHAIN_SWAP
+  inputCurrencyId: string
+  outputCurrencyId: string
+  inputCurrencyAmountRaw: string
+  expectedOutputCurrencyAmountRaw: string
+  srcChainId: number
+  dstChainId: number
+  /** Bridge provider used for the 2nd leg — selects completion polling + explorer link. Missing = 'lz' (legacy). */
+  bridgeProtocol?: BridgeProviderId
+  /** Across SpokePool depositId (from FundsDeposited event) — required to poll GET /deposit/status */
+  depositId?: string
+  /** Aggregator-rail order id (AggregatorSource.registerOrder). Set = poll via aggregatorTracker. */
+  aggregatorOrderId?: string
+}
+
+
 export type TransactionInfo =
   | ApproveTransactionInfo
   | ExactOutputSwapTransactionInfo
@@ -203,6 +240,8 @@ export type TransactionInfo =
   | RemoveLiquidityV3TransactionInfo
   | SubmitProposalTransactionInfo
   | SendTransactionInfo
+  | BridgeTransactionInfo
+  | CrossChainSwapTransactionInfo
 
 interface BaseTransactionDetails {
   status: TransactionStatus
@@ -218,7 +257,10 @@ export interface PendingTransactionDetails extends BaseTransactionDetails {
   status: TransactionStatus.Pending
   lastCheckedBlockNumber?: number
   deadline?: number
+  /** True when src-chain tx confirmed but bridge leg (LZ message / Across fill) not yet delivered */
+  bridgePending?: boolean
 }
+
 
 export interface ConfirmedTransactionDetails extends BaseTransactionDetails {
   status: TransactionStatus.Confirmed | TransactionStatus.Failed

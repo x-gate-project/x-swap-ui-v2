@@ -1,6 +1,7 @@
 import { Currency, CurrencyAmount, TradeType } from '@uniswap/sdk-core'
 import { Field } from 'components/swap/constants'
-import { TESTNET_CHAIN_IDS, useSupportedChainId } from 'constants/chains'
+import { showTestnetsAtom } from 'components/AccountDrawer/TestnetsToggle'
+import { SupportedInterfaceChainId, TESTNET_CHAIN_IDS, useSupportedChainId } from 'constants/chains'
 import { NATIVE_CHAIN_ID } from 'constants/tokens'
 import { supportedChainIdFromGQLChain } from 'graphql/data/util'
 import { useCurrency } from 'hooks/Tokens'
@@ -14,8 +15,9 @@ import { useUSDPrice } from 'hooks/useUSDPrice'
 import { Trans } from 'i18n'
 import useNativeCurrency from 'lib/hooks/useNativeCurrency'
 import tryParseCurrencyAmount from 'lib/utils/tryParseCurrencyAmount'
+import { useAtomValue } from 'jotai/utils'
 import { ParsedQs } from 'qs'
-import { ReactNode, useCallback, useContext, useMemo } from 'react'
+import { ReactNode, useCallback, useContext, useMemo, useRef } from 'react'
 import { useCurrencyBalance, useCurrencyBalances } from 'state/connection/hooks'
 import { InterfaceTrade, RouterPreference, TradeState } from 'state/routing/types'
 import { isClassicTrade, isSubmittableTrade, isUniswapXTrade } from 'state/routing/utils'
@@ -46,9 +48,14 @@ export function useSwapAndLimitContext() {
   // One example is the CurrencySearch component, which is used in the swap context, but also in
   // the add/remove liquidity flows, nft flows, etc. In these cases, we want to use the chainId
   // from the provider account (hooks/useAccount), instead of the swap context chainId.
+  const fallbackChainId = context.isSwapAndLimitContext ? context.chainId : account.chainId
   return {
     ...context,
-    chainId: context.isSwapAndLimitContext ? context.chainId : account.chainId,
+    chainId: fallbackChainId,
+    // Per-field chain IDs: independent of each other and of the global chainId.
+    // Outside swap context, both fall back to account chainId.
+    inputChainId: context.isSwapAndLimitContext ? context.inputChainId : account.chainId,
+    outputChainId: context.isSwapAndLimitContext ? context.outputChainId : account.chainId,
   }
 }
 
@@ -75,12 +82,11 @@ export function useSwapActionHandlers(): {
           ...swapState,
           independentField: swapState.independentField === Field.INPUT ? Field.OUTPUT : Field.INPUT,
         }))
-        // multichain ux case where we set input or output to different chain
+        // Cross-chain: keep the other token — don't clear it (enables cross-chain swap UX)
       } else if (otherCurrency?.chainId !== currency.chainId) {
         setCurrencyState((state) => ({
           ...state,
           [currentCurrencyKey]: currency,
-          [otherCurrencyKey]: undefined,
         }))
       } else {
         setCurrencyState((state) => ({
@@ -100,8 +106,19 @@ export function useSwapActionHandlers(): {
       newOutputHasTax: boolean
       previouslyEstimatedOutput: string
     }) => {
-      // To prevent swaps with FOT tokens as exact-outputs, we leave it as an exact-in swap and use the previously estimated output amount as the new exact-in amount.
-      if (newOutputHasTax && swapState.independentField === Field.INPUT) {
+      const { inputCurrency, outputCurrency } = currencyState
+      const isCrossChain = Boolean(
+        inputCurrency && outputCurrency && inputCurrency.chainId !== outputCurrency.chainId,
+      )
+
+      if (isCrossChain) {
+        // Cross-chain: leg1/bridge quotes are one-directional — there's no reverse SOR quote
+        // to flip to like same-chain does. Force exact-in on the new sell token so typedValue
+        // survives the switch; useAggregatorQuote keys off currencies + amount and re-quotes
+        // automatically once currencyState below flips.
+        setSwapState((prev) => ({ ...prev, independentField: Field.INPUT }))
+      } else if (newOutputHasTax && swapState.independentField === Field.INPUT) {
+        // To prevent swaps with FOT tokens as exact-outputs, we leave it as an exact-in swap and use the previously estimated output amount as the new exact-in amount.
         setSwapState((swapState) => ({
           ...swapState,
           typedValue: previouslyEstimatedOutput,
@@ -118,8 +135,9 @@ export function useSwapActionHandlers(): {
         outputCurrency: prev.inputCurrency,
       }))
     },
-    [setCurrencyState, setSwapState, swapState.independentField],
+    [currencyState, setCurrencyState, setSwapState, swapState.independentField],
   )
+
 
   const onUserInput = useCallback(
     (field: Field, typedValue: string) => {
@@ -148,14 +166,19 @@ export function useDerivedSwapInfo(state: SwapState): SwapInfo {
     chainId,
     currencyState: { inputCurrency, outputCurrency },
   } = useSwapAndLimitContext()
-  const nativeCurrency = useNativeCurrency(chainId)
+  // Cross-chain: use sellToken's chainId for gas check, not global context chainId
+  const sellChainId = (inputCurrency?.chainId ?? chainId) as typeof chainId
+  const nativeCurrency = useNativeCurrency(sellChainId)
   const balance = useCurrencyBalance(account.address, nativeCurrency)
 
   const { independentField, typedValue } = state
 
+  // Cross-chain pairs are quoted by lib/crossChain/aggregator (all legs); skip same-chain SOR here.
+  const isCrossChain = !!inputCurrency && !!outputCurrency && inputCurrency.chainId !== outputCurrency.chainId
+
   const { inputTax, outputTax } = useSwapTaxes(
     inputCurrency?.isToken ? inputCurrency.address : undefined,
-    outputCurrency?.isToken ? outputCurrency.address : undefined,
+    !isCrossChain && outputCurrency?.isToken ? outputCurrency.address : undefined,
     chainId,
   )
 
@@ -177,7 +200,7 @@ export function useDerivedSwapInfo(state: SwapState): SwapInfo {
   } = useDebouncedTrade(
     isExactIn ? TradeType.EXACT_INPUT : TradeType.EXACT_OUTPUT,
     parsedAmount,
-    (isExactIn ? outputCurrency : inputCurrency) ?? undefined,
+    isCrossChain ? undefined : (isExactIn ? outputCurrency : inputCurrency) ?? undefined,
     state.routerPreferenceOverride as RouterPreference.API | undefined,
     account.address,
   )
@@ -220,7 +243,7 @@ export function useDerivedSwapInfo(state: SwapState): SwapInfo {
   // slippage amount used to submit the trade
   const allowedSlippage = uniswapXAutoSlippage ?? classicAllowedSlippage
 
-  const isTestnet = chainId !== undefined && TESTNET_CHAIN_IDS.includes(chainId)
+  const isTestnet = sellChainId !== undefined && TESTNET_CHAIN_IDS.includes(sellChainId)
 
   // totalGasUseEstimateUSD is greater than native token balance
   const insufficientGas =
@@ -260,17 +283,27 @@ export function useDerivedSwapInfo(state: SwapState): SwapInfo {
     }
 
     // compare input balance to max input based on version
-    const [balanceIn, maxAmountIn] = [currencyBalances[Field.INPUT], trade?.trade?.maximumAmountIn(allowedSlippage)]
-
-    if (balanceIn && maxAmountIn && balanceIn.lessThan(maxAmountIn)) {
-      inputError = (
-        <Trans
-          i18nKey="common.insufficientTokenBalance.error"
-          values={{
-            tokenSymbol: balanceIn.currency.symbol,
-          }}
-        />
-      )
+    const balanceIn = currencyBalances[Field.INPUT]
+    if (isCrossChain) {
+      // No SOR trade cross-chain: check balance directly against parsedAmount. Route errors come from the aggregator quote.
+      if (balanceIn && parsedAmount && balanceIn.lessThan(parsedAmount)) {
+        inputError = (
+          <Trans
+            i18nKey="common.insufficientTokenBalance.error"
+            values={{ tokenSymbol: balanceIn.currency.symbol }}
+          />
+        )
+      }
+    } else {
+      const maxAmountIn = trade?.trade?.maximumAmountIn(allowedSlippage)
+      if (balanceIn && maxAmountIn && balanceIn.lessThan(maxAmountIn)) {
+        inputError = (
+          <Trans
+            i18nKey="common.insufficientTokenBalance.error"
+            values={{ tokenSymbol: balanceIn.currency.symbol }}
+          />
+        )
+      }
     }
 
     return inputError
@@ -284,6 +317,7 @@ export function useDerivedSwapInfo(state: SwapState): SwapInfo {
     isDisconnected,
     insufficientGas,
     nativeCurrency.symbol,
+    isCrossChain,
   ])
 
   return useMemo(
@@ -332,8 +366,9 @@ export function queryParametersToCurrencyState(parsedQs: ParsedQs): SerializedCu
   const inputCurrency = parseCurrencyFromURLParameter(parsedQs.inputCurrency ?? parsedQs.inputcurrency)
   let outputCurrency = parseCurrencyFromURLParameter(parsedQs.outputCurrency ?? parsedQs.outputcurrency)
   const chainId = getParsedChainId(parsedQs)
-  if (inputCurrency === outputCurrency) {
-    // clear output if identical
+  const outputChainId = getParsedChainId(parsedQs, 'outputChain')
+  if (inputCurrency === outputCurrency && (outputChainId ?? chainId) === chainId) {
+    // clear output if identical (same token on the same chain)
     outputCurrency = ''
   }
 
@@ -341,6 +376,7 @@ export function queryParametersToCurrencyState(parsedQs: ParsedQs): SerializedCu
     inputCurrencyId: inputCurrency === '' ? undefined : inputCurrency ?? undefined,
     outputCurrencyId: outputCurrency === '' ? undefined : outputCurrency ?? undefined,
     chainId,
+    ...(outputChainId !== undefined && { outputChainId }),
   }
 }
 
@@ -357,8 +393,28 @@ export function useInitialCurrencyState(): {
   }, [parsedQs])
 
   const account = useAccount()
+  // Freeze wallet chainId as of first connect: with multichain UX, sellToken/buyToken
+  // chains are independent of the connected wallet chain. The wallet chain can change
+  // mid-flow (e.g. app-triggered switchChain to sign the swap tx); using a live
+  // account.chainId here would recompute "initial" currencies and clobber the user's
+  // already-selected sellToken/buyToken. ponytail: only freezes on first connect, not on
+  // manual wallet chain switches after that; add per-tab-open dep if that becomes an issue.
+  const frozenAccountChainIdRef = useRef<InterfaceChainId | undefined>(
+    account.isConnected ? account.chainId : undefined,
+  )
+  if (frozenAccountChainIdRef.current === undefined && account.isConnected && account.chainId !== undefined) {
+    frozenAccountChainIdRef.current = account.chainId
+  }
+  const accountChainIdForDefault = frozenAccountChainIdRef.current
+  // Cross-chain swap can't pair testnet with mainnet: only chains of the current mode count.
+  // Testnet mode always defaults to Sepolia; mainnet mode keeps the wallet chain as default.
+  const testnetMode = useAtomValue(showTestnetsAtom)
+  const inMode = (id?: number) =>
+    id !== undefined && TESTNET_CHAIN_IDS.includes(id as SupportedInterfaceChainId) === testnetMode ? id : undefined
   const supportedChainId =
-    useSupportedChainId(parsedCurrencyState.chainId ?? account.chainId) ?? UniverseChainId.Mainnet
+    useSupportedChainId(
+      inMode(parsedCurrencyState.chainId) ?? (testnetMode ? undefined : inMode(accountChainIdForDefault)),
+    ) ?? (testnetMode ? UniverseChainId.Sepolia : UniverseChainId.Mainnet)
 
   const { balanceList } = useTokenBalances({ cacheOnly: true })
 
@@ -407,15 +463,18 @@ export function useInitialCurrencyState(): {
     supportedChainId,
   ])
 
+  // Cross-chain: `?outputChain=` puts the output token on its own chain (same mode only).
+  const initialOutputChainId = useSupportedChainId(inMode(parsedCurrencyState.outputChainId)) ?? initialChainId
+
   const initialOutputCurrencyAddress = useMemo(
     () =>
-      initialInputCurrencyAddress === parsedCurrencyState.outputCurrencyId // clear output if identical
-        ? undefined
+      initialInputCurrencyAddress === parsedCurrencyState.outputCurrencyId && initialOutputChainId === initialChainId
+        ? undefined // clear output if identical (same token on the same chain)
         : parsedCurrencyState.outputCurrencyId,
-    [initialInputCurrencyAddress, parsedCurrencyState.outputCurrencyId],
+    [initialInputCurrencyAddress, parsedCurrencyState.outputCurrencyId, initialOutputChainId, initialChainId],
   )
   const initialInputCurrency = useCurrency(initialInputCurrencyAddress, initialChainId)
-  const initialOutputCurrency = useCurrency(initialOutputCurrencyAddress, initialChainId)
+  const initialOutputCurrency = useCurrency(initialOutputCurrencyAddress, initialOutputChainId)
 
   return { initialInputCurrency, initialOutputCurrency, initialChainId }
 }

@@ -73,7 +73,8 @@ export default function useMultiChainPositions(account: string, chains = DEFAULT
   const getTokens = useGetCachedTokens(chains)
   const poolAddressCache = usePoolAddressCache()
 
-  const [cachedPositions, setPositions] = useCachedPositions(account)
+  // Keyed by chains too, so switching Testnet mode (different chain set) fetches instead of reusing the other mode's cache.
+  const [cachedPositions, setPositions] = useCachedPositions(`${account}-${chains.join(',')}`)
   const positions = cachedPositions?.result
   const positionsFetching = useRef(false)
   const positionsLoading = !cachedPositions?.result && positionsFetching.current

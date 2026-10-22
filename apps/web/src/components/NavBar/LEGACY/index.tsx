@@ -4,6 +4,7 @@ import { GetTheAppButton } from 'components/NavBar/DownloadApp/GetTheAppButton'
 import Blur from 'components/NavBar/LEGACY/Blur'
 import { SearchBar } from 'components/NavBar/LEGACY/SearchBar/SearchBar'
 import * as styles from 'components/NavBar/LEGACY/style.css'
+import { TestnetModeBadge } from 'components/NavBar/TestnetModeBadge'
 import Web3Status from 'components/Web3Status'
 import { useIsLandingPage } from 'hooks/useIsLandingPage'
 import { useIsLimitPage } from 'hooks/useIsLimitPage'
@@ -150,6 +151,7 @@ const LegacyNavbar = ({ blur }: { blur: boolean }) => {
                 </Box>
               )}
               {/* {isLandingPage && <GetTheAppButton />} */}
+              <TestnetModeBadge />
               <Web3Status />
             </Row>
           </Box>

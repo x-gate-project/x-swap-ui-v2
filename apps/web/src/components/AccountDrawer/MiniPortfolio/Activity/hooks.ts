@@ -2,8 +2,11 @@ import { useLocalActivities } from 'components/AccountDrawer/MiniPortfolio/Activ
 import { parseRemoteActivities } from 'components/AccountDrawer/MiniPortfolio/Activity/parseRemote'
 import { Activity, ActivityMap } from 'components/AccountDrawer/MiniPortfolio/Activity/types'
 import { useCreateCancelTransactionRequest } from 'components/AccountDrawer/MiniPortfolio/Activity/utils'
+import { showTestnetsAtom } from 'components/AccountDrawer/TestnetsToggle'
+import { SupportedInterfaceChainId, TESTNET_CHAIN_IDS } from 'constants/chains'
 import { useAssetActivity } from 'graphql/data/apollo/AssetActivityProvider'
 import { GasFeeResult, GasSpeed, useTransactionGasFee } from 'hooks/useTransactionGasFee'
+import { useAtomValue } from 'jotai/utils'
 import { useEffect, useMemo } from 'react'
 import { usePendingOrders } from 'state/signatures/hooks'
 import { SignatureType, UniswapXOrderDetails } from 'state/signatures/types'
@@ -92,7 +95,15 @@ export function useAllActivities(account: string) {
     })
   }, [account, localMap, remoteMap, updateCancelledTx])
 
-  const combinedActivities = useMemo(() => combineActivities(localMap, remoteMap ?? {}), [localMap, remoteMap])
+  // Local store holds txs of every chain; only show those matching the current (testnet/mainnet) mode.
+  const testnetMode = useAtomValue(showTestnetsAtom)
+  const combinedActivities = useMemo(
+    () =>
+      combineActivities(localMap, remoteMap ?? {}).filter(
+        (activity) => TESTNET_CHAIN_IDS.includes(activity.chainId as SupportedInterfaceChainId) === testnetMode,
+      ),
+    [localMap, remoteMap, testnetMode],
+  )
 
   return { loading, activities: combinedActivities }
 }

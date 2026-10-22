@@ -70,6 +70,38 @@ describe('hooks', () => {
       })
     })
 
+    test('cross-chain: outputChain sets output token chain', () => {
+      expect(
+        queryParametersToCurrencyState(
+          parse(
+            '?chain=sepolia&inputCurrency=ETH&outputChain=arbitrum_sepolia&outputCurrency=0x75faf114eafb1bdbe2f0316df893fd58ce46aa4d',
+            { parseArrays: false, ignoreQueryPrefix: true }
+          )
+        )
+      ).toEqual({
+        inputCurrencyId: 'ETH',
+        outputCurrencyId: '0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d',
+        chainId: UniverseChainId.Sepolia,
+        outputChainId: UniverseChainId.ArbitrumSepolia,
+      })
+    })
+
+    test('cross-chain: same token on different chains is kept', () => {
+      expect(
+        queryParametersToCurrencyState(
+          parse('?chain=sepolia&inputCurrency=ETH&outputChain=arbitrum_sepolia&outputCurrency=ETH', {
+            parseArrays: false,
+            ignoreQueryPrefix: true,
+          })
+        )
+      ).toEqual({
+        inputCurrencyId: 'ETH',
+        outputCurrencyId: 'ETH',
+        chainId: UniverseChainId.Sepolia,
+        outputChainId: UniverseChainId.ArbitrumSepolia,
+      })
+    })
+
     test('output ETH only, lowercase', () => {
       expect(
         queryParametersToCurrencyState(
