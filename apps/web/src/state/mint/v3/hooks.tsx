@@ -289,7 +289,7 @@ export function useV3DerivedMintInfo(
   )
 
   // mark invalid range
-  const invalidRange = Boolean(typeof tickLower === 'number' && typeof tickUpper === 'number' && tickLower >= tickUpper)
+  const invalidRange = (!tickLower || !tickUpper) ? true : Boolean(typeof tickLower === 'number' && typeof tickUpper === 'number' && tickLower >= tickUpper)
 
   const pricesAtLimit = useMemo(() => {
     return {
