@@ -1,5 +1,6 @@
 import { createSlice } from '@reduxjs/toolkit'
-import { PendingTransactionDetails, TransactionDetails, TransactionInfo } from 'state/transactions/types'
+import { PendingTransactionDetails, TransactionDetails, TransactionInfo, TransactionType } from 'state/transactions/types'
+
 import { TransactionStatus } from 'uniswap/src/data/graphql/uniswap-data-api/__generated__/types-and-hooks'
 import { InterfaceChainId } from 'uniswap/src/types/chains'
 
@@ -87,8 +88,25 @@ const transactionSlice = createSlice({
         status,
         confirmedTime: Date.now(),
         info: info ?? tx.info,
+        // Reset so a finalized tx is never re-picked-up by bridge-leg pollers.
+        bridgePending: false,
       }
     },
+
+    markCrossChainSwapBridgePending(
+      transactions,
+      {
+        payload: { chainId, hash, depositId },
+      }: { payload: { chainId: InterfaceChainId; hash: string; depositId?: string } },
+    ) {
+      const tx = transactions[chainId]?.[hash]
+      if (!tx || tx.status !== TransactionStatus.Pending) return
+      tx.bridgePending = true
+      if (depositId && (tx.info.type === TransactionType.CROSS_CHAIN_SWAP || tx.info.type === TransactionType.BRIDGE)) {
+        tx.info.depositId = depositId
+      }
+    },
+
     cancelTransaction(
       transactions,
       {
@@ -116,5 +134,7 @@ export const {
   finalizeTransaction,
   removeTransaction,
   cancelTransaction,
+  markCrossChainSwapBridgePending,
 } = transactionSlice.actions
+
 export default transactionSlice.reducer

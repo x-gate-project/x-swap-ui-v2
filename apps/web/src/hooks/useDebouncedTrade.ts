@@ -12,6 +12,13 @@ import { useRouterPreference } from 'state/user/hooks'
 import { FeatureFlags } from 'uniswap/src/features/gating/flags'
 import { useFeatureFlag } from 'uniswap/src/features/gating/hooks'
 
+/** User's routing preference (protocols/router) when MultipleRoutingOptions is on; undefined = SOR defaults. */
+export function useUserRoutingPreference() {
+  const multipleRouteOptionsEnabled = useFeatureFlag(FeatureFlags.MultipleRoutingOptions)
+  const multipleRouteOptionsRoutingPreference = useAtomValue(routingPreferencesAtom)
+  return multipleRouteOptionsEnabled ? multipleRouteOptionsRoutingPreference : undefined
+}
+
 // Prevents excessive quote requests between keystrokes.
 const DEBOUNCE_TIME = 350
 const DEBOUNCE_TIME_QUICKROUTE = 50
@@ -88,9 +95,7 @@ export function useDebouncedTrade(
   }, [amountSpecified, chainId, otherCurrency])
 
   const [routerPreference] = useRouterPreference()
-  const multipleRouteOptionsEnabled = useFeatureFlag(FeatureFlags.MultipleRoutingOptions)
-  const multipleRouteOptionsRoutingPreference = useAtomValue(routingPreferencesAtom)
-  const routingPreference = multipleRouteOptionsEnabled ? multipleRouteOptionsRoutingPreference : undefined
+  const routingPreference = useUserRoutingPreference()
 
   const skipBothFetches = isWrap
   const skipRoutingFetch = skipBothFetches || isDebouncing

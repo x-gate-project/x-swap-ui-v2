@@ -11,6 +11,7 @@ import logs from 'state/logs/slice'
 import { INDEXED_DB_REDUX_TABLE_NAME, customCreateMigrate, migrations } from 'state/migrations'
 import mint from 'state/mint/reducer'
 import mintV3 from 'state/mint/v3/reducer'
+import { bridgeQuoteApi } from 'state/routing/bridgeQuoteSlice'
 import { quickRouteApi } from 'state/routing/quickRouteSlice'
 import { alchemyPayAggregatorApi, jocPriceAPi, routingApi } from 'state/routing/slice'
 import signatures from 'state/signatures/reducer'
@@ -42,6 +43,7 @@ const appReducer = combineReducers({
   [quickRouteApi.reducerPath]: quickRouteApi.reducer,
   [fiatOnRampAggregatorApi.reducerPath]: fiatOnRampAggregatorApi.reducer,
   [alchemyPayAggregatorApi.reducerPath]: alchemyPayAggregatorApi.reducer,
+  [bridgeQuoteApi.reducerPath]: bridgeQuoteApi.reducer,
   ...persistedReducers,
 })
 

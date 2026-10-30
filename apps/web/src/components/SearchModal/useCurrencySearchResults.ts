@@ -2,6 +2,8 @@ import { Currency } from '@uniswap/sdk-core'
 import { CurrencyListRow, CurrencyListSectionTitle } from 'components/SearchModal/CurrencyList'
 import { CurrencySearchFilters } from 'components/SearchModal/CurrencySearch'
 import { chainIdToBackendChain, useSupportedChainId } from 'constants/chains'
+import { UNIVERSE_CHAIN_INFO } from 'uniswap/src/constants/chains'
+import { COMMON_BASES } from 'constants/routing'
 import { gqlTokenToCurrencyInfo } from 'graphql/data/types'
 import { useFallbackListTokens, useToken } from 'hooks/Tokens'
 import { useTokenBalances } from 'hooks/useTokenBalances'
@@ -27,6 +29,7 @@ interface CurrencySearchParams {
   filters?: CurrencySearchFilters
   selectedCurrency?: Currency | null
   otherSelectedCurrency?: Currency | null
+  chainId?: number
 }
 
 interface CurrencySearchResults {
@@ -51,9 +54,19 @@ export function useCurrencySearchResults({
   filters,
   selectedCurrency,
   otherSelectedCurrency,
+  chainId: chainIdProp,
 }: CurrencySearchParams): CurrencySearchResults {
-  const { chainId } = useSwapAndLimitContext()
+  const { chainId: contextChainId } = useSwapAndLimitContext()
+  const chainId = chainIdProp ?? contextChainId
   const supportedChain = useSupportedChainId(chainId)
+
+  // Skip GQL for chains with no backend support (e.g. JocTestnet) or that are "secondary"
+  // chains aliased to their mainnet counterpart in the backend (e.g. Base Sepolia -> BASE,
+  // Avalanche Fuji -> AVALANCHE, Arbitrum Sepolia -> ARBITRUM). Querying GQL for those would
+  // silently return mainnet tokens. Use commonBaseCurrencies + local token list instead.
+  const chainInfo = chainId ? UNIVERSE_CHAIN_INFO[chainId as keyof typeof UNIVERSE_CHAIN_INFO] : undefined
+  const hasGqlBackend = !chainId || ((chainInfo?.backendChain?.backendSupported ?? true) && !chainInfo?.backendChain?.isSecondaryChain)
+
 
   /**
    * GraphQL queries for tokens and search results
@@ -63,7 +76,7 @@ export function useCurrencySearchResults({
       searchQuery: searchQuery ?? '',
       chains: [chainIdToBackendChain({ chainId: supportedChain, withFallback: true }) ?? Chain.Ethereum],
     },
-    skip: !searchQuery,
+    skip: !searchQuery || !hasGqlBackend,
   })
   const { data: popularTokens, loading: popularTokensLoading } = useTopTokensQuery({
     fetchPolicy: 'cache-first',
@@ -73,6 +86,7 @@ export function useCurrencySearchResults({
       page: 1,
       pageSize: 100,
     },
+    skip: !hasGqlBackend,
   })
   const sortedPopularTokens = useMemo(() => {
     if (!popularTokens?.topTokens) {
@@ -104,12 +118,19 @@ export function useCurrencySearchResults({
   /**
    * Results processing: sorting, filtering, and merging data sources into the final list.
    */
+  // Common bases for the active chain — used as fallback when GQL returns nothing (e.g. testnets)
+  const commonBaseCurrencies = useMemo(() => {
+    if (!chainId) return []
+    return (COMMON_BASES[chainId] ?? []).map((info) => info.currency).filter((c): c is Currency => !!c)
+  }, [chainId])
+
   const { sortedCombinedTokens, portfolioTokens, sortedTokensWithoutPortfolio } = useMemo(() => {
     const fullBaseList = (() => {
       if ((!isEmpty(searchQuery) && gqlSearchResultsEmpty) || (isEmpty(searchQuery) && gqlPopularTokensEmpty)) {
-        return Object.values(defaultAndUserAddedTokens)
+        return deduplicateCurrencies([...commonBaseCurrencies, ...Object.values(defaultAndUserAddedTokens)])
       } else if (!isEmpty(searchQuery)) {
         return deduplicateCurrencies([
+          ...commonBaseCurrencies.filter(getTokenFilter(searchQuery)),
           ...Object.values(defaultAndUserAddedTokens).filter(getTokenFilter(searchQuery)),
           ...((searchResults?.searchTokens?.map(gqlCurrencyMapper).filter(Boolean) as Currency[]) ?? []),
           ...userAddedTokens
@@ -121,6 +142,7 @@ export function useCurrencySearchResults({
         ])
       } else {
         return deduplicateCurrencies([
+          ...commonBaseCurrencies,
           ...Object.values(defaultAndUserAddedTokens),
           ...((sortedPopularTokens?.map(gqlCurrencyMapper).filter(Boolean) as Currency[]) ?? []),
           ...userAddedTokens,
@@ -201,6 +223,7 @@ export function useCurrencySearchResults({
     balanceMap,
     chainId,
     gqlPopularTokensEmpty,
+    commonBaseCurrencies,
     defaultAndUserAddedTokens,
     searchResults?.searchTokens,
     userAddedTokens,

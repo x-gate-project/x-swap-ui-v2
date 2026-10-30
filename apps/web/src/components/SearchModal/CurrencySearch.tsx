@@ -7,6 +7,7 @@ import CommonBases from 'components/SearchModal/CommonBases'
 import CurrencyList, { CurrencyRow, formatAnalyticsEventProperties } from 'components/SearchModal/CurrencyList'
 import { PaddedColumn, SearchInput, Separator } from 'components/SearchModal/styled'
 import { useCurrencySearchResults } from 'components/SearchModal/useCurrencySearchResults'
+import { Field } from 'components/swap/constants'
 import useDebounce from 'hooks/useDebounce'
 import { useOnClickOutside } from 'hooks/useOnClickOutside'
 import useSelectChain from 'hooks/useSelectChain'
@@ -23,6 +24,7 @@ import { useSwapAndLimitContext } from 'state/swap/hooks'
 import styled, { useTheme } from 'styled-components'
 import { CloseIcon, ThemedText } from 'theme/components'
 import Trace from 'uniswap/src/features/telemetry/Trace'
+import { InterfaceChainId, UniverseChainId } from 'uniswap/src/types/chains'
 import { isAddress } from 'utilities/src/addresses'
 import { currencyKey } from 'utils/currencyKey'
 
@@ -60,6 +62,9 @@ interface CurrencySearchProps {
   otherSelectedCurrency?: Currency | null
   showCurrencyAmount?: boolean
   filters?: CurrencySearchFilters
+  /** Which swap field this search is for. When provided, chain selection is local to this modal
+   *  and does not affect the other field — enabling future cross-chain swap support. */
+  field?: Field
 }
 
 export function CurrencySearch({
@@ -70,12 +75,42 @@ export function CurrencySearch({
   onDismiss,
   isOpen,
   filters,
+  field,
 }: CurrencySearchProps) {
   const { showCommonBases } = {
     ...DEFAULT_CURRENCY_SEARCH_FILTERS,
     ...filters,
   }
-  const { chainId } = useSwapAndLimitContext()
+  const { chainId: contextChainId, inputChainId, outputChainId } = useSwapAndLimitContext()
+
+  // Per-field fallback chain: use the chain already associated with this field's token.
+  // This ensures sell-modal opens on sell-token's chain and buy-modal on buy-token's chain,
+  // completely independent of the other field and of the global context chainId.
+  const fieldChainId =
+    field === Field.INPUT ? inputChainId :
+    field === Field.OUTPUT ? outputChainId :
+    contextChainId
+
+  // Per-field local chain state — independent of the other field's chain.
+  // Only active when `field` prop is provided (swap context). Falls back to
+  // fieldChainId for non-swap usages (liquidity, NFT, etc.).
+  // Init from selectedCurrency's chain so the modal opens on the right network.
+  const [localChainId, setLocalChainId] = useState<InterfaceChainId | undefined>(
+    selectedCurrency?.chainId ?? fieldChainId,
+  )
+
+  // Sync localChainId when modal opens — derive from the already-selected token's chain,
+  // so sell-modal defaults to sell-token's chain and buy-modal defaults to buy-token's chain.
+  useEffect(() => {
+    if (isOpen) {
+      setSearchQuery('')
+      setLocalChainId(selectedCurrency?.chainId ?? fieldChainId)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]) // intentionally only re-run on open — fieldChainId/selectedCurrency are captured at open time
+
+  // Use localChainId when field is provided (swap), otherwise fall back to context
+  const activeChainId = field !== undefined ? localChainId : contextChainId
 
   const theme = useTheme()
 
@@ -95,36 +130,32 @@ export function CurrencySearch({
     filters,
     selectedCurrency,
     otherSelectedCurrency,
+    chainId: activeChainId,
   })
 
   const { balanceMap } = useTokenBalances()
 
-  const native = useNativeCurrency(chainId)
+  const native = useNativeCurrency(activeChainId)
 
   const selectChain = useSelectChain()
   const handleCurrencySelect = useCallback(
     async (currency: Currency, hasWarning?: boolean) => {
-      if (currency.chainId !== chainId) {
+      if (field === undefined && currency.chainId !== contextChainId) {
+        // Legacy (non-swap) usage: switch wallet network to match selected token's chain
         const result = await selectChain(currency.chainId)
         if (!result) {
           // failed to switch chains, don't select the currency
           return
         }
       }
+      // When field is provided (swap context), skip chain switching — cross-chain tokens are allowed
       onCurrencySelect(currency, hasWarning)
       if (!hasWarning) {
         onDismiss()
       }
     },
-    [chainId, onCurrencySelect, onDismiss, selectChain],
+    [field, contextChainId, onCurrencySelect, onDismiss, selectChain],
   )
-
-  // clear the input on open
-  useEffect(() => {
-    if (isOpen) {
-      setSearchQuery('')
-    }
-  }, [isOpen])
 
   // manage focus on modal show
   const inputRef = useRef<HTMLInputElement>()
@@ -162,6 +193,10 @@ export function CurrencySearch({
   const node = useRef<HTMLDivElement>()
   useOnClickOutside(node, open ? toggle : undefined)
 
+  const handleLocalChainSelect = useCallback((chainId: UniverseChainId | null) => {
+    setLocalChainId(chainId ?? undefined)
+  }, [])
+
   return (
     <ContentWrapper>
       <Trace
@@ -189,12 +224,19 @@ export function CurrencySearch({
               onKeyDown={handleEnter}
             />
             <ChainSelectorWrapper>
-              <ChainSelector />
+              {field !== undefined ? (
+                // Per-field chain selector: local state only, does not affect the other field
+                <ChainSelector chainId={activeChainId ?? null} onSelectChain={handleLocalChainSelect} />
+              ) : (
+
+                // Global chain selector: updates swap context (legacy / non-swap usage)
+                <ChainSelector />
+              )}
             </ChainSelectorWrapper>
           </Row>
           {showCommonBases && (
             <CommonBases
-              chainId={chainId}
+              chainId={activeChainId}
               onSelect={handleCurrencySelect}
               selectedCurrency={selectedCurrency}
               searchQuery={searchQuery}

@@ -14,8 +14,8 @@ function getChainIdFromName(name: string) {
   return chainId ? parseInt(chainId) : undefined
 }
 
-export function getParsedChainId(parsedQs?: ParsedQs) {
-  const chain = parsedQs?.chain
+export function getParsedChainId(parsedQs?: ParsedQs, key = 'chain') {
+  const chain = parsedQs?.[key]
   if (!chain || typeof chain !== 'string') {
     return
   }

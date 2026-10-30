@@ -65,7 +65,7 @@ export function ActivityRow({ activity }: { activity: Activity }) {
   const openOffchainActivityModal = useOpenOffchainActivityModal()
 
   const { ENSName } = useENSName(otherAccount)
-  const explorerUrl = getExplorerLink(chainId, hash, ExplorerDataType.TRANSACTION)
+  const explorerUrl = activity.explorerUrl ?? getExplorerLink(chainId, hash, ExplorerDataType.TRANSACTION)
 
   const onClick = useCallback(() => {
     if (offchainOrderDetails) {
@@ -76,8 +76,8 @@ export function ActivityRow({ activity }: { activity: Activity }) {
       return
     }
 
-    window.open(getExplorerLink(chainId, hash, ExplorerDataType.TRANSACTION), '_blank')
-  }, [activity?.logos, chainId, hash, offchainOrderDetails, openOffchainActivityModal])
+    window.open(explorerUrl, '_blank')
+  }, [activity?.logos, explorerUrl, offchainOrderDetails, openOffchainActivityModal])
 
   return (
     <Trace
@@ -88,7 +88,13 @@ export function ActivityRow({ activity }: { activity: Activity }) {
       <PortfolioRow
         left={
           <Column>
-            <PortfolioLogo chainId={chainId} currencies={currencies} images={logos} accountAddress={otherAccount} />
+            <PortfolioLogo
+              chainId={chainId}
+              dstChainId={activity.dstChainId}
+              currencies={currencies}
+              images={logos}
+              accountAddress={otherAccount}
+            />
           </Column>
         }
         title={

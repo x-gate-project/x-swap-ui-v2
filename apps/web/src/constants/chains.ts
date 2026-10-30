@@ -103,7 +103,7 @@ export const GQL_MAINNET_CHAINS = Object.values(UNIVERSE_CHAIN_INFO)
   .map((chain) => chain.backendChain.chain)
   .filter((backendChain) => !!backendChain)
 
-const GQL_TESTNET_CHAINS = Object.values(UNIVERSE_CHAIN_INFO)
+export const GQL_TESTNET_CHAINS = Object.values(UNIVERSE_CHAIN_INFO)
   .filter((chain) => chain.testnet && !chain.backendChain.isSecondaryChain)
   .map((chain) => chain.backendChain.chain)
 

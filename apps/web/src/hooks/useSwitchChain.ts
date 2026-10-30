@@ -40,7 +40,12 @@ export function useSwitchChain() {
               {
                 onSuccess() {
                   try {
-                    if (multichainUXEnabled || page === InterfacePageName.EXPLORE_PAGE) {
+                    // Swap page: rewriting ?chain= recomputes initial currencies and wipes the form.
+                    if (
+                      multichainUXEnabled ||
+                      page === InterfacePageName.EXPLORE_PAGE ||
+                      page === InterfacePageName.SWAP_PAGE
+                    ) {
                       return
                     }
                     searchParams.set('chain', CHAIN_IDS_TO_NAMES[chainId])

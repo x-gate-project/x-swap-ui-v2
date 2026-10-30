@@ -2,11 +2,13 @@ import { OperationVariables, QueryResult } from '@apollo/client'
 import { DeepPartial } from '@apollo/client/utilities'
 import { DataTag, DefaultError, QueryKey, UndefinedInitialDataOptions, queryOptions } from '@tanstack/react-query'
 import { Currency, Token } from '@uniswap/sdk-core'
+import { showTestnetsAtom } from 'components/AccountDrawer/TestnetsToggle'
 import {
   AVERAGE_L1_BLOCK_TIME,
   BACKEND_SUPPORTED_CHAINS,
   CHAIN_NAME_TO_CHAIN_ID,
   GQL_MAINNET_CHAINS,
+  GQL_TESTNET_CHAINS,
   InterfaceGqlChain,
   SupportedInterfaceChainId,
   UX_SUPPORTED_GQL_CHAINS,
@@ -14,6 +16,7 @@ import {
   isSupportedChainId,
 } from 'constants/chains'
 import { NATIVE_CHAIN_ID, WRAPPED_NATIVE_CURRENCY, nativeOnChain } from 'constants/tokens'
+import { useAtomValue } from 'jotai/utils'
 import ms from 'ms'
 import { ExploreTab } from 'pages/Explore'
 import { useEffect } from 'react'
@@ -84,7 +87,13 @@ export function isPricePoint(p: PricePoint | undefined): p is PricePoint {
 }
 
 /** Used for making graphql queries to all chains supported by the graphql backend. Must be mutable for some apollo typechecking. */
-export const GQL_MAINNET_CHAINS_MUTABLE = GQL_MAINNET_CHAINS.map((c) => c)
+const GQL_MAINNET_CHAINS_MUTABLE = GQL_MAINNET_CHAINS.map((c) => c)
+const GQL_TESTNET_CHAINS_MUTABLE = GQL_TESTNET_CHAINS.map((c) => c)
+
+/** Portfolio/activity queries only cover chains of the current mode (Testnet mode toggle). */
+export function useGqlPortfolioChains() {
+  return useAtomValue(showTestnetsAtom) ? GQL_TESTNET_CHAINS_MUTABLE : GQL_MAINNET_CHAINS_MUTABLE
+}
 
 export function isGqlSupportedChain(chainId?: SupportedInterfaceChainId) {
   return !!chainId && GQL_MAINNET_CHAINS.includes(UNIVERSE_CHAIN_INFO[chainId].backendChain.chain)

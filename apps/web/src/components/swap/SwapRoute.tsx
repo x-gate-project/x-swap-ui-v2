@@ -1,3 +1,5 @@
+import { Currency } from '@uniswap/sdk-core'
+
 import Column from 'components/Column'
 import RouterLabel from 'components/RouterLabel'
 import RoutingDiagram from 'components/RoutingDiagram/RoutingDiagram'
@@ -5,6 +7,7 @@ import { RowBetween } from 'components/Row'
 import { UniswapXDescription } from 'components/swap/GasBreakdownTooltip'
 import { SUPPORTED_GAS_ESTIMATE_CHAIN_IDS } from 'constants/chains'
 import { Trans } from 'i18n'
+import type { RouteHop } from 'lib/crossChain/aggregator/types'
 import { ClassicTrade, SubmittableTrade } from 'state/routing/types'
 import { isClassicTrade } from 'state/routing/utils'
 import { Separator, ThemedText } from 'theme/components'
@@ -56,6 +59,26 @@ export function RoutingTooltip({ trade }: { trade: SubmittableTrade }) {
       <RouteLabel trade={trade} />
       <Separator />
       <UniswapXDescription />
+    </Column>
+  )
+}
+
+export function CrossChainSwapRoute({
+  hops,
+  inputCurrency,
+  outputCurrency,
+}: {
+  hops: RouteHop[]
+  inputCurrency: Currency
+  outputCurrency: Currency
+}) {
+  return (
+    <Column gap="md">
+      <RoutingDiagram routes={[]} currencyIn={inputCurrency} currencyOut={outputCurrency} crossChainHops={hops} />
+
+      <ThemedText.Caption color="neutral2">
+        <Trans i18nKey="swap.route.optimizedGasCost" />
+      </ThemedText.Caption>
     </Column>
   )
 }

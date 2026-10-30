@@ -83,6 +83,11 @@ type SwapAndLimitContextType = {
   // The chainId of the context - can be different from the connected Chain ID
   // if multichain UX is enabled, otherwise it will be the same as the connected chain ID
   chainId?: InterfaceChainId
+  // Per-field chain IDs — independent of each other and of the global chainId.
+  // Derived from the selected currency for each field; falls back to chainId.
+  // Use these for cross-chain swap support so sell/buy networks are decoupled.
+  inputChainId?: InterfaceChainId
+  outputChainId?: InterfaceChainId
   // The initial chain ID - used by TDP and PDP pages to keep swap scoped to the initial chain
   initialChainId?: InterfaceChainId
   multichainUXEnabled?: boolean
@@ -115,6 +120,8 @@ export interface SerializedCurrencyState {
   inputCurrencyId?: string
   outputCurrencyId?: string
   chainId?: number
+  /** Cross-chain: `?outputChain=` — output token's chain; falls back to `chainId` when absent. */
+  outputChainId?: number
 }
 
 // shared state between Swap and Limit
@@ -128,3 +135,5 @@ export interface SwapState {
   readonly typedValue: string
   routerPreferenceOverride?: RouterPreference.API
 }
+
+

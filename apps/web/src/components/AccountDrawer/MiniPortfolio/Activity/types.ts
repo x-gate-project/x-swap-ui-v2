@@ -10,6 +10,8 @@ import { InterfaceChainId } from 'uniswap/src/types/chains'
 export type Activity = {
   hash: string
   chainId: InterfaceChainId
+  /** Destination chain for BRIDGE / CROSS_CHAIN_SWAP */
+  dstChainId?: InterfaceChainId
   status: TransactionStatus
   offchainOrderDetails?: UniswapXOrderDetails
   statusMessage?: string
@@ -26,6 +28,8 @@ export type Activity = {
   suffixIconSrc?: string
   cancelled?: boolean
   isSpam?: boolean
+  /** Overrides the default chain explorer link (e.g. X-Gate Scan for LayerZero bridge txs) */
+  explorerUrl?: string
 }
 
 export type ActivityMap = { [id: string]: Activity | undefined }

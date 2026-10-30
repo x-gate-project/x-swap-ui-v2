@@ -21,6 +21,7 @@ export function getNativeLogoURI(chainId: InterfaceChainId = UniverseChainId.Mai
     case UniverseChainId.CeloAlfajores:
       return CeloLogo
     case UniverseChainId.Avalanche:
+    case UniverseChainId.Avalanche_Fuji:
       return AvaxLogo
     case UniverseChainId.JocTestnet:
       return JoctLogo

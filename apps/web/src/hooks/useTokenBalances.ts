@@ -1,6 +1,8 @@
+import { showTestnetsAtom } from 'components/AccountDrawer/TestnetsToggle'
 import { useTokenBalancesQuery } from 'graphql/data/apollo/TokenBalancesProvider'
-import { GQL_MAINNET_CHAINS_MUTABLE } from 'graphql/data/util'
+import { useGqlPortfolioChains } from 'graphql/data/util'
 import { useAccount } from 'hooks/useAccount'
+import { useAtomValue } from 'jotai/utils'
 import { TokenBalances } from 'lib/hooks/useTokenList/sorting'
 import { useMemo } from 'react'
 import {
@@ -22,14 +24,16 @@ export function useTokenBalances({ cacheOnly }: { cacheOnly?: boolean } = {}): {
 } {
   const account = useAccount()
   const multichainUXEnabled = useFeatureFlag(FeatureFlags.MultichainUX)
+  const chains = useGqlPortfolioChains()
+  const testnetMode = useAtomValue(showTestnetsAtom)
 
   // Quick result is always available at pageload, but never refetched when stale
   const quickQueryResult = useQuickTokenBalancesWebQuery({
     variables: {
       ownerAddress: account.address ?? '',
-      chains: GQL_MAINNET_CHAINS_MUTABLE,
+      chains,
     },
-    skip: !account.address || !multichainUXEnabled,
+    skip: !account.address || !multichainUXEnabled || testnetMode,
     fetchPolicy: 'cache-first',
   })
   // Full query result is not available at pageload, but is refetched when needed in UI

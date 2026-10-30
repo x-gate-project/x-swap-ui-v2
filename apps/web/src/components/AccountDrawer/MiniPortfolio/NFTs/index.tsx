@@ -2,8 +2,10 @@ import { NFT } from 'components/AccountDrawer/MiniPortfolio/NFTs/NFTItem'
 import { DEFAULT_NFT_QUERY_AMOUNT } from 'components/AccountDrawer/MiniPortfolio/constants'
 import { useAccountDrawer } from 'components/AccountDrawer/MiniPortfolio/hooks'
 import { TabButton } from 'components/AccountDrawer/MiniPortfolio/shared'
+import { showTestnetsAtom } from 'components/AccountDrawer/TestnetsToggle'
 import { useNftBalance } from 'graphql/data/nft/NftBalance'
 import { t } from 'i18n'
+import { useAtomValue } from 'jotai/utils'
 import { LoadingAssets } from 'nft/components/collection/CollectionAssetLoading'
 import { EmptyWalletModule } from 'nft/components/profile/view/EmptyWalletContent'
 import { useProfilePageState, useSellAsset, useWalletCollections } from 'nft/hooks'
@@ -31,10 +33,12 @@ export default function NFTs({ account }: { account: string }) {
   const clearCollectionFilters = useWalletCollections((state) => state.clearCollectionFilters)
 
   const isL2NFTsEnabled = useFeatureFlag(FeatureFlags.L2NFTs)
+  // ponytail: NFT backend has no testnet support, so Testnet mode shows empty; add testnet chains when backend does.
+  const testnetMode = useAtomValue(showTestnetsAtom)
   const { walletAssets, loading, hasNext, loadMore } = useNftBalance({
     ownerAddress: account,
     first: DEFAULT_NFT_QUERY_AMOUNT,
-    skip: !accountDrawer.isOpen,
+    skip: !accountDrawer.isOpen || testnetMode,
     chains: isL2NFTsEnabled ? [Chain.Ethereum, Chain.Zora] : undefined,
   })
 
@@ -56,7 +60,7 @@ export default function NFTs({ account }: { account: string }) {
     )
   }
 
-  if (!walletAssets || walletAssets?.length === 0) {
+  if (testnetMode || !walletAssets || walletAssets?.length === 0) {
     return <EmptyWalletModule onNavigateClick={accountDrawer.close} />
   }
 

@@ -8,6 +8,7 @@ import { ExtensionDeeplinks } from 'components/AccountDrawer/MiniPortfolio/Exten
 import { portfolioFadeInAnimation } from 'components/AccountDrawer/MiniPortfolio/PortfolioRow'
 import { useAccountDrawer } from 'components/AccountDrawer/MiniPortfolio/hooks'
 import { Status } from 'components/AccountDrawer/Status'
+import { showTestnetsAtom } from 'components/AccountDrawer/TestnetsToggle'
 import { ButtonEmphasis, ButtonSize, ThemeButton } from 'components/Button'
 import Column from 'components/Column'
 import { CreditCardIcon } from 'components/Icons/CreditCard'
@@ -22,6 +23,7 @@ import { useDisableNFTRoutes } from 'hooks/useDisableNFTRoutes'
 import useENSName from 'hooks/useENSName'
 import { useIsUniExtensionAvailable } from 'hooks/useUniswapWalletOptions'
 import { Trans, t } from 'i18n'
+import { useAtomValue } from 'jotai/utils'
 import { useProfilePageState, useSellAsset, useWalletCollections } from 'nft/hooks'
 import { ProfilePageStateType } from 'nft/types'
 import { useCallback, useState } from 'react'
@@ -170,8 +172,10 @@ export default function AuthenticatedHeader({ account, openSettings }: { account
 
   const { data: portfolioBalances } = useTokenBalancesQuery({ cacheOnly: !accountDrawer.isOpen })
   const portfolio = portfolioBalances?.portfolios?.[0]
-  const totalBalance = portfolio?.tokensTotalDenominatedValue?.value
-  const isEmptyWallet = totalBalance === 0 && forAggregatorEnabled
+  const testnetMode = useAtomValue(showTestnetsAtom)
+  // Testnet tokens have no real price; balance query is skipped in Testnet mode.
+  const totalBalance = testnetMode ? 0 : portfolio?.tokensTotalDenominatedValue?.value
+  const isEmptyWallet = !testnetMode && totalBalance === 0 && forAggregatorEnabled
   const absoluteChange = portfolio?.tokensTotalDenominatedValueChange?.absolute?.value
   const percentChange = portfolio?.tokensTotalDenominatedValueChange?.percentage?.value
   const [showDisconnectConfirm, setShowDisconnectConfirm] = useState(false)

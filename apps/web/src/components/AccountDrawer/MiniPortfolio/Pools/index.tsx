@@ -10,13 +10,16 @@ import PortfolioRow, {
   PortfolioTabWrapper,
 } from 'components/AccountDrawer/MiniPortfolio/PortfolioRow'
 import { useAccountDrawer } from 'components/AccountDrawer/MiniPortfolio/hooks'
+import { showTestnetsAtom } from 'components/AccountDrawer/TestnetsToggle'
 import Row from 'components/Row'
 import { MouseoverTooltip } from 'components/Tooltip'
+import { L1_CHAIN_IDS, L2_CHAIN_IDS, TESTNET_CHAIN_IDS } from 'constants/chains'
 import { BIPS_BASE } from 'constants/misc'
 import { useAccount } from 'hooks/useAccount'
 import { useFilterPossiblyMaliciousPositions } from 'hooks/useFilterPossiblyMaliciousPositions'
 import { useSwitchChain } from 'hooks/useSwitchChain'
 import { t } from 'i18n'
+import { useAtomValue } from 'jotai/utils'
 import { EmptyWalletModule } from 'nft/components/profile/view/EmptyWalletContent'
 import { useCallback, useMemo, useReducer } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -48,8 +51,15 @@ function useFilterPossiblyMaliciousPositionInfo(positions: PositionInfo[] | unde
   )
 }
 
+const MAINNET_POOL_CHAINS = [...L1_CHAIN_IDS, ...L2_CHAIN_IDS].filter((chain) => !TESTNET_CHAIN_IDS.includes(chain))
+const TESTNET_POOL_CHAINS = [...L1_CHAIN_IDS, ...L2_CHAIN_IDS].filter((chain) => TESTNET_CHAIN_IDS.includes(chain))
+
 export default function Pools({ account }: { account: string }) {
-  const { positions, loading } = useMultiChainPositions(account)
+  const testnetMode = useAtomValue(showTestnetsAtom)
+  const { positions, loading } = useMultiChainPositions(
+    account,
+    testnetMode ? TESTNET_POOL_CHAINS : MAINNET_POOL_CHAINS,
+  )
   const filteredPositions = useFilterPossiblyMaliciousPositionInfo(positions)
   const [showClosed, toggleShowClosed] = useReducer((showClosed) => !showClosed, false)
 

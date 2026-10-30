@@ -2,6 +2,7 @@ import { Currency, Token } from '@uniswap/sdk-core'
 import Modal from 'components/Modal'
 import { CurrencySearch, CurrencySearchFilters } from 'components/SearchModal/CurrencySearch'
 import TokenSafety from 'components/TokenSafety'
+import { Field } from 'components/swap/constants'
 import useLast from 'hooks/useLast'
 import { memo, useCallback, useEffect, useState } from 'react'
 
@@ -15,6 +16,8 @@ interface CurrencySearchModalProps {
   otherSelectedCurrency?: Currency | null
   showCurrencyAmount?: boolean
   currencySearchFilters?: CurrencySearchFilters
+  /** Which swap field this modal is for. Enables per-field chain selection (cross-chain ready). */
+  field?: Field
 }
 
 enum CurrencyModalView {
@@ -31,6 +34,7 @@ export default memo(function CurrencySearchModal({
   otherSelectedCurrency,
   showCurrencyAmount = true,
   currencySearchFilters,
+  field,
 }: CurrencySearchModalProps) {
   const [modalView, setModalView] = useState<CurrencyModalView>(CurrencyModalView.search)
   const lastOpen = useLast(isOpen)
@@ -73,6 +77,7 @@ export default memo(function CurrencySearchModal({
           otherSelectedCurrency={otherSelectedCurrency}
           showCurrencyAmount={showCurrencyAmount}
           filters={currencySearchFilters}
+          field={field}
         />
       )
       break
