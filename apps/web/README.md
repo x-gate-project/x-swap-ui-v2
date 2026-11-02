@@ -15,12 +15,13 @@ yarn web start
 
 ## x-swap API
 
-The swap form reads its token list, chain list and quotes from the x-swap API (`xswap-router-worker`). The API sends
-no CORS headers, so the browser calls it through `/api/xswap`:
+On chains the x-swap API (`xswap-router-worker`) enables, the swap form reads its token list and quotes from the API.
+Every other chain keeps the token lists and the client-side router. The API sends no CORS headers, so the browser calls
+it through `/api/xswap`:
 
 | Variable | Where | Value |
 |---|---|---|
-| `REACT_APP_XSWAP_API_URL` | build time | `/api/xswap/v1`. Unset turns the API off and the swap form keeps the token lists and the client-side router. |
+| `REACT_APP_XSWAP_API_URL` | build time, set per Vercel environment | `/api/xswap/v1`. Unset turns the API off on every chain. Production leaves it unset until the API serves mainnets; set it on Preview / stage. |
 | `XSWAP_API_URL` | Vercel project | API origin the `api/xswap` function forwards to, e.g. `https://xswap-api.example.com`. |
 | `XSWAP_API_PROXY_TARGET` | local dev | API origin `src/setupProxy.js` forwards `/api/xswap` to. |
 
@@ -30,8 +31,9 @@ Local development against an API on port 3001:
 XSWAP_API_PROXY_TARGET=http://localhost:3001 REACT_APP_XSWAP_API_URL=/api/xswap/v1 yarn web start
 ```
 
-Chains and tokens come from `GET /v1/chains` and `GET /v1/tokens`, so turning a chain, token or route class off in
-the API config changes the swap form without a new release.
+Chains and tokens come from `GET /v1/chains` and `GET /v1/tokens`, so changing the API config changes the swap form
+without a new release: a token or route class turned off is blocked on API chains, and a chain turned off falls back to
+the token lists and the client-side router.
 
 ## Translations
 

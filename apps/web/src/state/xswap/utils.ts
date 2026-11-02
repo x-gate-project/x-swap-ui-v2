@@ -52,3 +52,32 @@ export function getXSwapFlow(routeClass: string): XSwapFlow {
 export function percentToBps(percent: Percent): number {
   return JSBI.toNumber(percent.multiply(10_000).quotient)
 }
+
+/**
+ * Which flow a chain uses while the API does not cover every chain yet:
+ * - `api`: the API enables the chain; tokens and quotes come from it.
+ * - `legacy`: the API is off, failed to load its chains, or does not enable the chain; the swap form keeps the token
+ *   lists and the client-side router.
+ * - `loading`: the chain list is not known yet.
+ */
+export type XSwapChainMode = 'api' | 'legacy' | 'loading'
+
+export function getXSwapChainMode({
+  apiEnabled,
+  chainId,
+  chainIds,
+  loading,
+}: {
+  apiEnabled: boolean
+  chainId?: number
+  chainIds?: number[]
+  loading: boolean
+}): XSwapChainMode {
+  if (!apiEnabled || !chainId) {
+    return 'legacy'
+  }
+  if (loading) {
+    return 'loading'
+  }
+  return chainIds?.includes(chainId) ? 'api' : 'legacy'
+}

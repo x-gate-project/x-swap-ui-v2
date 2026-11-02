@@ -7,7 +7,9 @@ import { getXSwapChains, getXSwapQuote, getXSwapTokens, isXSwapApiEnabled } from
 import { XSwapError, getXSwapErrorMessage, toXSwapError } from 'state/xswap/errors'
 import { XSwapChain, XSwapQuoteRequest, XSwapQuoteResponse, XSwapToken } from 'state/xswap/types'
 import {
+  XSwapChainMode,
   XSwapFlow,
+  getXSwapChainMode,
   getXSwapFlow,
   isSameXSwapToken,
   isXSwapNativeAddress,
@@ -45,6 +47,17 @@ export function useXSwapChains({ enabled = true }: { enabled?: boolean } = {}): 
     () => ({ chains: data ?? [], chainIds: data?.map((c) => c.chainId), loading: isLoading }),
     [data, isLoading],
   )
+}
+
+/**
+ * Whether `chainId` uses the API (`api`) or the token lists and client-side router (`legacy`). A chain the API does
+ * not enable, or every chain when `GET /v1/chains` fails, falls back to `legacy` so chains the API does not serve yet
+ * (e.g. mainnets while it runs testnets only) keep working.
+ */
+export function useXSwapChainMode(chainId?: number, { enabled = true }: { enabled?: boolean } = {}): XSwapChainMode {
+  const apiEnabled = enabled && isXSwapApiEnabled()
+  const { chainIds, loading } = useXSwapChains({ enabled: apiEnabled })
+  return getXSwapChainMode({ apiEnabled, chainId, chainIds, loading })
 }
 
 /** `GET /v1/tokens?chainId=`. */

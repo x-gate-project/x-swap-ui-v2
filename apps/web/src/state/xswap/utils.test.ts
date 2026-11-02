@@ -3,6 +3,7 @@ import { DAI, USDC_MAINNET, nativeOnChain } from 'constants/tokens'
 import { buildXSwapQuoteRequest } from 'state/xswap/hooks'
 import {
   XSWAP_NATIVE_ADDRESS,
+  getXSwapChainMode,
   getXSwapFlow,
   isSameXSwapToken,
   percentToBps,
@@ -149,5 +150,33 @@ describe('buildXSwapQuoteRequest', () => {
         swapper: SWAPPER,
       }),
     ).toBeUndefined()
+  })
+})
+
+describe('getXSwapChainMode', () => {
+  const chainIds = [UniverseChainId.Sepolia, UniverseChainId.JocTestnet]
+
+  it('uses the API on a chain it enables', () => {
+    expect(getXSwapChainMode({ apiEnabled: true, chainId: UniverseChainId.Sepolia, chainIds, loading: false })).toBe(
+      'api',
+    )
+  })
+
+  it('keeps the old flow on a chain the API does not enable', () => {
+    expect(getXSwapChainMode({ apiEnabled: true, chainId: UniverseChainId.Mainnet, chainIds, loading: false })).toBe(
+      'legacy',
+    )
+  })
+
+  it('keeps the old flow when the API is off, has no chain list, or there is no chain', () => {
+    expect(getXSwapChainMode({ apiEnabled: false, chainId: UniverseChainId.Sepolia, chainIds, loading: false })).toBe(
+      'legacy',
+    )
+    expect(getXSwapChainMode({ apiEnabled: true, chainId: UniverseChainId.Sepolia, loading: false })).toBe('legacy')
+    expect(getXSwapChainMode({ apiEnabled: true, chainIds, loading: false })).toBe('legacy')
+  })
+
+  it('waits while the chain list loads', () => {
+    expect(getXSwapChainMode({ apiEnabled: true, chainId: UniverseChainId.Mainnet, loading: true })).toBe('loading')
   })
 })

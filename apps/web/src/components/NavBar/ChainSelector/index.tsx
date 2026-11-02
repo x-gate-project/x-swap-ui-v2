@@ -77,14 +77,7 @@ function useWalletSupportedChains(): InterfaceChainId[] {
   }
 }
 
-export const ChainSelector = ({
-  leftAlign,
-  allowedChainIds,
-}: {
-  leftAlign?: boolean
-  /** When set, only these chains are listed (e.g. the chains the x-swap API has enabled). */
-  allowedChainIds?: number[]
-}) => {
+export const ChainSelector = ({ leftAlign }: { leftAlign?: boolean }) => {
   const { chainId, setSelectedChainId, multichainUXEnabled } = useSwapAndLimitContext()
   // multichainFlagEnabled is different from multichainUXEnabled, multichainUXEnabled applies to swap
   // flag can be true but multichainUXEnabled can be false (TDP page)
@@ -102,11 +95,7 @@ export const ChainSelector = ({
 
   const [supportedChains, unsupportedChains] = useMemo(() => {
     const { supported, unsupported } = NETWORK_SELECTOR_CHAINS.filter((chain: number) => {
-      return (
-        isSupportedChain(chain) &&
-        (showTestnets || !TESTNET_CHAIN_IDS.includes(chain)) &&
-        (!allowedChainIds || allowedChainIds.includes(chain))
-      )
+      return isSupportedChain(chain) && (showTestnets || !TESTNET_CHAIN_IDS.includes(chain))
     })
       .sort((a, b) => getChainPriority(a) - getChainPriority(b))
       .reduce(
@@ -121,7 +110,7 @@ export const ChainSelector = ({
         { supported: [], unsupported: [] } as Record<string, InterfaceChainId[]>,
       )
     return [supported, unsupported]
-  }, [allowedChainIds, isSupportedChain, showTestnets, walletSupportsChain])
+  }, [isSupportedChain, showTestnets, walletSupportsChain])
 
   const [pendingChainId, setPendingChainId] = useState<InterfaceChainId | undefined>(undefined)
 

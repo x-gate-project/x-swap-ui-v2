@@ -22,7 +22,7 @@ import { FixedSizeList } from 'react-window'
 import { Text } from 'rebass'
 import { useSwapAndLimitContext } from 'state/swap/hooks'
 import { isXSwapApiEnabled } from 'state/xswap/client'
-import { useXSwapChains } from 'state/xswap/hooks'
+import { useXSwapChainMode } from 'state/xswap/hooks'
 import styled, { useTheme } from 'styled-components'
 import { CloseIcon, ThemedText } from 'theme/components'
 import Trace from 'uniswap/src/features/telemetry/Trace'
@@ -47,7 +47,10 @@ export interface CurrencySearchFilters {
   showCommonBases?: boolean
   disableNonToken?: boolean
   onlyShowCurrenciesWithBalance?: boolean
-  /** Source tokens and chains from the x-swap API (swap form only); ignored when the API is not configured. */
+  /**
+   * Source tokens from the x-swap API (swap form only) on chains the API enables; other chains, or every chain when
+   * the API is not configured, keep the token lists.
+   */
   xswapApiTokens?: boolean
 }
 
@@ -81,10 +84,13 @@ export function CurrencySearch({
     ...DEFAULT_CURRENCY_SEARCH_FILTERS,
     ...filters,
   }
-  const xswapApiTokens = Boolean(xswapApiTokensFilter) && isXSwapApiEnabled()
-  // Common bases come from local config and may not be listed by the API.
-  const showCommonBases = showCommonBasesFilter && !xswapApiTokens
   const { chainId } = useSwapAndLimitContext()
+  const xswapChainMode = useXSwapChainMode(chainId, {
+    enabled: Boolean(xswapApiTokensFilter) && isXSwapApiEnabled(),
+  })
+  const xswapApiTokens = xswapChainMode === 'api'
+  // Common bases come from local config and may not be listed by the API.
+  const showCommonBases = showCommonBasesFilter && xswapChainMode === 'legacy'
 
   const theme = useTheme()
 
@@ -100,21 +106,19 @@ export function CurrencySearch({
     filters,
     selectedCurrency,
     otherSelectedCurrency,
-    skip: xswapApiTokens,
+    skip: xswapChainMode !== 'legacy',
   })
   const xswapSearchResults = useXSwapCurrencySearchResults({
     searchQuery: debouncedQuery,
     otherSelectedCurrency,
     enabled: xswapApiTokens,
   })
-  const { chainIds: xswapChainIds } = useXSwapChains({ enabled: xswapApiTokens })
-  const xswapChainUnavailable = xswapApiTokens && !!chainId && !!xswapChainIds && !xswapChainIds.includes(chainId)
 
   // The API list is searched by symbol and address already; a pasted address is not imported.
-  const searchCurrency = xswapApiTokens ? undefined : legacySearchResults.searchCurrency
-  const { allCurrencyRows, loading: currencySearchResultsLoading } = xswapApiTokens
-    ? xswapSearchResults
-    : legacySearchResults
+  const searchCurrency = xswapChainMode === 'legacy' ? legacySearchResults.searchCurrency : undefined
+  const { allCurrencyRows } = xswapApiTokens ? xswapSearchResults : legacySearchResults
+  const currencySearchResultsLoading =
+    xswapChainMode === 'loading' || (xswapApiTokens ? xswapSearchResults.loading : legacySearchResults.loading)
 
   const { balanceMap } = useTokenBalances()
 
@@ -211,7 +215,7 @@ export function CurrencySearch({
               onKeyDown={handleEnter}
             />
             <ChainSelectorWrapper>
-              <ChainSelector allowedChainIds={xswapApiTokens ? xswapChainIds : undefined} />
+              <ChainSelector />
             </ChainSelectorWrapper>
           </Row>
           {showCommonBases && (
@@ -271,11 +275,7 @@ export function CurrencySearch({
         ) : (
           <Column style={{ padding: '20px', height: '100%' }}>
             <ThemedText.DeprecatedMain color={theme.neutral3} textAlign="center" mb="20px">
-              {xswapChainUnavailable ? (
-                <Trans i18nKey="xswap.tokenSelector.chainUnavailable" />
-              ) : (
-                <Trans i18nKey="common.noResults" />
-              )}
+              <Trans i18nKey="common.noResults" />
             </ThemedText.DeprecatedMain>
           </Column>
         )}
