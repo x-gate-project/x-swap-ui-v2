@@ -11,6 +11,7 @@ import {
 import { t } from 'i18n'
 import { XSwapTokenLookup } from 'state/xswap/hooks'
 import { XSwapLeg } from 'state/xswap/types'
+import { formatXSwapUnits } from 'state/xswap/utils'
 import styled from 'styled-components'
 import { ThemedText } from 'theme/components'
 
@@ -118,6 +119,8 @@ export function XSwapRouteLegs({ legs, lookup: listLookup }: { legs: XSwapLeg[];
                   amountOut: amount(leg.tokenOutChainId, leg.tokenOut, leg.expectedOut),
                   minOut: amount(leg.tokenOutChainId, leg.tokenOut, leg.minOut),
                 })}
+                {BigInt(leg.nativeFee || '0') > 0n &&
+                  ` · ${leg.provider === 'xgate' ? t('xswap.route.fee.layerZero') : t('xswap.route.fee.bridgeNative')} ${formatXSwapUnits(leg.nativeFee, 18)} ${nativeSymbol(leg.tokenInChainId)}`}
               </Muted>
             </Body>
           )}

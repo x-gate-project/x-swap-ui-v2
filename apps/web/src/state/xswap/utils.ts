@@ -171,6 +171,16 @@ export function pickDefaultXSwapRoute(routes: readonly XSwapQuote[]): XSwapQuote
   return routes.find((route) => route.executable) ?? routes[0]
 }
 
+/** Native value the quote's txs send: the input amount for a native input, plus a bridge's native fee (XGate). */
+export function xswapNativeValue(quote: XSwapQuote): bigint {
+  return quote.txs.reduce((sum, tx) => sum + BigInt(tx.value || '0'), 0n)
+}
+
+/** LayerZero fee of an XGate route: the bridge legs' `nativeFee`, paid in the source chain's native token. */
+export function xswapBridgeNativeFee(quote: XSwapQuote): bigint {
+  return (quote.legs ?? []).reduce((sum, leg) => (leg.type === 'bridge' ? sum + BigInt(leg.nativeFee || '0') : sum), 0n)
+}
+
 export type XSwapFlow = 'same-chain' | 'cross-chain'
 
 /**
@@ -229,6 +239,15 @@ const XSWAP_EXPLORERS: Record<number, string> = {
 export function xswapExplorerTxUrl(chainId: number, hash: string, fallbackExplorer?: string): string | undefined {
   const base = (XSWAP_EXPLORERS[chainId] ?? fallbackExplorer)?.replace(/\/+$/, '')
   return base ? `${base}/tx/${hash}` : undefined
+}
+
+// Testnets the API serves; LayerZero Scan lists their messages on its testnet site.
+const XSWAP_TESTNET_CHAIN_IDS = new Set([11155111, 421614, 84532, 11155420, 10081])
+
+/** LayerZero Scan link of an XGate order's message (`lzGuid`), on the testnet site when the source chain is a testnet. */
+export function layerZeroScanUrl(sourceChainId: number, guid: string): string {
+  const host = XSWAP_TESTNET_CHAIN_IDS.has(sourceChainId) ? 'testnet.layerzeroscan.com' : 'layerzeroscan.com'
+  return `https://${host}/tx/${guid}`
 }
 
 /** `0x1234…abcd`. */

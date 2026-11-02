@@ -12,12 +12,15 @@ import {
   getXSwapFlow,
   getXSwapOutputChainId,
   isSameXSwapToken,
+  layerZeroScanUrl,
   percentToBps,
   pickDefaultXSwapRoute,
   resolveXSwapLegToken,
   shortenXSwapHash,
   toXSwapAddress,
+  xswapBridgeNativeFee,
   xswapExplorerTxUrl,
+  xswapNativeValue,
   xswapTokenToCurrency,
 } from 'state/xswap/utils'
 import { UniverseChainId } from 'uniswap/src/types/chains'
@@ -394,5 +397,47 @@ describe('pickDefaultXSwapRoute', () => {
   it('falls back to best when no route can be sent', () => {
     expect(pickDefaultXSwapRoute([route('a', false), route('b', false)])?.quoteId).toBe('a')
     expect(pickDefaultXSwapRoute([])).toBeUndefined()
+  })
+})
+
+describe('xswapNativeValue / xswapBridgeNativeFee', () => {
+  // JOCX on Sepolia → JOC on JOC testnet over XGate: an ERC-20 input still sends the LayerZero fee as `msg.value`.
+  const quote = {
+    txs: [
+      { kind: 'approve', value: '0' },
+      { kind: 'deposit', value: '120000000000000' },
+    ],
+    legs: [
+      {
+        type: 'bridge',
+        provider: 'xgate',
+        tokenInChainId: 11155111,
+        tokenOutChainId: 10081,
+        tokenIn: '0xB1660F8CDbf2102Ac74C6CD6d7CD6A65E481e5fe',
+        tokenOut: XSWAP_NATIVE_ADDRESS,
+        expectedOut: '1000000000000000000',
+        minOut: '1000000000000000000',
+        nativeFee: '120000000000000',
+      },
+    ],
+  } as unknown as XSwapQuote
+
+  it('sums the native value of every tx', () => {
+    expect(xswapNativeValue(quote)).toBe(120000000000000n)
+  })
+
+  it('sums the bridge legs native fee', () => {
+    expect(xswapBridgeNativeFee(quote)).toBe(120000000000000n)
+    expect(xswapBridgeNativeFee({ ...quote, legs: undefined })).toBe(0n)
+  })
+})
+
+describe('layerZeroScanUrl', () => {
+  it('links testnet orders to the testnet site', () => {
+    expect(layerZeroScanUrl(10081, '0xabc')).toBe('https://testnet.layerzeroscan.com/tx/0xabc')
+  })
+
+  it('links mainnet orders to the main site', () => {
+    expect(layerZeroScanUrl(81, '0xabc')).toBe('https://layerzeroscan.com/tx/0xabc')
   })
 })

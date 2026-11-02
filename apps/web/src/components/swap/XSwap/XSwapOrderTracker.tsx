@@ -14,7 +14,9 @@ import { t } from 'i18n'
 import { X } from 'react-feather'
 import { isXSwapOrderTerminal, useXSwapOrder, useXSwapTokenLookup } from 'state/xswap/hooks'
 import { XSwapOrder, XSwapOrderStatus } from 'state/xswap/types'
+import { layerZeroScanUrl, shortenXSwapHash } from 'state/xswap/utils'
 import styled, { useTheme } from 'styled-components'
+import { ExternalLink } from 'theme/components'
 
 const Timeline = styled.ol`
   display: flex;
@@ -204,6 +206,16 @@ export function XSwapOrderTracker({ order: initial, onClose }: { order: XSwapOrd
             <dt>{t('xswap.order.fillTx')}</dt>
             <dd>
               <TxLink chainId={order.tokenOut.chainId} hash={order.fillTxHash} />
+            </dd>
+          </>
+        )}
+        {order.lzGuid && (
+          <>
+            <dt>{t('xswap.order.lzMessage')}</dt>
+            <dd>
+              <ExternalLink href={layerZeroScanUrl(order.tokenIn.chainId, order.lzGuid)}>
+                {shortenXSwapHash(order.lzGuid, 6)}
+              </ExternalLink>
             </dd>
           </>
         )}
