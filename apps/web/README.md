@@ -35,6 +35,11 @@ Chains and tokens come from `GET /v1/chains` and `GET /v1/tokens`, so changing t
 without a new release: a token or route class turned off is blocked on API chains, and a chain turned off falls back to
 the token lists and the client-side router.
 
+On API chains every swap is sent from the API's quote, same-chain (`local`) and cross-chain alike, and registered as an
+order (`POST /v1/orders`) so it shows in the Activity tab. When a quote offers a Permit2 `permit` (ERC-20 input), the
+wallet signs it instead of sending the `permit2-approve` tx, and `POST /v1/quote/:quoteId/permit` returns the deposit
+built from the signature. Native input needs no approval.
+
 ## Translations
 
 To get translations to work you'll need to set up 1Password, and then:

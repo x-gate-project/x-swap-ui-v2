@@ -142,7 +142,7 @@ function LegsTooltip({ legs, lookup }: { legs: XSwapLeg[]; lookup: XSwapTokenLoo
 }
 
 /**
- * Cross-chain counterpart of `SwapDetailsDropdown`: the rate, then price impact, max slippage, minimum output, fees,
+ * x-swap API counterpart of `SwapDetailsDropdown`, same-chain and cross-chain: the rate, then price impact, max slippage, minimum output, fees,
  * estimated time and order routing (with its legs) of the selected route, and the other routes to pick from.
  */
 export function XSwapDetailsDropdown({

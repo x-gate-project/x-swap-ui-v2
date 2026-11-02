@@ -19,8 +19,8 @@ import TokenSafetyModal from 'components/TokenSafety/TokenSafetyModal'
 import PriceImpactModal from 'components/swap/PriceImpactModal'
 import PriceImpactWarning from 'components/swap/PriceImpactWarning'
 import SwapDetailsDropdown from 'components/swap/SwapDetailsDropdown'
-import { XSwapCrossChainPanel } from 'components/swap/XSwap/XSwapCrossChainPanel'
 import { XSwapDetailsDropdown } from 'components/swap/XSwap/XSwapDetailsDropdown'
+import { XSwapExecutePanel } from 'components/swap/XSwap/XSwapExecutePanel'
 import { XSwapOrderTracker } from 'components/swap/XSwap/XSwapOrderTracker'
 import { xswapRouteKey, xswapRoutes } from 'components/swap/XSwap/shared'
 import confirmPriceImpactWithoutFee from 'components/swap/confirmPriceImpactWithoutFee'
@@ -320,8 +320,9 @@ export function SwapForm({ disableTokenInputs = false, onCurrencyChange }: SwapF
   )
 
   // x-swap API quote, on chains the API enables; other chains keep the client-side router. The API classifies the
-  // pair: `local` keeps the same-chain flow, any other route class is a cross-chain order (#66). It only quotes exact
-  // input, so the output amount field is read-only on API chains.
+  // pair (`local` is a same-chain swap, any other route class a cross-chain order) and builds the txs of both, so on API
+  // chains every swap goes through the API's execute panel. It only quotes exact input, so the output amount field is
+  // read-only on API chains.
   const xswapChainMode = useXSwapChainMode(chainId)
   // While the API chain list loads, treat the chain as an API chain so the form cannot swap through the router first.
   const usesXSwapApi = xswapChainMode !== 'legacy'
@@ -347,9 +348,6 @@ export function SwapForm({ disableTokenInputs = false, onCurrencyChange }: SwapF
     slippage: userSlippageTolerance === SlippageTolerance.Auto ? undefined : userSlippageTolerance,
   })
   const xswapQuoteError = xswapQuote.status === 'error' ? xswapQuote.message : undefined
-  const xswapCrossChain = xswapQuote.status === 'success' && xswapQuote.flow === 'cross-chain'
-  // Only a same-chain API quote lets the router swap go on; a cross-chain quote goes through the order panel.
-  const xswapSameChainReady = xswapQuote.status === 'success' && xswapQuote.flow === 'same-chain'
 
   useEffect(() => {
     // The API only quotes exact input: an exact output amount (e.g. `exactField=output` in the URL) would leave the
@@ -363,12 +361,12 @@ export function SwapForm({ disableTokenInputs = false, onCurrencyChange }: SwapF
     }
   }, [independentField, setSwapState, usesXSwapApi])
 
-  const xswapCrossChainResponse = xswapCrossChain ? xswapQuote.response : undefined
+  const xswapResponse = xswapQuote.status === 'success' ? xswapQuote.response : undefined
   const xswapTokenLookup = useXSwapTokenLookup([currencies[Field.INPUT]?.chainId, currencies[Field.OUTPUT]?.chainId])
-  // The output field shows the selected route's expected output; the user picks the route in the panel.
-  const xswapCrossChainRoutes = useMemo(
-    () => xswapCrossChainResponse && xswapRoutes(xswapCrossChainResponse.best, xswapCrossChainResponse.candidates),
-    [xswapCrossChainResponse],
+  // The output field shows the selected route's expected output; the user picks the route in the details dropdown.
+  const xswapRouteOptions = useMemo(
+    () => xswapResponse && xswapRoutes(xswapResponse.best, xswapResponse.candidates),
+    [xswapResponse],
   )
   // Another pair goes back to `best`.
   const xswapPairKey = [currencies[Field.INPUT], currencies[Field.OUTPUT]]
@@ -376,9 +374,9 @@ export function SwapForm({ disableTokenInputs = false, onCurrencyChange }: SwapF
     .join('|')
   useEffect(() => setXSwapPickedRoute(undefined), [xswapPairKey])
   const xswapSelectedQuote =
-    xswapCrossChainRoutes?.find((q) => xswapRouteKey(q) === xswapPickedRoute) ?? xswapCrossChainResponse?.best
-  // A native input also pays the bridge's native fee in the deposit's `value`: the amount alone may pass the balance
-  // check while the deposit cannot be sent.
+    xswapRouteOptions?.find((q) => xswapRouteKey(q) === xswapPickedRoute) ?? xswapResponse?.best
+  // A native input of a cross-chain order also pays the bridge's native fee in the deposit's `value`: the amount alone
+  // may pass the balance check while the deposit cannot be sent.
   const xswapInputError = useMemo(() => {
     const balance = currencyBalances[Field.INPUT]
     // While executing, the deposit itself lowers the balance.
@@ -390,17 +388,15 @@ export function SwapForm({ disableTokenInputs = false, onCurrencyChange }: SwapF
       <Trans i18nKey="common.insufficientTokenBalance.error" values={{ tokenSymbol: balance.currency.symbol }} />
     ) : undefined
   }, [currencyBalances, xswapExecuting, xswapSelectedQuote])
-  const xswapCrossChainOutput = useMemo(() => {
+  const xswapOutput = useMemo(() => {
     const outputCurrency = currencies[Field.OUTPUT]
     return xswapSelectedQuote && outputCurrency
       ? CurrencyAmount.fromRawAmount(outputCurrency, xswapSelectedQuote.outputAmount)
       : undefined
   }, [currencies, xswapSelectedQuote])
-  // Cross-chain counterpart of the router's details dropdown: shown while quoting and once a route is back.
+  // API counterpart of the router's details dropdown: shown while quoting and once a route is back.
   const showXSwapDetails =
-    isCrossChainPair &&
-    userHasSpecifiedInputOutput &&
-    (xswapQuote.status === 'loading' || Boolean(xswapCrossChainResponse))
+    usesXSwapApi && userHasSpecifiedInputOutput && (xswapQuote.status === 'loading' || Boolean(xswapResponse))
 
   // Chains outside the API keep the router, which never swaps across chains: drop an output left on another chain.
   useEffect(() => {
@@ -593,7 +589,9 @@ export function SwapForm({ disableTokenInputs = false, onCurrencyChange }: SwapF
     [onCurrencyChange, onCurrencySelection, currencyState, trace, xswapChainMode],
   )
 
-  const showPriceImpactWarning = isClassicTrade(trade) && largerPriceImpact && priceImpactSeverity > 3
+  // On API chains the router's trade is not what gets sent.
+  const showPriceImpactWarning =
+    !usesXSwapApi && isClassicTrade(trade) && largerPriceImpact && priceImpactSeverity > 3
 
   const prevTrade = usePrevious(trade)
   useEffect(() => {
@@ -608,7 +606,7 @@ export function SwapForm({ disableTokenInputs = false, onCurrencyChange }: SwapF
   }, [prevTrade, trade, trace, allowedSlippage, swapQuoteLatency, outputFeeFiatValue])
 
   const showDetailsDropdown = Boolean(
-    !showWrap && userHasSpecifiedInputOutput && (trade || routeIsLoading || routeIsSyncing),
+    !usesXSwapApi && !showWrap && userHasSpecifiedInputOutput && (trade || routeIsLoading || routeIsSyncing),
   )
 
   const inputCurrency = currencies[Field.INPUT] ?? undefined
@@ -719,9 +717,11 @@ export function SwapForm({ disableTokenInputs = false, onCurrencyChange }: SwapF
             <Trace section={InterfaceSectionName.CURRENCY_OUTPUT_PANEL}>
               <SwapCurrencyInputPanel
                 value={
-                  xswapCrossChainOutput
-                    ? formatCurrencyAmount({ amount: xswapCrossChainOutput, type: NumberType.SwapTradeAmount })
-                    : formattedAmounts[Field.OUTPUT]
+                  xswapOutput
+                    ? formatCurrencyAmount({ amount: xswapOutput, type: NumberType.SwapTradeAmount })
+                    : usesXSwapApi && !showWrap
+                      ? ''
+                      : formattedAmounts[Field.OUTPUT]
                 }
                 disabled={disableTokenInputs || xswapExecuting}
                 onUserInput={handleTypeOutput}
@@ -735,7 +735,11 @@ export function SwapForm({ disableTokenInputs = false, onCurrencyChange }: SwapF
                 otherCurrency={currencies[Field.INPUT]}
                 currencySearchFilters={SWAP_FORM_OUTPUT_CURRENCY_SEARCH_FILTERS}
                 id={InterfaceSectionName.CURRENCY_OUTPUT_PANEL}
-                loading={independentField === Field.INPUT && routeIsSyncing}
+                loading={
+                  usesXSwapApi && !showWrap
+                    ? xswapQuote.status === 'loading'
+                    : independentField === Field.INPUT && routeIsSyncing
+                }
                 numericalInputSettings={{
                   // We disable numerical input here if the selected token has tax, since we cannot guarantee exact_outputs for FOT tokens.
                   // The x-swap API only quotes exact input, so the output is read-only on API chains.
@@ -814,13 +818,13 @@ export function SwapForm({ disableTokenInputs = false, onCurrencyChange }: SwapF
               <ThemedText.DeprecatedMain mb="4px">{xswapQuoteError}</ThemedText.DeprecatedMain>
             </GrayCard>
           ) : xswapSelectedQuote && userHasSpecifiedInputOutput ? (
-            <XSwapCrossChainPanel
+            <XSwapExecutePanel
               quote={xswapSelectedQuote}
               inputError={swapInputError ?? xswapInputError}
               onExecutingChange={setXSwapExecuting}
               onOrder={handleXSwapOrder}
             />
-          ) : routeNotFound && userHasSpecifiedInputOutput && !routeIsLoading && !routeIsSyncing ? (
+          ) : !usesXSwapApi && routeNotFound && userHasSpecifiedInputOutput && !routeIsLoading && !routeIsSyncing ? (
             <GrayCard style={{ textAlign: 'center' }}>
               <ThemedText.DeprecatedMain mb="4px">
                 <Trans i18nKey="swap.form.insufficientLiquidity" />
@@ -844,8 +848,8 @@ export function SwapForm({ disableTokenInputs = false, onCurrencyChange }: SwapF
                 disabled={
                   isUsingBlockedExtension ||
                   !getIsReviewableQuote(trade, tradeState, swapInputError) ||
-                  // Wait for the API to accept the pair before the same-chain flow can go on.
-                  (usesXSwapApi && !swapInputError && !xswapSameChainReady)
+                  // On API chains the swap goes through the execute panel once the API answers.
+                  usesXSwapApi
                 }
                 error={!swapInputError && priceImpactSeverity > 2 && allowance.state === AllowanceState.ALLOWED}
               >
@@ -874,9 +878,9 @@ export function SwapForm({ disableTokenInputs = false, onCurrencyChange }: SwapF
           )}
           {showXSwapDetails && currencies[Field.INPUT] && currencies[Field.OUTPUT] && (
             <XSwapDetailsDropdown
-              routes={xswapCrossChainRoutes}
+              routes={xswapRouteOptions}
               selected={xswapSelectedQuote}
-              bestQuoteId={xswapCrossChainResponse?.best.quoteId}
+              bestQuoteId={xswapResponse?.best.quoteId}
               inputCurrency={currencies[Field.INPUT] as Currency}
               outputCurrency={currencies[Field.OUTPUT] as Currency}
               lookup={xswapTokenLookup}

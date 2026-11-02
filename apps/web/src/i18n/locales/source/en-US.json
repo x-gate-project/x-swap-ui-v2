@@ -1140,11 +1140,11 @@
   "xswap.execute.error.switchChain": "Switch your wallet to the input token's network",
   "xswap.execute.inProgress": "Confirm in your wallet…",
   "xswap.execute.quoteOnly": "Quote only: this route is not live yet, there is nothing to sign.",
-  "xswap.execute.registering": "Deposit confirmed, registering the order…",
+  "xswap.execute.registering": "Transaction confirmed, registering the order…",
   "xswap.execute.step.approve": "Approve the input amount",
   "xswap.execute.step.approveReset": "Reset the allowance to 0",
   "xswap.execute.step.deposit": "Send the order",
-  "xswap.execute.step.permit2Approve": "Allow the order contract to spend through Permit2",
+  "xswap.execute.step.permit2Approve": "Allow the swap contract to spend through Permit2",
   "xswap.order.fillTx": "Fill tx",
   "xswap.order.live": "Updating…",
   "xswap.order.originTx": "Origin tx",
@@ -1170,5 +1170,12 @@
   "xswap.route.leg.swap": "Swap {{amountIn}} → {{amountOut}} on {{chain}}",
   "xswap.route.minOut": "Minimum output",
   "xswap.route.quoteOnly": "Quote only",
-  "xswap.route.title": "Routes"
+  "xswap.route.title": "Routes",
+  "xswap.activity.local.descriptor": "{{amountIn}} for {{amountOut}} on {{chain}}",
+  "xswap.activity.local.failed": "Swap failed",
+  "xswap.activity.local.pending": "Swapping",
+  "xswap.activity.local.success": "Swapped",
+  "xswap.execute.error.permitRejected": "The signed swap did not pass the safety checks. Pick another route or try again.",
+  "xswap.execute.step.permit": "Sign the Permit2 allowance (no gas)",
+  "xswap.execute.step.swap": "Swap"
 }

@@ -21,6 +21,16 @@ function orderStatus(order: XSwapOrder): TransactionStatus {
 }
 
 function orderTitle(order: XSwapOrder): string {
+  if (order.routeClass === 'local') {
+    switch (order.state) {
+      case 'pending':
+        return t('xswap.activity.local.pending')
+      case 'success':
+        return t('xswap.activity.local.success')
+      default:
+        return t('xswap.activity.local.failed')
+    }
+  }
   switch (order.state) {
     case 'pending':
       return t('xswap.activity.pending')
@@ -34,8 +44,8 @@ function orderTitle(order: XSwapOrder): string {
 }
 
 /**
- * The wallet's x-swap cross-chain orders (`GET /v1/orders?wallet=`) as activities, keyed by their origin (deposit) tx
- * hash so they replace the plain tx row of the same deposit.
+ * The wallet's x-swap orders (`GET /v1/orders?wallet=`), cross-chain and same-chain, as activities, keyed by their
+ * origin (deposit) tx hash so they replace the plain tx row of the same deposit.
  */
 export function useXSwapActivities(account: string): { activities: ActivityMap; loading: boolean } {
   const history = useXSwapOrderHistory(account)
@@ -56,24 +66,29 @@ export function useXSwapActivities(account: string): { activities: ActivityMap; 
       const { tokenIn, tokenOut } = order
       const outAddress =
         order.status === 'FILLED_FALLBACK' && order.fallbackToken ? order.fallbackToken : tokenOut.address
+      const amountIn = formatXSwapTokenAmount(lookup, nativeSymbol, tokenIn.chainId, tokenIn.address, tokenIn.amount)
+      const amountOut = formatXSwapTokenAmount(
+        lookup,
+        nativeSymbol,
+        tokenOut.chainId,
+        outAddress,
+        order.actualOutputAmount ?? order.outputAmount,
+      )
       map[order.originTxHash] = {
         hash: order.originTxHash,
         chainId: tokenIn.chainId as InterfaceChainId,
         status: orderStatus(order),
         timestamp: Math.floor(Date.parse(order.createdAt) / 1000),
         title: orderTitle(order),
-        descriptor: t('xswap.activity.descriptor', {
-          amountIn: formatXSwapTokenAmount(lookup, nativeSymbol, tokenIn.chainId, tokenIn.address, tokenIn.amount),
-          chainIn: chainName(tokenIn.chainId),
-          amountOut: formatXSwapTokenAmount(
-            lookup,
-            nativeSymbol,
-            tokenOut.chainId,
-            outAddress,
-            order.actualOutputAmount ?? order.outputAmount,
-          ),
-          chainOut: chainName(tokenOut.chainId),
-        }),
+        descriptor:
+          order.routeClass === 'local'
+            ? t('xswap.activity.local.descriptor', { amountIn, amountOut, chain: chainName(tokenIn.chainId) })
+            : t('xswap.activity.descriptor', {
+                amountIn,
+                chainIn: chainName(tokenIn.chainId),
+                amountOut,
+                chainOut: chainName(tokenOut.chainId),
+              }),
         currencies: [currency(tokenIn.chainId, tokenIn.address), currency(tokenOut.chainId, tokenOut.address)],
         from: order.swapper,
         xswapOrder: order,
