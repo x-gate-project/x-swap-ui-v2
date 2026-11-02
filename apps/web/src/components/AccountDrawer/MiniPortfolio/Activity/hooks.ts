@@ -1,5 +1,6 @@
 import { useLocalActivities } from 'components/AccountDrawer/MiniPortfolio/Activity/parseLocal'
 import { parseRemoteActivities } from 'components/AccountDrawer/MiniPortfolio/Activity/parseRemote'
+import { useXSwapActivities } from 'components/AccountDrawer/MiniPortfolio/Activity/parseXSwap'
 import { Activity, ActivityMap } from 'components/AccountDrawer/MiniPortfolio/Activity/types'
 import { useCreateCancelTransactionRequest } from 'components/AccountDrawer/MiniPortfolio/Activity/utils'
 import { useAssetActivity } from 'graphql/data/apollo/AssetActivityProvider'
@@ -71,6 +72,8 @@ export function useAllActivities(account: string) {
     () => parseRemoteActivities(activities, account, formatNumberOrString),
     [account, activities, formatNumberOrString],
   )
+  // Cross-chain orders replace the plain row of their deposit tx.
+  const xswap = useXSwapActivities(account)
   const updateCancelledTx = useTransactionCanceller()
 
   /* Updates locally stored pendings tx's when remote data contains a conflicting cancellation tx */
@@ -92,9 +95,12 @@ export function useAllActivities(account: string) {
     })
   }, [account, localMap, remoteMap, updateCancelledTx])
 
-  const combinedActivities = useMemo(() => combineActivities(localMap, remoteMap ?? {}), [localMap, remoteMap])
+  const combinedActivities = useMemo(
+    () => combineActivities(localMap, { ...remoteMap, ...xswap.activities }),
+    [localMap, remoteMap, xswap.activities],
+  )
 
-  return { loading, activities: combinedActivities }
+  return { loading: loading || xswap.loading, activities: combinedActivities }
 }
 
 export function useOpenLimitOrders(account: string) {

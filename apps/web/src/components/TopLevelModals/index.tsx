@@ -1,4 +1,5 @@
 import { OffchainActivityModal } from 'components/AccountDrawer/MiniPortfolio/Activity/OffchainActivityModal'
+import { XSwapOrderModal } from 'components/AccountDrawer/MiniPortfolio/Activity/XSwapOrderModal'
 import UniwalletModal from 'components/AccountDrawer/UniwalletModal'
 import { Banners } from 'components/Banner/shared/Banners'
 import ConnectedAccountBlocked from 'components/ConnectedAccountBlocked'
@@ -36,6 +37,7 @@ export default function TopLevelModals() {
       <Banners />
 
       <OffchainActivityModal />
+      <XSwapOrderModal />
       <TransactionCompleteModal />
       <FiatOnrampModal />
       <UkDisclaimerModal />

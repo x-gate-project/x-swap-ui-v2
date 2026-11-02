@@ -1,5 +1,6 @@
 import { Currency } from '@uniswap/sdk-core'
 import { UniswapXOrderDetails } from 'state/signatures/types'
+import { XSwapOrder } from 'state/xswap/types'
 import { TransactionStatus } from 'uniswap/src/data/graphql/uniswap-data-api/__generated__/types-and-hooks'
 import { InterfaceChainId } from 'uniswap/src/types/chains'
 
@@ -26,6 +27,8 @@ export type Activity = {
   suffixIconSrc?: string
   cancelled?: boolean
   isSpam?: boolean
+  /** An x-swap cross-chain order; its row opens the order tracker. */
+  xswapOrder?: XSwapOrder
 }
 
 export type ActivityMap = { [id: string]: Activity | undefined }

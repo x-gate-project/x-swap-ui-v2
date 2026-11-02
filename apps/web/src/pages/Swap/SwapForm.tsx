@@ -21,7 +21,6 @@ import PriceImpactModal from 'components/swap/PriceImpactModal'
 import PriceImpactWarning from 'components/swap/PriceImpactWarning'
 import SwapDetailsDropdown from 'components/swap/SwapDetailsDropdown'
 import { XSwapCrossChainPanel } from 'components/swap/XSwap/XSwapCrossChainPanel'
-import { XSwapOrderHistory } from 'components/swap/XSwap/XSwapOrderHistory'
 import { XSwapOrderTracker } from 'components/swap/XSwap/XSwapOrderTracker'
 import confirmPriceImpactWithoutFee from 'components/swap/confirmPriceImpactWithoutFee'
 import { Field } from 'components/swap/constants'
@@ -840,7 +839,6 @@ export function SwapForm({ disableTokenInputs = false, onCurrencyChange }: SwapF
           {isUsingBlockedExtension && <SwapNotice />}
         </div>
         {xswapOrder && <XSwapOrderTracker order={xswapOrder} onClose={() => setXSwapOrder(undefined)} />}
-        {usesXSwapApi && account.address && <XSwapOrderHistory wallet={account.address} onOpen={setXSwapOrder} />}
       </AutoColumn>
     </>
   )

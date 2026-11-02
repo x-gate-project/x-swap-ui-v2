@@ -66,7 +66,7 @@ const CloseButton = styled.button`
   cursor: pointer;
 `
 
-export function xswapOrderStatusLabel(status: XSwapOrderStatus): string {
+function xswapOrderStatusLabel(status: XSwapOrderStatus): string {
   switch (status) {
     case 'SUBMITTED':
       return t('xswap.order.status.submitted')
@@ -85,7 +85,7 @@ export function xswapOrderStatusLabel(status: XSwapOrderStatus): string {
   }
 }
 
-export function xswapOrderStatusTone(order: XSwapOrder): 'success' | 'critical' | 'accent' | 'neutral' {
+function xswapOrderStatusTone(order: XSwapOrder): 'success' | 'critical' | 'accent' | 'neutral' {
   if (order.state === 'success') {
     return 'success'
   }

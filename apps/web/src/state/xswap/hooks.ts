@@ -249,7 +249,7 @@ export function useXSwapOrder(id?: string, initial?: XSwapOrder) {
   })
 }
 
-/** `GET /v1/orders?wallet=`, newest first, one page per cursor. */
+/** `GET /v1/orders?wallet=` for the Activity tab, newest first, one page per cursor. */
 export function useXSwapOrderHistory(wallet?: string) {
   return useInfiniteQuery({
     queryKey: xswapQueryKeys.orders(wallet),
@@ -257,7 +257,11 @@ export function useXSwapOrderHistory(wallet?: string) {
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (page) => page.nextCursor ?? undefined,
     enabled: isXSwapApiEnabled() && !!wallet,
-    refetchInterval: ORDER_HISTORY_POLL_MS,
+    // Polls while an order is still moving; settled history does not change.
+    refetchInterval: (query) =>
+      query.state.data?.pages.some((page) => page.orders.some((order) => !isXSwapOrderTerminal(order)))
+        ? ORDER_HISTORY_POLL_MS
+        : false,
   })
 }
 
