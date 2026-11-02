@@ -1130,6 +1130,7 @@
   "xswap.tokenSelector.unavailable": "Not available for swaps right now",
   "xswap.execute.error.generic": "Something went wrong, try again",
   "xswap.execute.error.invalidPlan": "This route returned transactions that cannot be sent safely. Pick another route or try again.",
+  "xswap.execute.error.quoteChanged": "The price or route changed. Review the new quote and try again.",
   "xswap.execute.error.quoteExpired": "The quote expired. Getting a new one…",
   "xswap.execute.error.register": "Your deposit went through, but tracking the order failed. It still completes; check the deposit transaction:",
   "xswap.execute.error.rejected": "Transaction rejected",

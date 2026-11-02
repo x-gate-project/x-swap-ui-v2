@@ -12,6 +12,7 @@ import {
   useXSwapChainName,
   useXSwapNativeSymbol,
   xswapProviderName,
+  xswapRouteKey,
 } from 'components/swap/XSwap/shared'
 import { Trans, t } from 'i18n'
 import { useMemo, useState } from 'react'
@@ -100,7 +101,8 @@ type Props = {
   syncing: boolean
   /** An order is executing: the route cannot change. */
   disabled?: boolean
-  onSelectProvider: (provider: string) => void
+  /** Picks a route by `xswapRouteKey`. */
+  onSelectRoute: (routeKey: string) => void
 }
 
 /** Slippage the API applied: how far `minOutputAmount` is below `outputAmount`. */
@@ -153,7 +155,7 @@ export function XSwapDetailsDropdown({
   loading,
   syncing,
   disabled,
-  onSelectProvider,
+  onSelectRoute,
 }: Props) {
   const theme = useTheme()
   const [open, setOpen] = useState(false)
@@ -323,7 +325,7 @@ export function XSwapDetailsDropdown({
                     $selected={route.quoteId === selected.quoteId}
                     aria-pressed={route.quoteId === selected.quoteId}
                     disabled={disabled}
-                    onClick={() => onSelectProvider(route.provider)}
+                    onClick={() => onSelectRoute(xswapRouteKey(route))}
                     data-testid={`xswap-route-${route.provider}`}
                   >
                     <ThemedText.BodySmall>

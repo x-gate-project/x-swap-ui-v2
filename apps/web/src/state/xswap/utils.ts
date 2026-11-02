@@ -156,17 +156,19 @@ export function formatXSwapUnits(amount: string, decimals: number, maxDecimals =
   const fraction = (value % base).toString().padStart(decimals, '0').slice(0, maxDecimals).replace(/0+$/, '')
   const formatted = fraction ? `${whole}.${fraction}` : whole.toString()
   if (formatted === '0' && value > 0n) {
-    return `<0.${'0'.repeat(Math.max(0, maxDecimals - 1))}1`
+    return maxDecimals > 0 ? `<0.${'0'.repeat(maxDecimals - 1)}1` : '<1'
   }
   return negative ? `-${formatted}` : formatted
 }
 
 /** `90` -> `1m 30s`, `45` -> `45s`, `3600` -> `60m`. */
 export function formatXSwapEta(etaSec: number): string {
-  if (etaSec < 60) {
-    return `${Math.max(0, Math.round(etaSec))}s`
+  // Round first so e.g. 119.6 s is `2m`, not `1m 60s`.
+  const total = Math.max(0, Math.round(etaSec))
+  if (total < 60) {
+    return `${total}s`
   }
-  const minutes = Math.floor(etaSec / 60)
-  const seconds = Math.round(etaSec % 60)
+  const minutes = Math.floor(total / 60)
+  const seconds = total % 60
   return seconds ? `${minutes}m ${seconds}s` : `${minutes}m`
 }

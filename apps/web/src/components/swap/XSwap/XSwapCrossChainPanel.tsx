@@ -2,7 +2,7 @@ import { ButtonPrimary } from 'components/Button'
 import { GrayCard } from 'components/Card'
 import Loader from 'components/Icons/LoadingSpinner'
 import { wagmiConfig } from 'components/Web3Provider/wagmi'
-import { ErrorText, Label, Muted, Row, TxLink } from 'components/swap/XSwap/shared'
+import { ErrorText, Label, Muted, Row, TxLink, xswapRouteKey } from 'components/swap/XSwap/shared'
 import useSelectChain from 'hooks/useSelectChain'
 import { t } from 'i18n'
 import { ReactNode, useCallback, useEffect, useMemo, useState } from 'react'
@@ -12,6 +12,7 @@ import { getXSwapErrorMessage, toXSwapError } from 'state/xswap/errors'
 import {
   XSwapExecutionDeps,
   XSwapPlanError,
+  XSwapQuoteChangedError,
   XSwapQuoteExpiredError,
   XSwapRegisterError,
   XSwapStep,
@@ -111,6 +112,9 @@ function toExecutionError(error: unknown, chainId: number): ExecutionError {
   if (error instanceof XSwapQuoteExpiredError) {
     return { message: t('xswap.execute.error.quoteExpired') }
   }
+  if (error instanceof XSwapQuoteChangedError) {
+    return { message: t('xswap.execute.error.quoteChanged') }
+  }
   if (error instanceof XSwapTxRevertedError) {
     return { message: t('xswap.execute.error.reverted') }
   }
@@ -158,7 +162,7 @@ export function XSwapCrossChainPanel({ quote: selected, inputError, onExecutingC
 
   // Another amount, pair or route drops the previous attempt's progress and error; a re-quote of the same one does not.
   const attemptKey = [
-    selected.provider,
+    xswapRouteKey(selected),
     selected.tokenIn.chainId,
     selected.tokenIn.address,
     selected.tokenOut.chainId,
@@ -171,6 +175,8 @@ export function XSwapCrossChainPanel({ quote: selected, inputError, onExecutingC
   }, [attemptKey])
 
   useEffect(() => onExecutingChange(Boolean(executing)), [executing, onExecutingChange])
+  // The panel can unmount mid-execution (wallet disconnected, pair cleared): never leave the form locked.
+  useEffect(() => () => onExecutingChange(false), [onExecutingChange])
 
   const execute = useCallback(async () => {
     setExecuting(selected)
@@ -191,7 +197,7 @@ export function XSwapCrossChainPanel({ quote: selected, inputError, onExecutingC
       logger.warn('XSwapCrossChainPanel', 'execute', 'cross-chain order failed', e)
       setSteps((current) => current?.map((step) => (step.status === 'active' ? { ...step, status: 'error' } : step)))
       setError(toExecutionError(e, selected.tokenIn.chainId))
-      if (e instanceof XSwapQuoteExpiredError) {
+      if (e instanceof XSwapQuoteExpiredError || e instanceof XSwapQuoteChangedError) {
         requote()
       }
     } finally {

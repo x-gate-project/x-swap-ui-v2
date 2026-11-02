@@ -22,7 +22,7 @@ import SwapDetailsDropdown from 'components/swap/SwapDetailsDropdown'
 import { XSwapCrossChainPanel } from 'components/swap/XSwap/XSwapCrossChainPanel'
 import { XSwapDetailsDropdown } from 'components/swap/XSwap/XSwapDetailsDropdown'
 import { XSwapOrderTracker } from 'components/swap/XSwap/XSwapOrderTracker'
-import { xswapRoutes } from 'components/swap/XSwap/shared'
+import { xswapRouteKey, xswapRoutes } from 'components/swap/XSwap/shared'
 import confirmPriceImpactWithoutFee from 'components/swap/confirmPriceImpactWithoutFee'
 import { Field } from 'components/swap/constants'
 import { ArrowContainer, ArrowWrapper, OutputSwapSection, SwapSection } from 'components/swap/styled'
@@ -326,12 +326,13 @@ export function SwapForm({ disableTokenInputs = false, onCurrencyChange }: SwapF
       currencies[Field.INPUT]?.chainId !== currencies[Field.OUTPUT]?.chainId,
   )
   const [xswapExecuting, setXSwapExecuting] = useState(false)
-  const [xswapProvider, setXSwapProvider] = useState<string>()
+  // The route the user picked (`xswapRouteKey`); undefined is `best`.
+  const [xswapPickedRoute, setXSwapPickedRoute] = useState<string>()
   const [xswapOrder, setXSwapOrder] = useState<XSwapOrder>()
   const xswapQuote = useXSwapQuote({
     enabled: xswapChainMode === 'api' && !showWrap && independentField === Field.INPUT,
     // Keep the quote being sent while the user executes it.
-    refetchIntervalMs: xswapExecuting ? false : undefined,
+    frozen: xswapExecuting,
     inputCurrency: currencies[Field.INPUT],
     outputCurrency: currencies[Field.OUTPUT],
     inputAmount: parsedAmounts[Field.INPUT],
@@ -362,8 +363,26 @@ export function SwapForm({ disableTokenInputs = false, onCurrencyChange }: SwapF
     () => xswapCrossChainResponse && xswapRoutes(xswapCrossChainResponse.best, xswapCrossChainResponse.candidates),
     [xswapCrossChainResponse],
   )
+  // Another pair goes back to `best`.
+  const xswapPairKey = [currencies[Field.INPUT], currencies[Field.OUTPUT]]
+    .map((c) => (c ? `${c.chainId}-${c.isNative ? 'native' : c.address.toLowerCase()}` : ''))
+    .join('|')
+  useEffect(() => setXSwapPickedRoute(undefined), [xswapPairKey])
   const xswapSelectedQuote =
-    xswapCrossChainRoutes?.find((q) => q.provider === xswapProvider) ?? xswapCrossChainResponse?.best
+    xswapCrossChainRoutes?.find((q) => xswapRouteKey(q) === xswapPickedRoute) ?? xswapCrossChainResponse?.best
+  // A native input also pays the bridge's native fee in the deposit's `value`: the amount alone may pass the balance
+  // check while the deposit cannot be sent.
+  const xswapInputError = useMemo(() => {
+    const balance = currencyBalances[Field.INPUT]
+    // While executing, the deposit itself lowers the balance.
+    if (xswapExecuting || !xswapSelectedQuote?.executable || !balance?.currency.isNative) {
+      return undefined
+    }
+    const value = xswapSelectedQuote.txs.reduce((sum, tx) => sum + BigInt(tx.value || '0'), 0n)
+    return BigInt(balance.quotient.toString()) < value ? (
+      <Trans i18nKey="common.insufficientTokenBalance.error" values={{ tokenSymbol: balance.currency.symbol }} />
+    ) : undefined
+  }, [currencyBalances, xswapExecuting, xswapSelectedQuote])
   const xswapCrossChainOutput = useMemo(() => {
     const outputCurrency = currencies[Field.OUTPUT]
     return xswapSelectedQuote && outputCurrency
@@ -776,7 +795,7 @@ export function SwapForm({ disableTokenInputs = false, onCurrencyChange }: SwapF
           ) : xswapSelectedQuote && userHasSpecifiedInputOutput ? (
             <XSwapCrossChainPanel
               quote={xswapSelectedQuote}
-              inputError={swapInputError}
+              inputError={swapInputError ?? xswapInputError}
               onExecutingChange={setXSwapExecuting}
               onOrder={handleXSwapOrder}
             />
@@ -843,7 +862,7 @@ export function SwapForm({ disableTokenInputs = false, onCurrencyChange }: SwapF
               loading={xswapQuote.status === 'loading'}
               syncing={xswapQuote.status === 'success' && xswapQuote.refreshing && !xswapExecuting}
               disabled={xswapExecuting}
-              onSelectProvider={setXSwapProvider}
+              onSelectRoute={setXSwapPickedRoute}
             />
           )}
           {isUsingBlockedExtension && <SwapNotice />}

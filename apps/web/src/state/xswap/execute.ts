@@ -39,6 +39,19 @@ export class XSwapQuoteExpiredError extends Error {
   }
 }
 
+/**
+ * A refresh changed the quote in a way the user did not agree to: a lower `minOutputAmount` than the one shown
+ * (`price`), or another amount / XChainSender / Permit2 than the approvals already sent cover (`route`). Nothing more is
+ * sent; quote again and let the user confirm.
+ */
+export class XSwapQuoteChangedError extends Error {
+  constructor(readonly reason: 'price' | 'route') {
+    super(`quote changed on refresh (${reason})`)
+    this.name = 'XSwapQuoteChangedError'
+    Object.setPrototypeOf(this, XSwapQuoteChangedError.prototype)
+  }
+}
+
 /** A tx was mined but reverted. */
 export class XSwapTxRevertedError extends Error {
   constructor(
@@ -141,6 +154,32 @@ export function planXSwapTxs(quote: XSwapQuote): XSwapTx[] {
   return txs
 }
 
+/** Contracts the plan's approvals are granted to: XChainSender (the deposit target) and Permit2, if used. */
+function planSpenders(txs: XSwapTx[]): { sender?: string; permit2?: string } {
+  return {
+    sender: txs.find((tx) => tx.kind === 'deposit')?.to,
+    permit2: txs.find((tx) => tx.kind === 'permit2-approve')?.to,
+  }
+}
+
+function sameOptionalAddress(a?: string, b?: string): boolean {
+  return (!a && !b) || sameAddress(a, b)
+}
+
+/** Throws when `fresh` pays less than `shown` guaranteed, or spends another amount of another token. */
+function assertRefreshAgreed(shown: XSwapQuote, fresh: XSwapQuote): void {
+  if (
+    fresh.inputAmount !== shown.inputAmount ||
+    fresh.tokenIn.chainId !== shown.tokenIn.chainId ||
+    !sameAddress(fresh.tokenIn.address, shown.tokenIn.address)
+  ) {
+    throw new XSwapQuoteChangedError('route')
+  }
+  if (BigInt(fresh.minOutputAmount) < BigInt(shown.minOutputAmount)) {
+    throw new XSwapQuoteChangedError('price')
+  }
+}
+
 function isXSwapQuoteExpiring(quote: XSwapQuote, now: number, marginMs = XSWAP_QUOTE_EXPIRY_MARGIN_MS) {
   return now >= quote.expiresAt - marginMs
 }
@@ -212,6 +251,8 @@ async function registerWithRetry(
  * 1. refresh the quote if it is about to expire (`quote_unavailable` → `XSwapQuoteExpiredError`, re-quote);
  * 2. send each approval and wait for it;
  * 3. refresh again before the deposit, since approvals take time, and send the refreshed quote's deposit;
+ *    a refresh that lowers `minOutputAmount` or targets other contracts than the approvals stops with
+ *    `XSwapQuoteChangedError`;
  * 4. `POST /v1/orders` with the deposit's quote and hash.
  */
 export async function executeXSwapQuote(
@@ -221,9 +262,11 @@ export async function executeXSwapQuote(
 ): Promise<XSwapOrder> {
   let quote = await ensureFreshXSwapQuote(initialQuote, deps)
   if (quote !== initialQuote) {
+    assertRefreshAgreed(initialQuote, quote)
     callbacks.onQuote?.(quote)
   }
   const txs = planXSwapTxs(quote)
+  const approved = planSpenders(txs)
   const steps: XSwapStep[] = txs.map((tx) => ({ tx, status: 'pending' }))
   callbacks.onPlan?.(steps)
 
@@ -232,10 +275,19 @@ export async function executeXSwapQuote(
     if (tx.kind === 'deposit') {
       const fresh = await ensureFreshXSwapQuote(quote, deps)
       if (fresh !== quote) {
+        // The user agreed to what `initialQuote` showed; the approvals already sent must still cover the deposit.
+        assertRefreshAgreed(initialQuote, fresh)
+        const freshTxs = planXSwapTxs(fresh)
+        const freshSpenders = planSpenders(freshTxs)
+        if (
+          !sameAddress(freshSpenders.sender, approved.sender) ||
+          !sameOptionalAddress(freshSpenders.permit2, approved.permit2)
+        ) {
+          throw new XSwapQuoteChangedError('route')
+        }
         quote = fresh
         callbacks.onQuote?.(quote)
-        // Same request, so the approvals already sent still cover it; only the deposit is rebuilt.
-        tx = planXSwapTxs(quote).find((t) => t.kind === 'deposit') as XSwapTx
+        tx = freshTxs.find((t) => t.kind === 'deposit') as XSwapTx
         steps[index] = { ...steps[index], tx }
         callbacks.onStep?.(index, { tx })
       }

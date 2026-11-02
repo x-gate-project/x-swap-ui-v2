@@ -191,6 +191,7 @@ describe('formatXSwapUnits', () => {
     expect(formatXSwapUnits('1000000000000000000', 18)).toBe('1')
     expect(formatXSwapUnits('1234567891', 9)).toBe('1.234567')
     expect(formatXSwapUnits('0', 18)).toBe('0')
+    expect(formatXSwapUnits('1', 18, 0)).toBe('<1')
   })
 
   it('shows dust as <0.000001', () => {
@@ -207,6 +208,8 @@ describe('formatXSwapEta', () => {
     expect(formatXSwapEta(45)).toBe('45s')
     expect(formatXSwapEta(90)).toBe('1m 30s')
     expect(formatXSwapEta(120)).toBe('2m')
+    expect(formatXSwapEta(119.6)).toBe('2m')
+    expect(formatXSwapEta(59.6)).toBe('1m')
   })
 })
 

@@ -2,6 +2,7 @@ import { XSwapApiError } from 'state/xswap/client'
 import {
   XSwapExecutionDeps,
   XSwapPlanError,
+  XSwapQuoteChangedError,
   XSwapQuoteExpiredError,
   XSwapRegisterError,
   XSwapTxRevertedError,
@@ -147,6 +148,37 @@ describe('executeXSwapQuote', () => {
     await executeXSwapQuote(quote(), d)
     expect(d.sent.map((t) => t.data)).toEqual([approve(SENDER).data, '0xbeef'])
     expect(d.registerOrder).toHaveBeenCalledWith({ quoteId: 'q2', txHash: '0xhash2' })
+  })
+
+  it('stops before sending when the refresh lowers the minimum output', async () => {
+    const refreshed = quote({ quoteId: 'q2', minOutputAmount: '97', expiresAt: NOW + 30_000 })
+    const d = deps({ refreshQuote: jest.fn(async () => refreshed) })
+    const error = await executeXSwapQuote(quote({ expiresAt: NOW + 5_000 }), d).catch((e) => e)
+    expect(error).toBeInstanceOf(XSwapQuoteChangedError)
+    expect(error.reason).toBe('price')
+    expect(d.sent).toHaveLength(0)
+  })
+
+  it.each([
+    ['lowers the minimum output', { minOutputAmount: '97' }, 'price'],
+    ['deposits to another XChainSender', { txs: [{ ...deposit(), to: OTHER }] }, 'route'],
+    ['spends another amount', { inputAmount: '101' }, 'route'],
+  ])('does not send the deposit when a refresh after the approvals %s', async (_, overrides, reason) => {
+    let now = NOW
+    const refreshed = quote({ quoteId: 'q2', expiresAt: NOW + 120_000, ...(overrides as Partial<XSwapQuote>) })
+    const d = deps({
+      now: () => now,
+      refreshQuote: jest.fn(async () => refreshed),
+      waitForTx: jest.fn(async () => {
+        now += 60_000
+        return true
+      }),
+    })
+    const error = await executeXSwapQuote(quote(), d).catch((e) => e)
+    expect(error).toBeInstanceOf(XSwapQuoteChangedError)
+    expect(error.reason).toBe(reason)
+    expect(d.sent.map((t) => t.kind)).toEqual(['approve'])
+    expect(d.registerOrder).not.toHaveBeenCalled()
   })
 
   it('asks for a new quote when the refresh is quote_unavailable', async () => {

@@ -4,6 +4,7 @@ import { useFallbackListTokens } from 'hooks/Tokens'
 import useDebounce from 'hooks/useDebounce'
 import { useCallback, useMemo } from 'react'
 import {
+  XSwapApiError,
   getXSwapChains,
   getXSwapOrder,
   getXSwapOrders,
@@ -41,6 +42,8 @@ const QUOTE_STALE_TIME_MS = 15_000
 const QUOTE_DEBOUNCE_MS = 300
 const ORDER_POLL_MS = 3_000
 const ORDER_HISTORY_POLL_MS = 15_000
+// Per poll; the next poll tries again.
+const ORDER_MAX_RETRIES = 3
 
 export const xswapQueryKeys = {
   chains: ['xswap', 'chains'] as const,
@@ -139,8 +142,11 @@ type UseXSwapQuoteArgs = {
   /** User slippage; undefined lets the API pick its default. */
   slippage?: Percent
   enabled?: boolean
-  /** Re-quote interval so a shown quote does not go stale (default 15 s); false while the user executes one. */
-  refetchIntervalMs?: number | false
+  /**
+   * The user is executing the shown quote: keep it as is. No polling, no refetch on window focus (signing in a wallet
+   * blurs the page), so the route being sent cannot change or turn into an error under the user.
+   */
+  frozen?: boolean
 }
 
 export function buildXSwapQuoteRequest({
@@ -149,7 +155,7 @@ export function buildXSwapQuoteRequest({
   inputAmount,
   swapper,
   slippage,
-}: Omit<UseXSwapQuoteArgs, 'enabled' | 'refetchIntervalMs'>): XSwapQuoteRequest | undefined {
+}: Omit<UseXSwapQuoteArgs, 'enabled' | 'frozen'>): XSwapQuoteRequest | undefined {
   if (!inputCurrency || !outputCurrency || !inputAmount || !swapper) {
     return undefined
   }
@@ -174,11 +180,7 @@ export function buildXSwapQuoteRequest({
  * `POST /v1/quote` for the current pair, then dispatch on `routeClass`: `local` is the same-chain flow, any other
  * class is the cross-chain flow.
  */
-export function useXSwapQuote({
-  enabled = true,
-  refetchIntervalMs = QUOTE_STALE_TIME_MS,
-  ...args
-}: UseXSwapQuoteArgs): XSwapQuoteState {
+export function useXSwapQuote({ enabled = true, frozen = false, ...args }: UseXSwapQuoteArgs): XSwapQuoteState {
   const { inputCurrency, outputCurrency, inputAmount, swapper, slippage } = args
   const request = useMemo(
     () => buildXSwapQuoteRequest({ inputCurrency, outputCurrency, inputAmount, swapper, slippage }),
@@ -197,10 +199,12 @@ export function useXSwapQuote({
   const { data, error, isFetching } = useQuery({
     queryKey: xswapQueryKeys.quote(debouncedRequest),
     queryFn: ({ signal }) => getXSwapQuote(debouncedRequest as XSwapQuoteRequest, signal),
-    enabled: active,
+    // A disabled query keeps its data: the frozen quote stays on screen.
+    enabled: active && !frozen,
     staleTime: QUOTE_STALE_TIME_MS,
     // Quotes expire (`expiresAt`); keep them fresh while the pair stays on screen.
-    refetchInterval: refetchIntervalMs,
+    refetchInterval: frozen ? false : QUOTE_STALE_TIME_MS,
+    refetchOnWindowFocus: !frozen,
     // Every quote error code is a definite answer; retrying only delays the message.
     retry: false,
   })
@@ -244,8 +248,10 @@ export function useXSwapOrder(id?: string, initial?: XSwapOrder) {
     // Polls from the start: a registered order is at most SUBMITTED.
     initialDataUpdatedAt: 0,
     refetchInterval: (query) => (isXSwapOrderTerminal(query.state.data) ? false : ORDER_POLL_MS),
-    // A transient error must not stop the polling.
-    retry: true,
+    // A transient error must not stop the polling, but a definite answer (e.g. 404) is not retried.
+    retry: (failureCount, error) =>
+      failureCount < ORDER_MAX_RETRIES &&
+      !(error instanceof XSwapApiError && error.status >= 400 && error.status < 500 && error.status !== 429),
   })
 }
 

@@ -120,6 +120,14 @@ export function xswapProviderName(provider: string): string {
   return PROVIDER_NAMES[provider] ?? provider
 }
 
+/**
+ * Identifies a route across re-quotes (each re-quote has a new `quoteId`). One provider can offer several routes, e.g.
+ * other shapes, so the provider alone is not enough.
+ */
+export function xswapRouteKey(quote: XSwapQuote): string {
+  return [quote.provider, quote.routing, quote.shape ?? ''].join('|')
+}
+
 /** `best` first, then the other candidates (the API ranks them best first and may repeat `best` among them). */
 export function xswapRoutes(best: XSwapQuote, candidates: XSwapQuote[]): XSwapQuote[] {
   return [best, ...candidates.filter((q) => q.quoteId !== best.quoteId)]
