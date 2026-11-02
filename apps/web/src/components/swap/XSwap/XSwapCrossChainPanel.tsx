@@ -1,4 +1,5 @@
 import { ButtonPrimary } from 'components/Button'
+import Loader from 'components/Icons/LoadingSpinner'
 import { wagmiConfig } from 'components/Web3Provider/wagmi'
 import { XSwapQuoteRoutes, xswapRoutes } from 'components/swap/XSwap/XSwapQuoteRoutes'
 import { Card, ErrorText, Label, Muted, Row, TxLink } from 'components/swap/XSwap/shared'
@@ -127,6 +128,8 @@ function toExecutionError(error: unknown, chainId: number): ExecutionError {
 type Props = {
   response: XSwapQuoteResponse
   lookup: XSwapTokenLookup
+  /** A background re-quote is in flight; the routes shown are still valid. */
+  refreshing?: boolean
   /** Provider of the route the user picked; `best` when unset or no longer offered. */
   selectedProvider?: string
   onSelectProvider: (provider: string) => void
@@ -143,6 +146,7 @@ type Props = {
 export function XSwapCrossChainPanel({
   response,
   lookup,
+  refreshing,
   selectedProvider,
   onSelectProvider,
   inputError,
@@ -211,7 +215,15 @@ export function XSwapCrossChainPanel({
     <Card data-testid="xswap-cross-chain">
       <Row>
         <Label>{t('xswap.route.title')}</Label>
-        <Muted>{response.routeClass}</Muted>
+        <Row>
+          {refreshing && !busy && (
+            <Row data-testid="xswap-quote-refreshing">
+              <Loader size="12px" />
+              <Muted>{t('xswap.route.refreshing')}</Muted>
+            </Row>
+          )}
+          <Muted>{response.routeClass}</Muted>
+        </Row>
       </Row>
       <XSwapQuoteRoutes
         routes={busy ? [quote] : routes}
@@ -261,10 +273,13 @@ export function XSwapCrossChainPanel({
           onClick={execute}
           data-testid="xswap-execute-button"
         >
-          <Text fontSize={20}>
-            {inputError ??
-              (busy ? t('xswap.execute.inProgress') : error ? t('common.tryAgain.error') : t('common.swap'))}
-          </Text>
+          <Row style={{ justifyContent: 'center' }}>
+            {busy && !inputError && <Loader size="20px" />}
+            <Text fontSize={20}>
+              {inputError ??
+                (busy ? t('xswap.execute.inProgress') : error ? t('common.tryAgain.error') : t('common.swap'))}
+            </Text>
+          </Row>
         </ButtonPrimary>
       )}
     </Card>

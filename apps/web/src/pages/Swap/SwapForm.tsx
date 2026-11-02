@@ -14,6 +14,7 @@ import Column, { AutoColumn } from 'components/Column'
 import { ConfirmSwapModal } from 'components/ConfirmSwapModal'
 import SwapCurrencyInputPanel from 'components/CurrencyInputPanel/SwapCurrencyInputPanel'
 import ErrorIcon from 'components/Icons/Error'
+import Loader from 'components/Icons/LoadingSpinner'
 import Row from 'components/Row'
 import TokenSafetyModal from 'components/TokenSafety/TokenSafetyModal'
 import PriceImpactModal from 'components/swap/PriceImpactModal'
@@ -764,10 +765,20 @@ export function SwapForm({ disableTokenInputs = false, onCurrencyChange }: SwapF
             <GrayCard style={{ textAlign: 'center' }} data-testid="xswap-quote-error">
               <ThemedText.DeprecatedMain mb="4px">{xswapQuoteError}</ThemedText.DeprecatedMain>
             </GrayCard>
+          ) : usesXSwapApi && xswapQuote.status === 'loading' && userHasSpecifiedInputOutput && !swapInputError ? (
+            <ButtonPrimary $borderRadius="16px" disabled data-testid="xswap-quote-loading">
+              <Row gap="sm" justify="center">
+                <Loader size="20px" />
+                <Text fontSize={20}>
+                  <Trans i18nKey="common.fetchingRoute" />
+                </Text>
+              </Row>
+            </ButtonPrimary>
           ) : xswapCrossChainResponse && userHasSpecifiedInputOutput ? (
             <XSwapCrossChainPanel
               response={xswapCrossChainResponse}
               lookup={xswapTokenLookup}
+              refreshing={xswapQuote.status === 'success' && xswapQuote.refreshing}
               selectedProvider={xswapProvider}
               onSelectProvider={setXSwapProvider}
               inputError={swapInputError}

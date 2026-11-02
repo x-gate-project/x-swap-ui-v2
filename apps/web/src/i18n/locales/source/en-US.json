@@ -1170,5 +1170,6 @@
   "xswap.route.leg.swap": "Swap {{amountIn}} → {{amountOut}} on {{chain}}",
   "xswap.route.minOut": "Minimum output",
   "xswap.route.quoteOnly": "Quote only",
+  "xswap.route.refreshing": "Updating",
   "xswap.route.title": "Routes"
 }

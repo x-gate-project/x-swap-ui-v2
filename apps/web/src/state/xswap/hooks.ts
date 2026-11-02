@@ -126,7 +126,8 @@ export function useXSwapTokenCurrencies(
 type XSwapQuoteState =
   | { status: 'idle' }
   | { status: 'loading' }
-  | { status: 'success'; response: XSwapQuoteResponse; flow: XSwapFlow }
+  /** `refreshing`: a background re-quote of the same request is in flight; the shown answer stays usable. */
+  | { status: 'success'; response: XSwapQuoteResponse; flow: XSwapFlow; refreshing: boolean }
   | { status: 'error'; error: XSwapError; message: string }
 
 type UseXSwapQuoteArgs = {
@@ -193,7 +194,7 @@ export function useXSwapQuote({
   )
   const active = enabled && isXSwapApiEnabled() && !!debouncedRequest
 
-  const { data, error } = useQuery({
+  const { data, error, isFetching } = useQuery({
     queryKey: xswapQueryKeys.quote(debouncedRequest),
     queryFn: ({ signal }) => getXSwapQuote(debouncedRequest as XSwapQuoteRequest, signal),
     enabled: active,
@@ -217,10 +218,10 @@ export function useXSwapQuote({
       return { status: 'error', error: xswapError, message: getXSwapErrorMessage(xswapError) }
     }
     if (data) {
-      return { status: 'success', response: data, flow: getXSwapFlow(data.routeClass) }
+      return { status: 'success', response: data, flow: getXSwapFlow(data.routeClass), refreshing: isFetching }
     }
     return { status: active ? 'loading' : 'idle' }
-  }, [active, data, enabled, error, isDebouncing, request])
+  }, [active, data, enabled, error, isDebouncing, isFetching, request])
 }
 
 /** Drops every cached quote and asks again, e.g. after `quote_unavailable`. */
