@@ -23,7 +23,7 @@ export type XSwapToken = {
 }
 
 /** Every route class the API classifies a pair into. Each one is switched on or off in API config. */
-export type XSwapRouteClass =
+type XSwapRouteClass =
   | 'local'
   | 'evm-native'
   | 'composite'
@@ -32,11 +32,15 @@ export type XSwapRouteClass =
   | 'joc-eth-stable-in'
   | 'joc-eth-stable-out'
 
-export type XSwapRouting = 'SWAP' | 'WRAP' | 'UNWRAP' | 'BRIDGE' | 'BRIDGE_SWAP'
+/** A known route class, or one added to the API later; the UI treats every class other than `local` alike. */
+// eslint-disable-next-line @typescript-eslint/ban-types -- `string & {}` keeps literal autocompletion
+type XSwapRouteClassName = XSwapRouteClass | (string & {})
 
-export type XSwapTxKind = 'approve' | 'approve-reset' | 'permit2-approve' | 'deposit'
+type XSwapRouting = 'SWAP' | 'WRAP' | 'UNWRAP' | 'BRIDGE' | 'BRIDGE_SWAP'
 
-export type XSwapTx = {
+type XSwapTxKind = 'approve' | 'approve-reset' | 'permit2-approve' | 'deposit'
+
+type XSwapTx = {
   chainId: number
   kind: XSwapTxKind
   to: string
@@ -45,10 +49,10 @@ export type XSwapTx = {
   gasLimit?: string
 }
 
-export type XSwapShape = 'bridge' | 'swap-bridge' | 'bridge-swap' | 'swap-bridge-swap' | 'swap'
+type XSwapShape = 'bridge' | 'swap-bridge' | 'bridge-swap' | 'swap-bridge-swap' | 'swap'
 
 /** One leg of a quoted route, in execution order. */
-export type XSwapLeg =
+type XSwapLeg =
   | {
       type: 'swap'
       chainId: number
@@ -73,7 +77,7 @@ export type XSwapLeg =
     }
 
 /** Permit2 `PermitSingle` as `eth_signTypedData_v4` input. */
-export type XSwapPermitTypedData = {
+type XSwapPermitTypedData = {
   domain: { name: string; chainId: number; verifyingContract: string }
   types: Record<string, { name: string; type: string }[]>
   primaryType: 'PermitSingle'
@@ -84,11 +88,11 @@ export type XSwapPermitTypedData = {
   }
 }
 
-export type XSwapQuote = {
+type XSwapQuote = {
   quoteId: string
   provider: string
   routing: XSwapRouting
-  routeClass: string
+  routeClass: XSwapRouteClassName
   tokenIn: { chainId: number; address: XSwapTokenRef }
   tokenOut: { chainId: number; address: XSwapTokenRef }
   inputAmount: string
@@ -110,7 +114,7 @@ export type XSwapQuote = {
   score: number
 }
 
-export type XSwapRejection = { provider: string; reason: string }
+type XSwapRejection = { provider: string; reason: string }
 
 /** `POST /v1/quote` body. Amounts are base units as decimal strings; only EXACT_INPUT is supported. */
 export type XSwapQuoteRequest = {
@@ -126,7 +130,7 @@ export type XSwapQuoteRequest = {
 /** `POST /v1/quote` response: candidates ranked best first. */
 export type XSwapQuoteResponse = {
   requestId: string
-  routeClass: string
+  routeClass: XSwapRouteClassName
   best: XSwapQuote
   candidates: XSwapQuote[]
   rejected: XSwapRejection[]

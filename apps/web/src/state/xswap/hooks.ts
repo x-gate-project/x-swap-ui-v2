@@ -25,16 +25,16 @@ const CATALOG_STALE_TIME_MS = 60_000
 const QUOTE_STALE_TIME_MS = 15_000
 const QUOTE_DEBOUNCE_MS = 300
 
-export const xswapQueryKeys = {
+const xswapQueryKeys = {
   chains: ['xswap', 'chains'] as const,
   tokens: (chainId?: number) => ['xswap', 'tokens', chainId] as const,
   quote: (params?: XSwapQuoteRequest) => ['xswap', 'quote', params] as const,
 }
 
 /** `GET /v1/chains`: chains enabled in API config. Empty while loading or when the API is disabled. */
-export function useXSwapChains({ enabled = true }: { enabled?: boolean } = {}): {
+function useXSwapChains({ enabled = true }: { enabled?: boolean } = {}): {
   chains: XSwapChain[]
-  chainIds: number[] | undefined
+  chainIds?: number[]
   loading: boolean
 } {
   const { data, isLoading } = useQuery({
@@ -61,7 +61,7 @@ export function useXSwapChainMode(chainId?: number, { enabled = true }: { enable
 }
 
 /** `GET /v1/tokens?chainId=`. */
-export function useXSwapTokens(chainId?: number, { enabled = true }: { enabled?: boolean } = {}) {
+function useXSwapTokens(chainId?: number, { enabled = true }: { enabled?: boolean } = {}) {
   return useQuery({
     queryKey: xswapQueryKeys.tokens(chainId),
     queryFn: ({ signal }) => getXSwapTokens(chainId as number, signal),
@@ -100,7 +100,7 @@ export function useXSwapTokenCurrencies(
   return { entries, loading: isLoading }
 }
 
-export type XSwapQuoteState =
+type XSwapQuoteState =
   | { status: 'idle' }
   | { status: 'loading' }
   | { status: 'success'; response: XSwapQuoteResponse; flow: XSwapFlow }
@@ -169,6 +169,8 @@ export function useXSwapQuote({ enabled = true, ...args }: UseXSwapQuoteArgs): X
     queryFn: ({ signal }) => getXSwapQuote(debouncedRequest as XSwapQuoteRequest, signal),
     enabled: active,
     staleTime: QUOTE_STALE_TIME_MS,
+    // Quotes expire (`expiresAt`); keep the gate fresh while the pair stays on screen.
+    refetchInterval: QUOTE_STALE_TIME_MS,
     // Every quote error code is a definite answer; retrying only delays the message.
     retry: false,
   })

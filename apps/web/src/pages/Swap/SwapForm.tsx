@@ -78,7 +78,8 @@ interface SwapFormProps {
 }
 
 export function SwapForm({ disableTokenInputs = false, onCurrencyChange }: SwapFormProps) {
-  const { isDisconnected, chainId: connectedChainId, address: account } = useAccount()
+  const account = useAccount()
+  const { isDisconnected, chainId: connectedChainId } = account
 
   const trace = useTrace()
 
@@ -310,11 +311,25 @@ export function SwapForm({ disableTokenInputs = false, onCurrencyChange }: SwapF
     inputCurrency: currencies[Field.INPUT],
     outputCurrency: currencies[Field.OUTPUT],
     inputAmount: parsedAmounts[Field.INPUT],
-    swapper: account,
+    swapper: account.address,
     slippage: userSlippageTolerance === SlippageTolerance.Auto ? undefined : userSlippageTolerance,
   })
   const xswapQuoteError = xswapQuote.status === 'error' ? xswapQuote.message : undefined
   const xswapCrossChain = xswapQuote.status === 'success' && xswapQuote.flow === 'cross-chain'
+  // Only a same-chain API quote lets the swap go on; cross-chain orders wait for #66.
+  const xswapSameChainReady = xswapQuote.status === 'success' && xswapQuote.flow === 'same-chain'
+
+  useEffect(() => {
+    // The API only quotes exact input: an exact output amount (e.g. `exactField=output` in the URL) would leave the
+    // read-only output field set and the swap button disabled with no way out.
+    if (usesXSwapApi && independentField === Field.OUTPUT) {
+      setSwapState((state) => ({
+        ...state,
+        independentField: Field.INPUT,
+        typedValue: '',
+      }))
+    }
+  }, [independentField, setSwapState, usesXSwapApi])
 
   const maximumAmountIn = useMaxAmountIn(trade, allowedSlippage)
   const allowance = usePermit2Allowance(
@@ -723,7 +738,7 @@ export function SwapForm({ disableTokenInputs = false, onCurrencyChange }: SwapF
                   isUsingBlockedExtension ||
                   !getIsReviewableQuote(trade, tradeState, swapInputError) ||
                   // Wait for the API to accept the pair before the same-chain flow can go on.
-                  (usesXSwapApi && !swapInputError && xswapQuote.status !== 'success')
+                  (usesXSwapApi && !swapInputError && !xswapSameChainReady)
                 }
                 error={!swapInputError && priceImpactSeverity > 2 && allowance.state === AllowanceState.ALLOWED}
               >

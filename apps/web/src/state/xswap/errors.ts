@@ -1,17 +1,6 @@
 import { t } from 'i18n'
 import { XSWAP_REQUEST_FAILED, XSwapApiError } from 'state/xswap/client'
 
-/** Quote error codes the swap form shows a dedicated message for. */
-export const XSWAP_QUOTE_ERROR_CODES = [
-  'unsupported_token',
-  'no_route',
-  'local_unsupported',
-  'invalid_slippage',
-  'price_unavailable',
-  'quote_timeout',
-] as const
-export type XSwapQuoteErrorCode = (typeof XSWAP_QUOTE_ERROR_CODES)[number]
-
 export type XSwapError = {
   code: string
   status: number

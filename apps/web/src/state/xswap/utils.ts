@@ -17,11 +17,11 @@ export function toXSwapAddress(currency: Currency): XSwapTokenRef {
 }
 
 /** Key that is equal for two currencies only when they are the same token on the same chain. */
-export function xswapTokenKey(chainId: number, address: string): string {
+function xswapTokenKey(chainId: number, address: string): string {
   return `${chainId}-${address.toLowerCase()}`
 }
 
-export function currencyXSwapKey(currency: Currency): string {
+function currencyXSwapKey(currency: Currency): string {
   return xswapTokenKey(currency.chainId, toXSwapAddress(currency))
 }
 

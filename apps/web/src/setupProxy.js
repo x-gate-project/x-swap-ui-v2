@@ -1,3 +1,4 @@
+/* eslint-env node */
 // Dev-server only (loaded by react-scripts). The x-swap API sends no CORS headers, so local development reaches it
 // through the same /api/xswap path the Vercel function (api/xswap) serves in production.
 // Usage: XSWAP_API_PROXY_TARGET=http://localhost:3001 REACT_APP_XSWAP_API_URL=/api/xswap/v1 yarn start

@@ -5,7 +5,7 @@ import { XSwapChain, XSwapErrorBody, XSwapQuoteRequest, XSwapQuoteResponse, XSwa
  * `api/xswap` and, in local development, by `src/setupProxy.js`. The API sends no CORS headers, so the browser always
  * goes through that proxy. Unset disables every x-swap API call and the swap form keeps its old behavior.
  */
-export function getXSwapApiUrl(): string {
+function getXSwapApiUrl(): string {
   return (process.env.REACT_APP_XSWAP_API_URL ?? '').replace(/\/+$/, '')
 }
 
