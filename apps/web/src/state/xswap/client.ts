@@ -85,6 +85,19 @@ export function refreshXSwapQuote(quoteId: string, signal?: AbortSignal): Promis
   return request<XSwapQuote>(`/quote/${encodeURIComponent(quoteId)}/refresh`, { method: 'POST', signal })
 }
 
+/**
+ * The quote's swap with the user's signature of its `permit` in place of the `permit2-approve` tx, as a new quote
+ * (new `quoteId`) whose `txs` is the deposit alone. `quote_unavailable` (410): the quote expired, quote again;
+ * `permit_unavailable` (409): the quote takes no permit; `validator_failed` / `simulation_failed` (422): the signed swap
+ * does not pass the API's checks.
+ */
+export function permitXSwapQuote(quoteId: string, signature: string): Promise<XSwapQuote> {
+  return request<XSwapQuote>(`/quote/${encodeURIComponent(quoteId)}/permit`, {
+    method: 'POST',
+    body: JSON.stringify({ signature }),
+  })
+}
+
 /** Starts tracking the order once its deposit tx is mined. */
 export function registerXSwapOrder(params: { quoteId: string; txHash: string }): Promise<XSwapOrder> {
   return request<XSwapOrder>('/orders', { method: 'POST', body: JSON.stringify(params) })

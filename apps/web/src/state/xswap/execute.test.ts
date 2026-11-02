@@ -7,15 +7,17 @@ import {
   XSwapRegisterError,
   XSwapTxRevertedError,
   executeXSwapQuote,
+  planXSwapSteps,
   planXSwapTxs,
 } from 'state/xswap/execute'
-import { XSwapOrder, XSwapQuote, XSwapTx } from 'state/xswap/types'
+import { XSwapOrder, XSwapPermitTypedData, XSwapQuote, XSwapTx } from 'state/xswap/types'
 import { encodeFunctionData, erc20Abi, parseAbi } from 'viem'
 
 const TOKEN = '0x1111111111111111111111111111111111111111'
 const SENDER = '0x2222222222222222222222222222222222222222'
 const PERMIT2 = '0x000000000022D473030F116dDEE9F6B43aC78BA3'
 const OTHER = '0x3333333333333333333333333333333333333333'
+const ROUTER = '0x4444444444444444444444444444444444444444'
 const CHAIN = 11155111
 const NOW = 1_000_000
 
@@ -43,7 +45,19 @@ const permit2Approve = (spender: string, token = TOKEN): XSwapTx => ({
   value: '0',
 })
 
-const deposit = (data = '0xdead'): XSwapTx => ({ chainId: CHAIN, kind: 'deposit', to: SENDER, data, value: '0' })
+const deposit = (data = '0xdead', to = SENDER): XSwapTx => ({ chainId: CHAIN, kind: 'deposit', to, data, value: '0' })
+
+const permit = (overrides: { spender?: string; token?: string; amount?: string; permit2?: string } = {}) =>
+  ({
+    domain: { name: 'Permit2', chainId: CHAIN, verifyingContract: overrides.permit2 ?? PERMIT2 },
+    types: {},
+    primaryType: 'PermitSingle',
+    message: {
+      details: { token: overrides.token ?? TOKEN, amount: overrides.amount ?? '100', expiration: 1_000, nonce: 0 },
+      spender: overrides.spender ?? ROUTER,
+      sigDeadline: '1000',
+    },
+  }) satisfies XSwapPermitTypedData
 
 const quote = (overrides: Partial<XSwapQuote> = {}): XSwapQuote => ({
   quoteId: 'q1',
@@ -81,6 +95,8 @@ function deps(overrides: Partial<XSwapExecutionDeps> = {}): XSwapExecutionDeps &
     }),
     waitForTx: jest.fn(async () => true),
     registerOrder: jest.fn(async () => order),
+    signPermit: jest.fn(async () => '0xsig'),
+    permitQuote: jest.fn(),
     ...overrides,
   }
 }
@@ -112,6 +128,146 @@ describe('planXSwapTxs', () => {
     ['tx on another chain', { txs: [{ ...deposit(), chainId: 1 }] }],
   ])('rejects %s', (_, overrides) => {
     expect(() => planXSwapTxs(quote(overrides as Partial<XSwapQuote>))).toThrow(XSwapPlanError)
+  })
+})
+
+/** An `xswap` same-chain ERC-20 swap: approve Permit2, Permit2 allowance for the router, then the router's execute. */
+const localQuote = (overrides: Partial<XSwapQuote> = {}): XSwapQuote =>
+  quote({
+    provider: 'xswap',
+    routing: 'SWAP',
+    routeClass: 'local',
+    tokenOut: { chainId: CHAIN, address: OTHER },
+    fees: { lp: '0', relayer: '0', gas: '0', app: '0' },
+    shape: 'swap',
+    txs: [approve(PERMIT2), permit2Approve(ROUTER), deposit('0xdead', ROUTER)],
+    permit: permit(),
+    ...overrides,
+  })
+
+/** What `POST /v1/quote/:quoteId/permit` answers: the deposit alone, built from the signature. */
+const signedQuote = (overrides: Partial<XSwapQuote> = {}): XSwapQuote =>
+  localQuote({ quoteId: 'q-signed', txs: [deposit('0xsigned', ROUTER)], permit: undefined, ...overrides })
+
+describe('planXSwapTxs with a permit', () => {
+  it('accepts a same-chain swap through Permit2', () => {
+    expect(planXSwapTxs(localQuote()).map((t) => t.kind)).toEqual(['approve', 'permit2-approve', 'deposit'])
+  })
+
+  it('accepts the token approval of Permit2 when only the permit gives the router its allowance', () => {
+    expect(planXSwapTxs(localQuote({ txs: [approve(PERMIT2), deposit('0xdead', ROUTER)] }))).toHaveLength(2)
+  })
+
+  it.each([
+    ['to another spender', { spender: OTHER }],
+    ['on another token', { token: OTHER }],
+    ['for another amount', { amount: '1000' }],
+    ['on another Permit2', { permit2: OTHER }],
+  ])('rejects a permit %s', (_, overrides) => {
+    expect(() => planXSwapTxs(localQuote({ permit: permit(overrides) }))).toThrow(XSwapPlanError)
+  })
+})
+
+describe('planXSwapSteps', () => {
+  it('signs the permit in place of the permit2-approve tx', () => {
+    expect(planXSwapSteps(localQuote(), true).map((s) => s.kind)).toEqual(['approve', 'permit', 'deposit'])
+  })
+
+  it('sends every tx without the permit', () => {
+    expect(planXSwapSteps(localQuote(), false).map((s) => s.kind)).toEqual(['approve', 'permit2-approve', 'deposit'])
+  })
+
+  it('sends the deposit alone for a native input', () => {
+    const native = localQuote({ txs: [{ ...deposit('0xdead', ROUTER), value: '100' }], permit: undefined })
+    expect(planXSwapSteps(native, true).map((s) => s.kind)).toEqual(['deposit'])
+  })
+})
+
+describe('executeXSwapQuote with a permit', () => {
+  it('approves Permit2, signs the permit and sends the deposit built from it', async () => {
+    const d = deps({ permitQuote: jest.fn(async () => signedQuote()) })
+    const onQuote = jest.fn()
+    await expect(executeXSwapQuote(localQuote(), d, { onQuote })).resolves.toBe(order)
+    expect(d.signPermit).toHaveBeenCalledWith(permit())
+    expect(d.permitQuote).toHaveBeenCalledWith('q1', '0xsig')
+    expect(d.sent.map((t) => t.data)).toEqual([approve(PERMIT2).data, '0xsigned'])
+    expect(onQuote).toHaveBeenCalledWith(signedQuote())
+    expect(d.registerOrder).toHaveBeenCalledWith({ quoteId: 'q-signed', txHash: '0xhash2' })
+  })
+
+  it('sends the permit2-approve tx when told not to sign', async () => {
+    const d = deps()
+    await executeXSwapQuote(localQuote(), d, { usePermit: false })
+    expect(d.signPermit).not.toHaveBeenCalled()
+    expect(d.sent.map((t) => t.kind)).toEqual(['approve', 'permit2-approve', 'deposit'])
+    expect(d.registerOrder).toHaveBeenCalledWith({ quoteId: 'q1', txHash: '0xhash3' })
+  })
+
+  it('signs the permit of a quote refreshed after the approvals', async () => {
+    let now = NOW
+    const refreshed = localQuote({ quoteId: 'q2', expiresAt: NOW + 120_000 })
+    const d = deps({
+      now: () => now,
+      refreshQuote: jest.fn(async () => refreshed),
+      permitQuote: jest.fn(async () => signedQuote({ expiresAt: NOW + 120_000 })),
+      waitForTx: jest.fn(async () => {
+        now += 60_000
+        return true
+      }),
+    })
+    await executeXSwapQuote(localQuote(), d)
+    expect(d.permitQuote).toHaveBeenCalledWith('q2', '0xsig')
+    expect(d.sent.map((t) => t.data)).toEqual([approve(PERMIT2).data, '0xsigned'])
+  })
+
+  it('skips the signature when the refreshed quote offers no permit', async () => {
+    let now = NOW
+    const refreshed = localQuote({ quoteId: 'q2', expiresAt: NOW + 120_000, permit: undefined, txs: [deposit('0xbeef', ROUTER)] })
+    const d = deps({
+      now: () => now,
+      refreshQuote: jest.fn(async () => refreshed),
+      waitForTx: jest.fn(async () => {
+        now += 60_000
+        return true
+      }),
+    })
+    await executeXSwapQuote(localQuote(), d)
+    expect(d.signPermit).not.toHaveBeenCalled()
+    expect(d.sent.map((t) => t.data)).toEqual([approve(PERMIT2).data, '0xbeef'])
+    expect(d.registerOrder).toHaveBeenCalledWith({ quoteId: 'q2', txHash: '0xhash2' })
+  })
+
+  it.each([
+    ['lowers the minimum output', { minOutputAmount: '97' }, XSwapQuoteChangedError],
+    ['deposits to another contract', { txs: [deposit('0xsigned', OTHER)] }, XSwapQuoteChangedError],
+    ['still needs approvals', { txs: [permit2Approve(ROUTER), deposit('0xsigned', ROUTER)] }, XSwapPlanError],
+  ])('does not send a signed quote that %s', async (_, overrides, errorClass) => {
+    const d = deps({ permitQuote: jest.fn(async () => signedQuote(overrides as Partial<XSwapQuote>)) })
+    await expect(executeXSwapQuote(localQuote(), d)).rejects.toBeInstanceOf(errorClass)
+    expect(d.sent.map((t) => t.kind)).toEqual(['approve'])
+  })
+
+  it('does not refresh a signed quote that expired', async () => {
+    let now = NOW
+    const d = deps({
+      now: () => now,
+      permitQuote: jest.fn(async () => {
+        now += 60_000
+        return signedQuote()
+      }),
+    })
+    await expect(executeXSwapQuote(localQuote(), d)).rejects.toBeInstanceOf(XSwapQuoteExpiredError)
+    expect(d.refreshQuote).not.toHaveBeenCalled()
+    expect(d.sent.map((t) => t.kind)).toEqual(['approve'])
+  })
+
+  it('asks for a new quote when the permit is quote_unavailable', async () => {
+    const d = deps({
+      permitQuote: jest.fn(async () => {
+        throw new XSwapApiError('quote_unavailable', 410)
+      }),
+    })
+    await expect(executeXSwapQuote(localQuote(), d)).rejects.toBeInstanceOf(XSwapQuoteExpiredError)
   })
 })
 

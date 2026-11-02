@@ -77,7 +77,7 @@ export type XSwapLeg =
     }
 
 /** Permit2 `PermitSingle` as `eth_signTypedData_v4` input. */
-type XSwapPermitTypedData = {
+export type XSwapPermitTypedData = {
   domain: { name: string; chainId: number; verifyingContract: string }
   types: Record<string, { name: string; type: string }[]>
   primaryType: 'PermitSingle'

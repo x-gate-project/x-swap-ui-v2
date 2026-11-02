@@ -7,7 +7,7 @@ import useSelectChain from 'hooks/useSelectChain'
 import { t } from 'i18n'
 import { ReactNode, useCallback, useEffect, useMemo, useState } from 'react'
 import { Text } from 'rebass'
-import { XSwapApiError, refreshXSwapQuote, registerXSwapOrder } from 'state/xswap/client'
+import { XSwapApiError, permitXSwapQuote, refreshXSwapQuote, registerXSwapOrder } from 'state/xswap/client'
 import { getXSwapErrorMessage, toXSwapError } from 'state/xswap/errors'
 import {
   XSwapExecutionDeps,
@@ -16,17 +16,19 @@ import {
   XSwapQuoteExpiredError,
   XSwapRegisterError,
   XSwapStep,
+  XSwapStepKind,
   XSwapTxRevertedError,
   executeXSwapQuote,
 } from 'state/xswap/execute'
 import { useXSwapRequote } from 'state/xswap/hooks'
-import { XSwapOrder, XSwapQuote, XSwapTx, XSwapTxKind } from 'state/xswap/types'
+import { getXSwapFlow } from 'state/xswap/utils'
+import { XSwapOrder, XSwapPermitTypedData, XSwapQuote, XSwapTx } from 'state/xswap/types'
 import styled from 'styled-components'
 import { ThemedText } from 'theme/components'
 import { InterfaceChainId } from 'uniswap/src/types/chains'
 import { logger } from 'utilities/src/logger/logger'
 import { didUserReject } from 'utils/swapErrorToUserReadableMessage'
-import { getAccount, sendTransaction, waitForTransactionReceipt } from 'wagmi/actions'
+import { getAccount, sendTransaction, signTypedData, waitForTransactionReceipt } from 'wagmi/actions'
 
 type WagmiChainId = (typeof wagmiConfig)['chains'][number]['id']
 
@@ -54,8 +56,10 @@ const Dot = styled.span<{ $status: XSwapStep['status'] }>`
           : theme.accent1};
 `
 
-function stepLabel(kind: XSwapTxKind): string {
+function stepLabel(kind: XSwapStepKind, sameChain: boolean): string {
   switch (kind) {
+    case 'permit':
+      return t('xswap.execute.step.permit')
     case 'approve-reset':
       return t('xswap.execute.step.approveReset')
     case 'approve':
@@ -63,26 +67,44 @@ function stepLabel(kind: XSwapTxKind): string {
     case 'permit2-approve':
       return t('xswap.execute.step.permit2Approve')
     case 'deposit':
-      return t('xswap.execute.step.deposit')
+      return sameChain ? t('xswap.execute.step.swap') : t('xswap.execute.step.deposit')
   }
 }
 
-/** Sends txs from the connected wallet through wagmi, switching to the tx's chain first. */
+/** Signs and sends from the connected wallet through wagmi, switching to the right chain first. */
 function useXSwapExecutionDeps(): XSwapExecutionDeps {
   const selectChain = useSelectChain()
-  return useMemo(
-    () => ({
+  return useMemo(() => {
+    const ensureChain = async (chainId: number) => {
+      if (getAccount(wagmiConfig).chainId !== chainId) {
+        const switched = await selectChain(chainId as InterfaceChainId)
+        if (!switched) {
+          throw new Error(t('xswap.execute.error.switchChain'))
+        }
+      }
+    }
+    return {
       now: () => Date.now(),
       sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
       refreshQuote: (quoteId) => refreshXSwapQuote(quoteId),
+      permitQuote: (quoteId, signature) => permitXSwapQuote(quoteId, signature),
       registerOrder: (params) => registerXSwapOrder(params),
+      signPermit: async ({ domain, types, message }: XSwapPermitTypedData) => {
+        await ensureChain(domain.chainId)
+        // Permit2's `PermitSingle`: uint160 amount and uint256 sigDeadline go to the wallet as bigints.
+        return signTypedData(wagmiConfig, {
+          domain: { ...domain, verifyingContract: domain.verifyingContract as `0x${string}` },
+          types,
+          primaryType: 'PermitSingle',
+          message: {
+            ...message,
+            details: { ...message.details, amount: BigInt(message.details.amount) },
+            sigDeadline: BigInt(message.sigDeadline),
+          },
+        })
+      },
       sendTx: async (tx: XSwapTx) => {
-        if (getAccount(wagmiConfig).chainId !== tx.chainId) {
-          const switched = await selectChain(tx.chainId as InterfaceChainId)
-          if (!switched) {
-            throw new Error(t('xswap.execute.error.switchChain'))
-          }
-        }
+        await ensureChain(tx.chainId)
         return sendTransaction(wagmiConfig, {
           chainId: tx.chainId as WagmiChainId,
           to: tx.to as `0x${string}`,
@@ -98,10 +120,13 @@ function useXSwapExecutionDeps(): XSwapExecutionDeps {
         })
         return receipt.status === 'success'
       },
-    }),
-    [selectChain],
-  )
+    } satisfies XSwapExecutionDeps
+  }, [selectChain])
 }
+
+/** API answers to `POST /v1/quote/:quoteId/permit` that mean the shown quote cannot be sent as is. */
+const PERMIT_STALE_CODES = new Set(['permit_unavailable'])
+const PERMIT_REJECTED_CODES = new Set(['validator_failed', 'simulation_failed'])
 
 type ExecutionError = { message: string; depositHash?: { chainId: number; hash: string } }
 
@@ -123,6 +148,12 @@ function toExecutionError(error: unknown, chainId: number): ExecutionError {
   }
   if (error instanceof XSwapRegisterError) {
     return { message: t('xswap.execute.error.register'), depositHash: { chainId, hash: error.txHash } }
+  }
+  if (error instanceof XSwapApiError && PERMIT_STALE_CODES.has(error.code)) {
+    return { message: t('xswap.execute.error.quoteChanged') }
+  }
+  if (error instanceof XSwapApiError && PERMIT_REJECTED_CODES.has(error.code)) {
+    return { message: t('xswap.execute.error.permitRejected') }
   }
   if (error instanceof XSwapApiError) {
     return { message: getXSwapErrorMessage(toXSwapError(error)) }
@@ -146,10 +177,11 @@ const Wrapper = styled.div`
 `
 
 /**
- * Executes a cross-chain route (every route class but `local`): sends its approvals and deposit in order and registers
- * the order. A priced-only route (`executable: false`) has nothing to sign, so it gets no button.
+ * Executes an API route, same-chain (`local`) or cross-chain: sends its approvals, signs its Permit2 `permit` when it
+ * offers one, sends the deposit (the swap itself for `local`) and registers the order. A priced-only route
+ * (`executable: false`) has nothing to sign, so it gets no button.
  */
-export function XSwapCrossChainPanel({ quote: selected, inputError, onExecutingChange, onOrder }: Props) {
+export function XSwapExecutePanel({ quote: selected, inputError, onExecutingChange, onOrder }: Props) {
   const deps = useXSwapExecutionDeps()
   const requote = useXSwapRequote()
 
@@ -159,6 +191,7 @@ export function XSwapCrossChainPanel({ quote: selected, inputError, onExecutingC
   const [registering, setRegistering] = useState(false)
   const [error, setError] = useState<ExecutionError>()
   const quote = executing ?? selected
+  const sameChain = getXSwapFlow(quote.routeClass) === 'same-chain'
 
   // Another amount, pair or route drops the previous attempt's progress and error; a re-quote of the same one does not.
   const attemptKey = [
@@ -194,10 +227,14 @@ export function XSwapCrossChainPanel({ quote: selected, inputError, onExecutingC
       setSteps(undefined)
       onOrder(order)
     } catch (e) {
-      logger.warn('XSwapCrossChainPanel', 'execute', 'cross-chain order failed', e)
+      logger.warn('XSwapExecutePanel', 'execute', 'x-swap order failed', e)
       setSteps((current) => current?.map((step) => (step.status === 'active' ? { ...step, status: 'error' } : step)))
       setError(toExecutionError(e, selected.tokenIn.chainId))
-      if (e instanceof XSwapQuoteExpiredError || e instanceof XSwapQuoteChangedError) {
+      if (
+        e instanceof XSwapQuoteExpiredError ||
+        e instanceof XSwapQuoteChangedError ||
+        (e instanceof XSwapApiError && PERMIT_STALE_CODES.has(e.code))
+      ) {
         requote()
       }
     } finally {
@@ -209,7 +246,7 @@ export function XSwapCrossChainPanel({ quote: selected, inputError, onExecutingC
   const busy = Boolean(executing)
 
   return (
-    <Wrapper data-testid="xswap-cross-chain">
+    <Wrapper data-testid="xswap-execute">
       {!quote.executable ? (
         // Priced only: contracts are not deployed on this route yet, there is nothing to sign.
         <GrayCard style={{ textAlign: 'center' }} data-testid="xswap-quote-only">
@@ -239,9 +276,9 @@ export function XSwapCrossChainPanel({ quote: selected, inputError, onExecutingC
               <Row style={{ justifyContent: 'flex-start' }}>
                 <Dot $status={step.status} />
                 <Label>
-                  {i + 1}. {stepLabel(step.tx.kind)}
+                  {i + 1}. {stepLabel(step.kind, sameChain)}
                 </Label>
-                {step.hash && <TxLink chainId={step.tx.chainId} hash={step.hash} />}
+                {step.hash && <TxLink chainId={step.chainId} hash={step.hash} />}
               </Row>
             </li>
           ))}

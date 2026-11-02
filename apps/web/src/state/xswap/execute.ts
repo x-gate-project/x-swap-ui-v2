@@ -1,5 +1,5 @@
 import { XSwapApiError } from 'state/xswap/client'
-import { XSwapOrder, XSwapQuote, XSwapTx, XSwapTxKind } from 'state/xswap/types'
+import { XSwapOrder, XSwapPermitTypedData, XSwapQuote, XSwapTx, XSwapTxKind } from 'state/xswap/types'
 import { decodeFunctionData, erc20Abi, parseAbi } from 'viem'
 
 /** Leave the user time to sign before the quote expires; a quote closer to expiry is refreshed first. */
@@ -13,7 +13,7 @@ const permit2ApproveAbi = parseAbi([
 ])
 
 // Approvals first, the deposit last: `approve-reset` (USDT-style tokens) before `approve`, and the token's approval of
-// Permit2 before Permit2's allowance for XChainSender.
+// Permit2 before Permit2's allowance for the deposit target.
 const TX_KIND_RANK: Record<XSwapTxKind, number> = {
   'approve-reset': 0,
   approve: 1,
@@ -41,7 +41,7 @@ export class XSwapQuoteExpiredError extends Error {
 
 /**
  * A refresh changed the quote in a way the user did not agree to: a lower `minOutputAmount` than the one shown
- * (`price`), or another amount / XChainSender / Permit2 than the approvals already sent cover (`route`). Nothing more is
+ * (`price`), or another amount / deposit target / Permit2 than the approvals already sent cover (`route`). Nothing more is
  * sent; quote again and let the user confirm.
  */
 export class XSwapQuoteChangedError extends Error {
@@ -102,10 +102,36 @@ function decodePermit2Approve(tx: XSwapTx): { token: string; spender: string } {
 }
 
 /**
+ * Checks the quote's Permit2 `permit` against the quote: on the input chain, for exactly the input amount of the input
+ * token, to the deposit target, and on the same Permit2 as the `permit2-approve` tx it replaces.
+ */
+function checkPermit(quote: XSwapQuote, permit: XSwapPermitTypedData, deposit: XSwapTx, permit2Approval?: XSwapTx) {
+  const { domain, message } = permit
+  if (domain.chainId !== quote.tokenIn.chainId) {
+    throw new XSwapPlanError('permit on another chain than the input')
+  }
+  if (!sameAddress(message.details.token, quote.tokenIn.address)) {
+    throw new XSwapPlanError('permit is not on the input token')
+  }
+  if (!sameAddress(message.spender, deposit.to)) {
+    throw new XSwapPlanError('permit spender is not the deposit target')
+  }
+  if (BigInt(message.details.amount) !== BigInt(quote.inputAmount)) {
+    throw new XSwapPlanError('permit amount is not the input amount')
+  }
+  if (permit2Approval && !sameAddress(permit2Approval.to, domain.verifyingContract)) {
+    throw new XSwapPlanError('permit and permit2-approve are on different Permit2 contracts')
+  }
+}
+
+/**
  * The quote's txs in send order, after checking them against the quote:
- * - every tx is on the input chain, and there is exactly one `deposit`, sent last; its target is XChainSender;
- * - every `approve` / `approve-reset` approves the input token, to XChainSender, or to Permit2 on `senderPermit2`
- *   chains, where a `permit2-approve` then gives XChainSender its allowance on the same Permit2.
+ * - every tx is on the input chain, and there is exactly one `deposit`, sent last. Its target is what the approvals are
+ *   for: XChainSender for a cross-chain order; the Universal Router (`xswap`) or Uniswap's SwapProxy (`uniswap`) for a
+ *   same-chain swap;
+ * - every `approve` / `approve-reset` approves the input token, to the deposit target or to Permit2, where a
+ *   `permit2-approve` (or a signed `permit`) then gives the deposit target its allowance on the same Permit2;
+ * - a `permit`, if offered, is for exactly the input amount, to the deposit target.
  */
 export function planXSwapTxs(quote: XSwapQuote): XSwapTx[] {
   if (!quote.executable || quote.txs.length === 0) {
@@ -124,20 +150,24 @@ export function planXSwapTxs(quote: XSwapQuote): XSwapTx[] {
   if (deposits.length !== 1) {
     throw new XSwapPlanError(`expected one deposit, got ${deposits.length}`)
   }
-  const sender = deposits[0].to
+  const deposit = deposits[0]
+  const target = deposit.to
 
   const permit2Approvals = txs.filter((tx) => tx.kind === 'permit2-approve')
   if (permit2Approvals.length > 1) {
     throw new XSwapPlanError('more than one permit2-approve')
   }
   const permit2Approval = permit2Approvals[0]
-  const permit2 = permit2Approval?.to
   if (permit2Approval) {
     const { token, spender } = decodePermit2Approve(permit2Approval)
-    if (!sameAddress(spender, sender) || !sameAddress(token, quote.tokenIn.address)) {
-      throw new XSwapPlanError('permit2-approve does not allow XChainSender to spend the input token')
+    if (!sameAddress(spender, target) || !sameAddress(token, quote.tokenIn.address)) {
+      throw new XSwapPlanError('permit2-approve does not allow the deposit target to spend the input token')
     }
   }
+  if (quote.permit) {
+    checkPermit(quote, quote.permit, deposit, permit2Approval)
+  }
+  const permit2 = permit2Approval?.to ?? quote.permit?.domain.verifyingContract
 
   for (const tx of txs) {
     if (tx.kind !== 'approve' && tx.kind !== 'approve-reset') {
@@ -147,23 +177,19 @@ export function planXSwapTxs(quote: XSwapQuote): XSwapTx[] {
       throw new XSwapPlanError(`${tx.kind} is not on the input token`)
     }
     const spender = decodeErc20ApproveSpender(tx)
-    if (!sameAddress(spender, sender) && !sameAddress(spender, permit2)) {
-      throw new XSwapPlanError(`${tx.kind} spender is neither XChainSender nor Permit2`)
+    if (!sameAddress(spender, target) && !sameAddress(spender, permit2)) {
+      throw new XSwapPlanError(`${tx.kind} spender is neither the deposit target nor Permit2`)
     }
   }
   return txs
 }
 
-/** Contracts the plan's approvals are granted to: XChainSender (the deposit target) and Permit2, if used. */
-function planSpenders(txs: XSwapTx[]): { sender?: string; permit2?: string } {
+/** Contracts the plan's approvals are granted to: the deposit target and Permit2, if used. */
+function planSpenders(quote: XSwapQuote, txs: XSwapTx[]): { target?: string; permit2?: string } {
   return {
-    sender: txs.find((tx) => tx.kind === 'deposit')?.to,
-    permit2: txs.find((tx) => tx.kind === 'permit2-approve')?.to,
+    target: txs.find((tx) => tx.kind === 'deposit')?.to,
+    permit2: txs.find((tx) => tx.kind === 'permit2-approve')?.to ?? quote.permit?.domain.verifyingContract,
   }
-}
-
-function sameOptionalAddress(a?: string, b?: string): boolean {
-  return (!a && !b) || sameAddress(a, b)
 }
 
 /** Throws when `fresh` pays less than `shown` guaranteed, or spends another amount of another token. */
@@ -188,6 +214,10 @@ export type XSwapExecutionDeps = {
   now: () => number
   sleep: (ms: number) => Promise<void>
   refreshQuote: (quoteId: string) => Promise<XSwapQuote>
+  /** `POST /v1/quote/:quoteId/permit`: the quote's swap built from the signed permit, as a new quote. */
+  permitQuote: (quoteId: string, signature: string) => Promise<XSwapQuote>
+  /** Switches the wallet to the permit's chain if needed, signs the typed data and returns the signature. */
+  signPermit: (permit: XSwapPermitTypedData) => Promise<string>
   /** Switches the wallet to `tx.chainId` if needed, sends the tx and returns its hash. */
   sendTx: (tx: XSwapTx) => Promise<string>
   /** Resolves true when the tx succeeded, false when it reverted. */
@@ -195,15 +225,55 @@ export type XSwapExecutionDeps = {
   registerOrder: (params: { quoteId: string; txHash: string }) => Promise<XSwapOrder>
 }
 
+/** A tx, or `permit`: the Permit2 signature sent in place of the `permit2-approve` tx. */
+export type XSwapStepKind = XSwapTxKind | 'permit'
 type XSwapStepStatus = 'pending' | 'active' | 'submitted' | 'done' | 'error'
-export type XSwapStep = { tx: XSwapTx; status: XSwapStepStatus; hash?: string }
+/** `tx` is unset for `permit`, and for a deposit the API builds from the signature until it is built. */
+export type XSwapStep = { kind: XSwapStepKind; chainId: number; tx?: XSwapTx; status: XSwapStepStatus; hash?: string }
 
-type XSwapExecutionCallbacks = {
+/**
+ * The steps to run for a quote. With `usePermit` and a quote offering a `permit`, the signature replaces the
+ * `permit2-approve` tx: only the token's approvals of Permit2 are sent as txs, then the permit is signed and the API
+ * builds the deposit from it (a 3-tx ERC-20 swap becomes 2 txs and a signature).
+ */
+export function planXSwapSteps(quote: XSwapQuote, usePermit: boolean): XSwapStep[] {
+  const txs = planXSwapTxs(quote)
+  const chainId = quote.tokenIn.chainId
+  const step = (tx: XSwapTx): XSwapStep => ({ kind: tx.kind, chainId, tx, status: 'pending' })
+  if (!usePermit || !quote.permit) {
+    return txs.map(step)
+  }
+  const permit2 = quote.permit.domain.verifyingContract
+  const permit2Approvals = txs.filter(
+    (tx) => (tx.kind === 'approve' || tx.kind === 'approve-reset') && sameAddress(decodeErc20ApproveSpender(tx), permit2),
+  )
+  return [
+    ...permit2Approvals.map(step),
+    { kind: 'permit', chainId, status: 'pending' },
+    { kind: 'deposit', chainId, status: 'pending' },
+  ]
+}
+
+type XSwapExecutionOptions = {
+  /** Sign a quote's `permit` instead of sending its `permit2-approve` tx. Default true. */
+  usePermit?: boolean
   onPlan?: (steps: XSwapStep[]) => void
   onStep?: (index: number, patch: Partial<XSwapStep>) => void
-  /** A refresh replaced the quote: its `quoteId`, amounts and expiry changed. */
+  /** A refresh or a signed permit replaced the quote: its `quoteId`, amounts and expiry changed. */
   onQuote?: (quote: XSwapQuote) => void
   onRegistering?: () => void
+}
+
+/** Maps the API's `quote_unavailable` (410) to `XSwapQuoteExpiredError`. */
+async function orQuoteExpired<T>(call: () => Promise<T>): Promise<T> {
+  try {
+    return await call()
+  } catch (error) {
+    if (error instanceof XSwapApiError && (error.code === 'quote_unavailable' || error.status === 410)) {
+      throw new XSwapQuoteExpiredError()
+    }
+    throw error
+  }
 }
 
 /** The quote unchanged while it has time left, else a refreshed one. */
@@ -214,14 +284,7 @@ async function ensureFreshXSwapQuote(
   if (!isXSwapQuoteExpiring(quote, deps.now())) {
     return quote
   }
-  try {
-    return await deps.refreshQuote(quote.quoteId)
-  } catch (error) {
-    if (error instanceof XSwapApiError && (error.code === 'quote_unavailable' || error.status === 410)) {
-      throw new XSwapQuoteExpiredError()
-    }
-    throw error
-  }
+  return orQuoteExpired(() => deps.refreshQuote(quote.quoteId))
 }
 
 async function registerWithRetry(
@@ -246,51 +309,108 @@ async function registerWithRetry(
   throw new XSwapRegisterError(params.txHash, lastError)
 }
 
+function depositOf(txs: XSwapTx[]): XSwapTx {
+  // planXSwapTxs guarantees one deposit, last.
+  return txs[txs.length - 1]
+}
+
 /**
- * Sends a cross-chain quote's txs in order, then registers the order:
+ * Sends a quote's txs in order, then registers the order (same-chain swaps are tracked as orders too):
  * 1. refresh the quote if it is about to expire (`quote_unavailable` → `XSwapQuoteExpiredError`, re-quote);
  * 2. send each approval and wait for it;
- * 3. refresh again before the deposit, since approvals take time, and send the refreshed quote's deposit;
- *    a refresh that lowers `minOutputAmount` or targets other contracts than the approvals stops with
- *    `XSwapQuoteChangedError`;
- * 4. `POST /v1/orders` with the deposit's quote and hash.
+ * 3. with a `permit`: refresh again if needed, sign it, and take the deposit `POST /v1/quote/:quoteId/permit` builds
+ *    from the signature; that quote is not refreshed (it would drop the signature), so once expired it fails;
+ * 4. else refresh again before the deposit, since approvals take time, and send the refreshed quote's deposit;
+ * 5. `POST /v1/orders` with the deposit's quote and hash.
+ *
+ * A refresh or a signed quote that lowers `minOutputAmount`, spends another amount, or targets other contracts than the
+ * approvals already sent stops with `XSwapQuoteChangedError`.
  */
 export async function executeXSwapQuote(
   initialQuote: XSwapQuote,
   deps: XSwapExecutionDeps,
-  callbacks: XSwapExecutionCallbacks = {},
+  { usePermit = true, ...callbacks }: XSwapExecutionOptions = {},
 ): Promise<XSwapOrder> {
   let quote = await ensureFreshXSwapQuote(initialQuote, deps)
   if (quote !== initialQuote) {
     assertRefreshAgreed(initialQuote, quote)
     callbacks.onQuote?.(quote)
   }
-  const txs = planXSwapTxs(quote)
-  const approved = planSpenders(txs)
-  const steps: XSwapStep[] = txs.map((tx) => ({ tx, status: 'pending' }))
+  const approved = planSpenders(quote, planXSwapTxs(quote))
+  const steps = planXSwapSteps(quote, usePermit)
   callbacks.onPlan?.(steps)
 
+  /** A replacement quote must still be what the user agreed to, and spend through the contracts already approved. */
+  const assertCovered = (next: XSwapQuote): XSwapTx[] => {
+    assertRefreshAgreed(initialQuote, next)
+    const txs = planXSwapTxs(next)
+    const spenders = planSpenders(next, txs)
+    if (
+      !sameAddress(spenders.target, approved.target) ||
+      (spenders.permit2 !== undefined && !sameAddress(spenders.permit2, approved.permit2))
+    ) {
+      throw new XSwapQuoteChangedError('route')
+    }
+    return txs
+  }
+  /** The quote with time left for the next step. */
+  const freshCovered = async (): Promise<XSwapTx[]> => {
+    const fresh = await ensureFreshXSwapQuote(quote, deps)
+    const txs = fresh === quote ? planXSwapTxs(quote) : assertCovered(fresh)
+    if (fresh !== quote) {
+      quote = fresh
+      callbacks.onQuote?.(quote)
+    }
+    return txs
+  }
+
+  // Set once the API built the deposit from the signature.
+  let signed = false
   for (let index = 0; index < steps.length; index++) {
-    let { tx } = steps[index]
-    if (tx.kind === 'deposit') {
-      const fresh = await ensureFreshXSwapQuote(quote, deps)
-      if (fresh !== quote) {
-        // The user agreed to what `initialQuote` showed; the approvals already sent must still cover the deposit.
-        assertRefreshAgreed(initialQuote, fresh)
-        const freshTxs = planXSwapTxs(fresh)
-        const freshSpenders = planSpenders(freshTxs)
-        if (
-          !sameAddress(freshSpenders.sender, approved.sender) ||
-          !sameOptionalAddress(freshSpenders.permit2, approved.permit2)
-        ) {
-          throw new XSwapQuoteChangedError('route')
+    const step = steps[index]
+
+    if (step.kind === 'permit') {
+      callbacks.onStep?.(index, { status: 'active' })
+      // The approvals may have taken a while.
+      const txs = await freshCovered()
+      const { permit } = quote
+      if (permit) {
+        const signature = await deps.signPermit(permit)
+        const signedQuote = await orQuoteExpired(() => deps.permitQuote(quote.quoteId, signature))
+        const signedTxs = assertCovered(signedQuote)
+        if (signedTxs.length !== 1 || signedQuote.permit) {
+          throw new XSwapPlanError('signed quote is not the deposit alone')
         }
-        quote = fresh
+        quote = signedQuote
+        signed = true
         callbacks.onQuote?.(quote)
-        tx = freshTxs.find((t) => t.kind === 'deposit') as XSwapTx
-        steps[index] = { ...steps[index], tx }
+      } else if (txs.length !== 1) {
+        // A refreshed quote offers no permit once the Permit2 allowance covers the swap; it must not need other txs.
+        throw new XSwapQuoteChangedError('route')
+      }
+      callbacks.onStep?.(index, { status: 'done' })
+      continue
+    }
+
+    let tx = step.tx
+    if (step.kind === 'deposit') {
+      if (signed) {
+        // A refresh would drop the signature.
+        if (deps.now() >= quote.expiresAt) {
+          throw new XSwapQuoteExpiredError()
+        }
+        tx = depositOf(planXSwapTxs(quote))
+      } else {
+        // Approvals take time; the deposit must come from an unexpired quote.
+        tx = depositOf(await freshCovered())
+      }
+      if (tx !== step.tx) {
+        steps[index] = { ...step, tx }
         callbacks.onStep?.(index, { tx })
       }
+    }
+    if (!tx) {
+      throw new XSwapPlanError(`${step.kind} has no tx`)
     }
 
     callbacks.onStep?.(index, { status: 'active' })
@@ -308,6 +428,6 @@ export async function executeXSwapQuote(
       return registerWithRetry({ quoteId: quote.quoteId, txHash: hash }, deps)
     }
   }
-  // planXSwapTxs guarantees a deposit last.
+  // planXSwapSteps guarantees a deposit last.
   throw new XSwapPlanError('no deposit sent')
 }
