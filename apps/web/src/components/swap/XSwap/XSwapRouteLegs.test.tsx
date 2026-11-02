@@ -233,4 +233,36 @@ describe('XSwapRouteLegs', () => {
     expect(items[1]).toHaveTextContent('JOC → USDTX')
     expect(items[1]).toHaveTextContent('JOC Testnet · Uniswap v2 · out 10 USDTX (min 9.95 USDTX)')
   })
+
+  // USDCX on JOC → real USDC on Sepolia: XGate burns USDCX for the real stable, one bridge leg across families.
+  it('renders the XGate burn to the real stable', () => {
+    const USDCX_JOC = '0x367f476c9B5fA1e64F3d7EE19c3E4E2f76D42200'
+    const lookupWithUsdcx = (chainId: number, address: string) =>
+      address.toLowerCase() === USDCX_JOC.toLowerCase() && chainId === 10081
+        ? token(10081, USDCX_JOC, 'USDCX', 6)
+        : lookup(chainId, address)
+    render(
+      <ThemeProvider theme={getTheme(false)}>
+        <XSwapRouteLegs
+          legs={[
+            {
+              type: 'bridge',
+              provider: 'xgate',
+              tokenInChainId: 10081,
+              tokenOutChainId: 11155111,
+              tokenIn: USDCX_JOC,
+              tokenOut: USDC,
+              expectedOut: '10000000',
+              minOut: '10000000',
+              nativeFee: '1000000000000000',
+            },
+          ]}
+          lookup={lookupWithUsdcx}
+        />
+      </ThemeProvider>,
+    )
+    const [leg] = screen.getAllByRole('listitem')
+    expect(leg).toHaveTextContent('USDCX → USDC')
+    expect(leg).toHaveTextContent('JOC Testnet → Sepolia via X-Gate · out 10 USDC (min 10 USDC)')
+  })
 })

@@ -446,3 +446,41 @@ describe('executeXSwapQuote', () => {
     expect(registerOrder).toHaveBeenCalledTimes(1)
   })
 })
+
+describe('executeXSwapQuote for joc-eth-stable routes', () => {
+  // USDT on Sepolia → USDTX on JOC over XGate: USDT needs its allowance reset first, and the deposit carries the
+  // LayerZero fee as `msg.value` although the input is an ERC-20.
+  it('resets the USDT allowance, approves and sends the deposit with the LayerZero fee', async () => {
+    const usdtIn = quote({
+      provider: 'xgate',
+      routeClass: 'joc-eth-stable-in',
+      tokenOut: { chainId: 10081, address: OTHER },
+      txs: [{ ...deposit(), value: '2500000000000000' }, approve(SENDER), approve(SENDER, 'approve-reset')],
+    })
+    const d = deps()
+    await expect(executeXSwapQuote(usdtIn, d)).resolves.toBe(order)
+    expect(d.sent.map((t) => t.kind)).toEqual(['approve-reset', 'approve', 'deposit'])
+    expect(d.sent[2].value).toBe('2500000000000000')
+  })
+
+  // USDCX on JOC → USDC on Sepolia: XGate burns USDCX for the real stable; the order is sent from JOC.
+  it('sends the burn deposit from JOC', async () => {
+    const JOC = 10081
+    const usdcxOut = quote({
+      provider: 'xgate',
+      routeClass: 'joc-eth-stable-out',
+      tokenIn: { chainId: JOC, address: TOKEN },
+      tokenOut: { chainId: CHAIN, address: OTHER },
+      txs: [
+        { ...approve(SENDER), chainId: JOC },
+        { ...deposit(), chainId: JOC, value: '1000' },
+      ],
+    })
+    const d = deps()
+    await expect(executeXSwapQuote(usdcxOut, d)).resolves.toBe(order)
+    expect(d.sent.map((t) => [t.kind, t.chainId])).toEqual([
+      ['approve', JOC],
+      ['deposit', JOC],
+    ])
+  })
+})
