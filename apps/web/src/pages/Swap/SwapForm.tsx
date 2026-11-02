@@ -46,6 +46,10 @@ import { InterfaceTrade, RouterPreference, TradeState } from 'state/routing/type
 import { isClassicTrade } from 'state/routing/utils'
 import { useSwapActionHandlers, useSwapAndLimitContext, useSwapContext } from 'state/swap/hooks'
 import { CurrencyState } from 'state/swap/types'
+import { useUserSlippageTolerance } from 'state/user/hooks'
+import { SlippageTolerance } from 'state/user/types'
+import { isXSwapApiEnabled } from 'state/xswap/client'
+import { useXSwapQuote } from 'state/xswap/hooks'
 import { useTheme } from 'styled-components'
 import { ExternalLink, ThemedText } from 'theme/components'
 import { maybeLogFirstSwapAction } from 'tracing/swapFlowLoggers'
@@ -66,6 +70,7 @@ import { didUserReject } from 'utils/swapErrorToUserReadableMessage'
 
 const SWAP_FORM_CURRENCY_SEARCH_FILTERS = {
   showCommonBases: true,
+  xswapApiTokens: true,
 }
 
 interface SwapFormProps {
@@ -74,7 +79,7 @@ interface SwapFormProps {
 }
 
 export function SwapForm({ disableTokenInputs = false, onCurrencyChange }: SwapFormProps) {
-  const { isDisconnected, chainId: connectedChainId } = useAccount()
+  const { isDisconnected, chainId: connectedChainId, address: account } = useAccount()
 
   const trace = useTrace()
 
@@ -293,6 +298,21 @@ export function SwapForm({ disableTokenInputs = false, onCurrencyChange }: SwapF
   const userHasSpecifiedInputOutput = Boolean(
     currencies[Field.INPUT] && currencies[Field.OUTPUT] && parsedAmounts[independentField]?.greaterThan(JSBI.BigInt(0)),
   )
+
+  // x-swap API quote. The API classifies the pair: `local` keeps the same-chain flow, any other route class is a
+  // cross-chain order (#66). It only quotes exact input, so the output amount field is read-only while it is on.
+  const xswapEnabled = isXSwapApiEnabled()
+  const [userSlippageTolerance] = useUserSlippageTolerance()
+  const xswapQuote = useXSwapQuote({
+    enabled: xswapEnabled && !showWrap && independentField === Field.INPUT,
+    inputCurrency: currencies[Field.INPUT],
+    outputCurrency: currencies[Field.OUTPUT],
+    inputAmount: parsedAmounts[Field.INPUT],
+    swapper: account,
+    slippage: userSlippageTolerance === SlippageTolerance.Auto ? undefined : userSlippageTolerance,
+  })
+  const xswapQuoteError = xswapQuote.status === 'error' ? xswapQuote.message : undefined
+  const xswapCrossChain = xswapQuote.status === 'success' && xswapQuote.flow === 'cross-chain'
 
   const maximumAmountIn = useMaxAmountIn(trade, allowedSlippage)
   const allowance = usePermit2Allowance(
@@ -593,15 +613,21 @@ export function SwapForm({ disableTokenInputs = false, onCurrencyChange }: SwapF
                 id={InterfaceSectionName.CURRENCY_OUTPUT_PANEL}
                 loading={independentField === Field.INPUT && routeIsSyncing}
                 numericalInputSettings={{
-                  // We disable numerical input here if the selected token has tax, since we cannot guarantee exact_outputs for FOT tokens
-                  disabled: inputTokenHasTax || outputTokenHasTax,
+                  // We disable numerical input here if the selected token has tax, since we cannot guarantee exact_outputs for FOT tokens.
+                  // The x-swap API only quotes exact input, so the output is read-only while it is on.
+                  disabled: inputTokenHasTax || outputTokenHasTax || xswapEnabled,
                   // Focus the input currency panel if the user tries to type into the disabled output currency panel
                   onDisabledClick: () => inputCurrencyNumericalInputRef.current?.focus(),
-                  disabledTooltipBody: (
-                    <OutputTaxTooltipBody
-                      currencySymbol={currencies[inputTokenHasTax ? Field.INPUT : Field.OUTPUT]?.symbol}
-                    />
-                  ),
+                  disabledTooltipBody:
+                    inputTokenHasTax || outputTokenHasTax ? (
+                      <OutputTaxTooltipBody
+                        currencySymbol={currencies[inputTokenHasTax ? Field.INPUT : Field.OUTPUT]?.symbol}
+                      />
+                    ) : (
+                      <ThemedText.LabelMicro color="textPrimary">
+                        <Trans i18nKey="xswap.swap.exactInputOnly" />
+                      </ThemedText.LabelMicro>
+                    ),
                 }}
               />
             </Trace>
@@ -659,6 +685,17 @@ export function SwapForm({ disableTokenInputs = false, onCurrencyChange }: SwapF
                 <Trans i18nKey="common.unwrap.button" />
               ) : null}
             </ButtonPrimary>
+          ) : xswapQuoteError && userHasSpecifiedInputOutput ? (
+            <GrayCard style={{ textAlign: 'center' }} data-testid="xswap-quote-error">
+              <ThemedText.DeprecatedMain mb="4px">{xswapQuoteError}</ThemedText.DeprecatedMain>
+            </GrayCard>
+          ) : xswapCrossChain && userHasSpecifiedInputOutput ? (
+            // Placeholder until the cross-chain order flow lands (#66).
+            <GrayCard style={{ textAlign: 'center' }} data-testid="xswap-cross-chain">
+              <ThemedText.DeprecatedMain mb="4px">
+                <Trans i18nKey="xswap.swap.crossChainUnavailable" />
+              </ThemedText.DeprecatedMain>
+            </GrayCard>
           ) : routeNotFound && userHasSpecifiedInputOutput && !routeIsLoading && !routeIsSyncing ? (
             <GrayCard style={{ textAlign: 'center' }}>
               <ThemedText.DeprecatedMain mb="4px">
@@ -680,7 +717,12 @@ export function SwapForm({ disableTokenInputs = false, onCurrencyChange }: SwapF
                 }}
                 id="swap-button"
                 data-testid="swap-button"
-                disabled={isUsingBlockedExtension || !getIsReviewableQuote(trade, tradeState, swapInputError)}
+                disabled={
+                  isUsingBlockedExtension ||
+                  !getIsReviewableQuote(trade, tradeState, swapInputError) ||
+                  // Wait for the API to accept the pair before the same-chain flow can go on.
+                  (xswapEnabled && !swapInputError && xswapQuote.status !== 'success')
+                }
                 error={!swapInputError && priceImpactSeverity > 2 && allowance.state === AllowanceState.ALLOWED}
               >
                 <Text fontSize={20}>

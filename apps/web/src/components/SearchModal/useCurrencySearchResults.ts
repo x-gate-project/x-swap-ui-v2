@@ -27,6 +27,8 @@ interface CurrencySearchParams {
   filters?: CurrencySearchFilters
   selectedCurrency?: Currency | null
   otherSelectedCurrency?: Currency | null
+  /** Skip the GraphQL token queries, for callers that source tokens elsewhere. */
+  skip?: boolean
 }
 
 interface CurrencySearchResults {
@@ -51,6 +53,7 @@ export function useCurrencySearchResults({
   filters,
   selectedCurrency,
   otherSelectedCurrency,
+  skip = false,
 }: CurrencySearchParams): CurrencySearchResults {
   const { chainId } = useSwapAndLimitContext()
   const supportedChain = useSupportedChainId(chainId)
@@ -63,7 +66,7 @@ export function useCurrencySearchResults({
       searchQuery: searchQuery ?? '',
       chains: [chainIdToBackendChain({ chainId: supportedChain, withFallback: true }) ?? Chain.Ethereum],
     },
-    skip: !searchQuery,
+    skip: skip || !searchQuery,
   })
   const { data: popularTokens, loading: popularTokensLoading } = useTopTokensQuery({
     fetchPolicy: 'cache-first',
@@ -73,6 +76,7 @@ export function useCurrencySearchResults({
       page: 1,
       pageSize: 100,
     },
+    skip,
   })
   const sortedPopularTokens = useMemo(() => {
     if (!popularTokens?.topTokens) {

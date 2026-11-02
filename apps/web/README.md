@@ -13,6 +13,26 @@ yarn
 yarn web start
 ```
 
+## x-swap API
+
+The swap form reads its token list, chain list and quotes from the x-swap API (`xswap-router-worker`). The API sends
+no CORS headers, so the browser calls it through `/api/xswap`:
+
+| Variable | Where | Value |
+|---|---|---|
+| `REACT_APP_XSWAP_API_URL` | build time | `/api/xswap/v1`. Unset turns the API off and the swap form keeps the token lists and the client-side router. |
+| `XSWAP_API_URL` | Vercel project | API origin the `api/xswap` function forwards to, e.g. `https://xswap-api.example.com`. |
+| `XSWAP_API_PROXY_TARGET` | local dev | API origin `src/setupProxy.js` forwards `/api/xswap` to. |
+
+Local development against an API on port 3001:
+
+```bash
+XSWAP_API_PROXY_TARGET=http://localhost:3001 REACT_APP_XSWAP_API_URL=/api/xswap/v1 yarn web start
+```
+
+Chains and tokens come from `GET /v1/chains` and `GET /v1/tokens`, so turning a chain, token or route class off in
+the API config changes the swap form without a new release.
+
 ## Translations
 
 To get translations to work you'll need to set up 1Password, and then:
