@@ -1,4 +1,3 @@
-import { xswapProviderName } from 'components/swap/XSwap/XSwapQuoteRoutes'
 import {
   Badge,
   Card,
@@ -9,6 +8,7 @@ import {
   formatXSwapTokenAmount,
   useXSwapChainName,
   useXSwapNativeSymbol,
+  xswapProviderName,
 } from 'components/swap/XSwap/shared'
 import { t } from 'i18n'
 import { X } from 'react-feather'

@@ -1,8 +1,8 @@
 import { ButtonPrimary } from 'components/Button'
+import { GrayCard } from 'components/Card'
 import Loader from 'components/Icons/LoadingSpinner'
 import { wagmiConfig } from 'components/Web3Provider/wagmi'
-import { XSwapQuoteRoutes, xswapRoutes } from 'components/swap/XSwap/XSwapQuoteRoutes'
-import { Card, ErrorText, Label, Muted, Row, TxLink } from 'components/swap/XSwap/shared'
+import { ErrorText, Label, Muted, Row, TxLink } from 'components/swap/XSwap/shared'
 import useSelectChain from 'hooks/useSelectChain'
 import { t } from 'i18n'
 import { ReactNode, useCallback, useEffect, useMemo, useState } from 'react'
@@ -18,9 +18,10 @@ import {
   XSwapTxRevertedError,
   executeXSwapQuote,
 } from 'state/xswap/execute'
-import { XSwapTokenLookup, useXSwapRequote } from 'state/xswap/hooks'
-import { XSwapOrder, XSwapQuote, XSwapQuoteResponse, XSwapTx, XSwapTxKind } from 'state/xswap/types'
+import { useXSwapRequote } from 'state/xswap/hooks'
+import { XSwapOrder, XSwapQuote, XSwapTx, XSwapTxKind } from 'state/xswap/types'
 import styled from 'styled-components'
+import { ThemedText } from 'theme/components'
 import { InterfaceChainId } from 'uniswap/src/types/chains'
 import { logger } from 'utilities/src/logger/logger'
 import { didUserReject } from 'utils/swapErrorToUserReadableMessage'
@@ -126,39 +127,29 @@ function toExecutionError(error: unknown, chainId: number): ExecutionError {
 }
 
 type Props = {
-  response: XSwapQuoteResponse
-  lookup: XSwapTokenLookup
-  /** A background re-quote is in flight; the routes shown are still valid. */
-  refreshing?: boolean
-  /** Provider of the route the user picked; `best` when unset or no longer offered. */
-  selectedProvider?: string
-  onSelectProvider: (provider: string) => void
+  /** The route to execute: the one picked in the details dropdown, `best` by default. */
+  quote: XSwapQuote
   /** Why the swap cannot go on (no wallet, no balance, …); shown on the button. */
   inputError?: ReactNode
   onExecutingChange: (executing: boolean) => void
   onOrder: (order: XSwapOrder) => void
 }
 
+const Wrapper = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+`
+
 /**
- * Cross-chain order flow for every route class but `local`: pick a route, then send its approvals and deposit in
- * order and register the order. A priced-only route (`executable: false`) has nothing to sign, so no button.
+ * Executes a cross-chain route (every route class but `local`): sends its approvals and deposit in order and registers
+ * the order. A priced-only route (`executable: false`) has nothing to sign, so it gets no button.
  */
-export function XSwapCrossChainPanel({
-  response,
-  lookup,
-  refreshing,
-  selectedProvider,
-  onSelectProvider,
-  inputError,
-  onExecutingChange,
-  onOrder,
-}: Props) {
+export function XSwapCrossChainPanel({ quote: selected, inputError, onExecutingChange, onOrder }: Props) {
   const deps = useXSwapExecutionDeps()
   const requote = useXSwapRequote()
-  const routes = useMemo(() => xswapRoutes(response.best, response.candidates), [response])
-  const selected = routes.find((q) => q.provider === selectedProvider) ?? response.best
 
-  // While executing, the quote being sent is pinned (it may be refreshed) and the route list is frozen.
+  // While executing, the quote being sent is pinned (it may be refreshed).
   const [executing, setExecuting] = useState<XSwapQuote>()
   const [steps, setSteps] = useState<XSwapStep[]>()
   const [registering, setRegistering] = useState(false)
@@ -212,27 +203,28 @@ export function XSwapCrossChainPanel({
   const busy = Boolean(executing)
 
   return (
-    <Card data-testid="xswap-cross-chain">
-      <Row>
-        <Label>{t('xswap.route.title')}</Label>
-        <Row>
-          {refreshing && !busy && (
-            <Row data-testid="xswap-quote-refreshing">
-              <Loader size="12px" />
-              <Muted>{t('xswap.route.refreshing')}</Muted>
-            </Row>
-          )}
-          <Muted>{response.routeClass}</Muted>
-        </Row>
-      </Row>
-      <XSwapQuoteRoutes
-        routes={busy ? [quote] : routes}
-        bestQuoteId={response.best.quoteId}
-        selectedQuoteId={quote.quoteId}
-        onSelect={(q) => onSelectProvider(q.provider)}
-        lookup={lookup}
-        disabled={busy}
-      />
+    <Wrapper data-testid="xswap-cross-chain">
+      {!quote.executable ? (
+        // Priced only: contracts are not deployed on this route yet, there is nothing to sign.
+        <GrayCard style={{ textAlign: 'center' }} data-testid="xswap-quote-only">
+          <ThemedText.DeprecatedMain mb="4px">{t('xswap.execute.quoteOnly')}</ThemedText.DeprecatedMain>
+        </GrayCard>
+      ) : (
+        <ButtonPrimary
+          $borderRadius="16px"
+          disabled={busy || Boolean(inputError)}
+          onClick={execute}
+          data-testid="xswap-execute-button"
+        >
+          <Row style={{ justifyContent: 'center' }}>
+            {busy && !inputError && <Loader size="20px" />}
+            <Text fontSize={20}>
+              {inputError ??
+                (busy ? t('xswap.execute.inProgress') : error ? t('common.tryAgain.error') : t('common.swap'))}
+            </Text>
+          </Row>
+        </ButtonPrimary>
+      )}
 
       {steps && (
         <Steps data-testid="xswap-execute-steps">
@@ -262,26 +254,6 @@ export function XSwapCrossChainPanel({
           )}
         </ErrorText>
       )}
-
-      {!quote.executable ? (
-        // Priced only: contracts are not deployed on this route yet, there is nothing to sign.
-        <Muted data-testid="xswap-quote-only">{t('xswap.execute.quoteOnly')}</Muted>
-      ) : (
-        <ButtonPrimary
-          $borderRadius="16px"
-          disabled={busy || Boolean(inputError)}
-          onClick={execute}
-          data-testid="xswap-execute-button"
-        >
-          <Row style={{ justifyContent: 'center' }}>
-            {busy && !inputError && <Loader size="20px" />}
-            <Text fontSize={20}>
-              {inputError ??
-                (busy ? t('xswap.execute.inProgress') : error ? t('common.tryAgain.error') : t('common.swap'))}
-            </Text>
-          </Row>
-        </ButtonPrimary>
-      )}
-    </Card>
+    </Wrapper>
   )
 }

@@ -14,14 +14,15 @@ import Column, { AutoColumn } from 'components/Column'
 import { ConfirmSwapModal } from 'components/ConfirmSwapModal'
 import SwapCurrencyInputPanel from 'components/CurrencyInputPanel/SwapCurrencyInputPanel'
 import ErrorIcon from 'components/Icons/Error'
-import Loader from 'components/Icons/LoadingSpinner'
 import Row from 'components/Row'
 import TokenSafetyModal from 'components/TokenSafety/TokenSafetyModal'
 import PriceImpactModal from 'components/swap/PriceImpactModal'
 import PriceImpactWarning from 'components/swap/PriceImpactWarning'
 import SwapDetailsDropdown from 'components/swap/SwapDetailsDropdown'
 import { XSwapCrossChainPanel } from 'components/swap/XSwap/XSwapCrossChainPanel'
+import { XSwapDetailsDropdown } from 'components/swap/XSwap/XSwapDetailsDropdown'
 import { XSwapOrderTracker } from 'components/swap/XSwap/XSwapOrderTracker'
+import { xswapRoutes } from 'components/swap/XSwap/shared'
 import confirmPriceImpactWithoutFee from 'components/swap/confirmPriceImpactWithoutFee'
 import { Field } from 'components/swap/constants'
 import { ArrowContainer, ArrowWrapper, OutputSwapSection, SwapSection } from 'components/swap/styled'
@@ -357,15 +358,23 @@ export function SwapForm({ disableTokenInputs = false, onCurrencyChange }: SwapF
   const xswapCrossChainResponse = xswapCrossChain ? xswapQuote.response : undefined
   const xswapTokenLookup = useXSwapTokenLookup([currencies[Field.INPUT]?.chainId, currencies[Field.OUTPUT]?.chainId])
   // The output field shows the selected route's expected output; the user picks the route in the panel.
+  const xswapCrossChainRoutes = useMemo(
+    () => xswapCrossChainResponse && xswapRoutes(xswapCrossChainResponse.best, xswapCrossChainResponse.candidates),
+    [xswapCrossChainResponse],
+  )
+  const xswapSelectedQuote =
+    xswapCrossChainRoutes?.find((q) => q.provider === xswapProvider) ?? xswapCrossChainResponse?.best
   const xswapCrossChainOutput = useMemo(() => {
     const outputCurrency = currencies[Field.OUTPUT]
-    if (!xswapCrossChainResponse || !outputCurrency) {
-      return undefined
-    }
-    const { best, candidates } = xswapCrossChainResponse
-    const selected = candidates.find((q) => q.provider === xswapProvider) ?? best
-    return CurrencyAmount.fromRawAmount(outputCurrency, selected.outputAmount)
-  }, [currencies, xswapCrossChainResponse, xswapProvider])
+    return xswapSelectedQuote && outputCurrency
+      ? CurrencyAmount.fromRawAmount(outputCurrency, xswapSelectedQuote.outputAmount)
+      : undefined
+  }, [currencies, xswapSelectedQuote])
+  // Cross-chain counterpart of the router's details dropdown: shown while quoting and once a route is back.
+  const showXSwapDetails =
+    isCrossChainPair &&
+    userHasSpecifiedInputOutput &&
+    (xswapQuote.status === 'loading' || Boolean(xswapCrossChainResponse))
 
   // Chains outside the API keep the router, which never swaps across chains: drop an output left on another chain.
   useEffect(() => {
@@ -764,22 +773,9 @@ export function SwapForm({ disableTokenInputs = false, onCurrencyChange }: SwapF
             <GrayCard style={{ textAlign: 'center' }} data-testid="xswap-quote-error">
               <ThemedText.DeprecatedMain mb="4px">{xswapQuoteError}</ThemedText.DeprecatedMain>
             </GrayCard>
-          ) : usesXSwapApi && xswapQuote.status === 'loading' && userHasSpecifiedInputOutput && !swapInputError ? (
-            <ButtonPrimary $borderRadius="16px" disabled data-testid="xswap-quote-loading">
-              <Row gap="sm" justify="center">
-                <Loader size="20px" />
-                <Text fontSize={20}>
-                  <Trans i18nKey="common.fetchingRoute" />
-                </Text>
-              </Row>
-            </ButtonPrimary>
-          ) : xswapCrossChainResponse && userHasSpecifiedInputOutput ? (
+          ) : xswapSelectedQuote && userHasSpecifiedInputOutput ? (
             <XSwapCrossChainPanel
-              response={xswapCrossChainResponse}
-              lookup={xswapTokenLookup}
-              refreshing={xswapQuote.status === 'success' && xswapQuote.refreshing}
-              selectedProvider={xswapProvider}
-              onSelectProvider={setXSwapProvider}
+              quote={xswapSelectedQuote}
               inputError={swapInputError}
               onExecutingChange={setXSwapExecuting}
               onOrder={handleXSwapOrder}
@@ -834,6 +830,20 @@ export function SwapForm({ disableTokenInputs = false, onCurrencyChange }: SwapF
               loading={routeIsLoading}
               allowedSlippage={allowedSlippage}
               priceImpact={largerPriceImpact}
+            />
+          )}
+          {showXSwapDetails && currencies[Field.INPUT] && currencies[Field.OUTPUT] && (
+            <XSwapDetailsDropdown
+              routes={xswapCrossChainRoutes}
+              selected={xswapSelectedQuote}
+              bestQuoteId={xswapCrossChainResponse?.best.quoteId}
+              inputCurrency={currencies[Field.INPUT] as Currency}
+              outputCurrency={currencies[Field.OUTPUT] as Currency}
+              lookup={xswapTokenLookup}
+              loading={xswapQuote.status === 'loading'}
+              syncing={xswapQuote.status === 'success' && xswapQuote.refreshing && !xswapExecuting}
+              disabled={xswapExecuting}
+              onSelectProvider={setXSwapProvider}
             />
           )}
           {isUsingBlockedExtension && <SwapNotice />}

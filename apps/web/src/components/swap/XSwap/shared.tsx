@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
 import { XSwapTokenLookup, useXSwapChains } from 'state/xswap/hooks'
+import { XSwapQuote } from 'state/xswap/types'
 import { formatXSwapUnits, isXSwapNativeAddress, shortenXSwapHash, xswapExplorerTxUrl } from 'state/xswap/utils'
 import styled from 'styled-components'
 import { ExternalLink } from 'theme/components'
@@ -101,19 +101,26 @@ export function formatXSwapTokenAmount(
   return `${amount} (${shortenXSwapHash(address)})`
 }
 
-/** Re-renders every second, for expiry countdowns. */
-export function useNow(intervalMs = 1_000): number {
-  const [now, setNow] = useState(() => Date.now())
-  useEffect(() => {
-    const timer = setInterval(() => setNow(Date.now()), intervalMs)
-    return () => clearInterval(timer)
-  }, [intervalMs])
-  return now
-}
-
 export function TxLink({ chainId, hash }: { chainId: number; hash: string }) {
   const explorer = UNIVERSE_CHAIN_INFO[chainId as InterfaceChainId]?.explorer.url
   const href = xswapExplorerTxUrl(chainId, hash, explorer)
   const label = shortenXSwapHash(hash, 6)
   return href ? <ExternalLink href={href}>{label}</ExternalLink> : <span>{label}</span>
+}
+
+const PROVIDER_NAMES: Record<string, string> = {
+  across: 'Across',
+  relay: 'Relay',
+  xgate: 'X-Gate',
+  xswap: 'X-Swap',
+  uniswap: 'Uniswap',
+}
+
+export function xswapProviderName(provider: string): string {
+  return PROVIDER_NAMES[provider] ?? provider
+}
+
+/** `best` first, then the other candidates (the API ranks them best first and may repeat `best` among them). */
+export function xswapRoutes(best: XSwapQuote, candidates: XSwapQuote[]): XSwapQuote[] {
+  return [best, ...candidates.filter((q) => q.quoteId !== best.quoteId)]
 }
