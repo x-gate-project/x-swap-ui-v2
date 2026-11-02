@@ -1,9 +1,11 @@
 import { CurrencyAmount, Percent, Token } from '@uniswap/sdk-core'
 import { DAI, USDC_MAINNET, nativeOnChain } from 'constants/tokens'
 import { buildXSwapQuoteRequest } from 'state/xswap/hooks'
+import { XSwapQuote, XSwapToken } from 'state/xswap/types'
 import {
   XSWAP_NATIVE_ADDRESS,
   buildXSwapReachability,
+  findXSwapToken,
   formatXSwapEta,
   formatXSwapUnits,
   getXSwapChainMode,
@@ -12,6 +14,7 @@ import {
   getXSwapOutputChainId,
   isSameXSwapToken,
   percentToBps,
+  pickDefaultXSwapRoute,
   shortenXSwapHash,
   toXSwapAddress,
   xswapExplorerTxUrl,
@@ -333,5 +336,60 @@ describe('x-swap reachability', () => {
         }),
       ).toBe(10081)
     })
+  })
+})
+
+describe('findXSwapToken', () => {
+  const WETH = '0x980B62Da83eFf3D4576C647993b0c1D7faf17c73'
+  const chains = [{ chainId: 421614, name: 'Arbitrum Sepolia', nativeSymbol: 'ETH', wrappedNative: WETH }]
+  const native: XSwapToken = {
+    chainId: 421614,
+    address: XSWAP_NATIVE_ADDRESS,
+    symbol: 'ETH',
+    decimals: 18,
+    class: 'native-side',
+    available: true,
+  }
+  const usdc: XSwapToken = {
+    ...native,
+    address: '0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d',
+    symbol: 'USDC',
+    decimals: 6,
+  }
+  const byKey = (tokens: XSwapToken[]) => new Map(tokens.map((t) => [`${t.chainId}-${t.address.toLowerCase()}`, t]))
+
+  it('finds a listed token, ignoring address case', () => {
+    expect(findXSwapToken(byKey([usdc]), chains, 421614, usdc.address.toUpperCase().replace('0X', '0x'))).toBe(usdc)
+  })
+
+  it('resolves an unlisted wrapped native to the native token', () => {
+    expect(findXSwapToken(byKey([native]), chains, 421614, WETH.toLowerCase())).toBe(native)
+  })
+
+  it('prefers the listed wrapper over the native token', () => {
+    const weth = { ...native, address: WETH, symbol: 'WETH' }
+    expect(findXSwapToken(byKey([native, weth]), chains, 421614, WETH)).toBe(weth)
+  })
+
+  it('returns undefined for unknown tokens and chains', () => {
+    expect(findXSwapToken(byKey([native]), chains, 421614, usdc.address)).toBeUndefined()
+    expect(findXSwapToken(byKey([native]), chains, 84532, WETH)).toBeUndefined()
+  })
+})
+
+describe('pickDefaultXSwapRoute', () => {
+  const route = (quoteId: string, executable: boolean) => ({ quoteId, executable }) as XSwapQuote
+
+  it('keeps best when it can be sent', () => {
+    expect(pickDefaultXSwapRoute([route('a', true), route('b', true)])?.quoteId).toBe('a')
+  })
+
+  it('skips a priced-only best for the first route that can be sent', () => {
+    expect(pickDefaultXSwapRoute([route('a', false), route('b', false), route('c', true)])?.quoteId).toBe('c')
+  })
+
+  it('falls back to best when no route can be sent', () => {
+    expect(pickDefaultXSwapRoute([route('a', false), route('b', false)])?.quoteId).toBe('a')
+    expect(pickDefaultXSwapRoute([])).toBeUndefined()
   })
 })

@@ -21,7 +21,7 @@ import { useUserSlippageTolerance } from 'state/user/hooks'
 import { SlippageTolerance } from 'state/user/types'
 import { XSwapTokenLookup } from 'state/xswap/hooks'
 import { XSwapLeg, XSwapQuote } from 'state/xswap/types'
-import { formatXSwapEta, formatXSwapUnits } from 'state/xswap/utils'
+import { formatXSwapEta, formatXSwapUnits, shortenXSwapHash } from 'state/xswap/utils'
 import styled, { DefaultTheme, useTheme } from 'styled-components'
 import { ThemedText } from 'theme/components'
 import { NumberType, useFormatter } from 'utils/formatNumbers'
@@ -297,6 +297,21 @@ export function XSwapDetailsDropdown({
                 Value: () => <>{details.fees.length ? details.fees.join(' + ') : '0'}</>,
               }}
             />
+            {selected.destSwap && selected.fallbackToken && (
+              <DetailLineItem
+                syncing={syncing}
+                LineItem={{
+                  Label: () => <>{t('xswap.route.fallback')}</>,
+                  TooltipBody: () => <>{t('xswap.route.fallback.tooltip')}</>,
+                  Value: () => (
+                    <>
+                      {lookup(selected.tokenOut.chainId, selected.fallbackToken ?? '')?.symbol ??
+                        shortenXSwapHash(selected.fallbackToken ?? '')}
+                    </>
+                  ),
+                }}
+              />
+            )}
             <DetailLineItem
               syncing={syncing}
               LineItem={{

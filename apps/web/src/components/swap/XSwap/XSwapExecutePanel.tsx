@@ -24,8 +24,8 @@ import {
   executeXSwapQuote,
 } from 'state/xswap/execute'
 import { useXSwapRequote } from 'state/xswap/hooks'
-import { getXSwapFlow } from 'state/xswap/utils'
 import { XSwapOrder, XSwapPermitTypedData, XSwapQuote, XSwapTx } from 'state/xswap/types'
+import { getXSwapFlow } from 'state/xswap/utils'
 import styled from 'styled-components'
 import { ThemedText } from 'theme/components'
 import { InterfaceChainId } from 'uniswap/src/types/chains'
@@ -161,6 +161,8 @@ function toExecutionError(error: unknown, chainId: number): ExecutionError {
 type Props = {
   /** The route to execute: the one picked in the details dropdown, `best` by default. */
   quote: XSwapQuote
+  /** Some route of this quote can be sent: a priced-only `quote` points the user to the other routes. */
+  hasExecutableRoute?: boolean
   /** Why the swap cannot go on (no wallet, no balance, …); shown on the button. */
   inputError?: ReactNode
   onExecutingChange: (executing: boolean) => void
@@ -178,7 +180,13 @@ const Wrapper = styled.div`
  * offers one, sends the deposit (the swap itself for `local`) and registers the order. A priced-only route
  * (`executable: false`) has nothing to sign, so it gets no button.
  */
-export function XSwapExecutePanel({ quote: selected, inputError, onExecutingChange, onOrder }: Props) {
+export function XSwapExecutePanel({
+  quote: selected,
+  hasExecutableRoute,
+  inputError,
+  onExecutingChange,
+  onOrder,
+}: Props) {
   const deps = useXSwapExecutionDeps()
   const requote = useXSwapRequote()
 
@@ -248,6 +256,7 @@ export function XSwapExecutePanel({ quote: selected, inputError, onExecutingChan
         // Priced only: contracts are not deployed on this route yet, there is nothing to sign.
         <GrayCard style={{ textAlign: 'center' }} data-testid="xswap-quote-only">
           <ThemedText.DeprecatedMain mb="4px">{t('xswap.execute.quoteOnly')}</ThemedText.DeprecatedMain>
+          {hasExecutableRoute && <Muted>{t('xswap.execute.pickExecutableRoute')}</Muted>}
         </GrayCard>
       ) : (
         <ButtonPrimary

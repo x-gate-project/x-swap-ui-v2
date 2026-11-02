@@ -1,7 +1,7 @@
 import { Currency, NativeCurrency, Percent, Token } from '@uniswap/sdk-core'
 import { WRAPPED_NATIVE_CURRENCY, nativeOnChain } from 'constants/tokens'
 import JSBI from 'jsbi'
-import { XSwapRouteDestination, XSwapToken, XSwapTokenRef } from 'state/xswap/types'
+import { XSwapChain, XSwapQuote, XSwapRouteDestination, XSwapToken, XSwapTokenRef } from 'state/xswap/types'
 import { zeroAddress } from 'viem'
 
 /** The zero address is the native token on the wire, both ways. */
@@ -140,6 +140,34 @@ export function xswapTokenToCurrency(token: XSwapToken, wrappedNative?: string):
     return xswapNativeCurrency(token.chainId, token.symbol, wrappedNative)
   }
   return new Token(token.chainId, token.address, token.decimals, token.symbol, token.symbol)
+}
+
+/**
+ * Finds an API token by chain and address. Route legs carry the wrapped address where the user sends or receives the
+ * native token; when the wrapper itself is not listed, it resolves to the chain's native token.
+ */
+export function findXSwapToken(
+  tokens: ReadonlyMap<string, XSwapToken>,
+  chains: readonly XSwapChain[],
+  chainId: number,
+  address: string,
+): XSwapToken | undefined {
+  const token = tokens.get(xswapTokenKey(chainId, address))
+  if (token || isXSwapNativeAddress(address)) {
+    return token
+  }
+  const wrappedNative = chains.find((c) => c.chainId === chainId)?.wrappedNative
+  return wrappedNative && wrappedNative.toLowerCase() === address.toLowerCase()
+    ? tokens.get(xswapTokenKey(chainId, XSWAP_NATIVE_ADDRESS))
+    : undefined
+}
+
+/**
+ * The route selected until the user picks one: `best` when it can be sent, else the first route that can (the API may
+ * rank a priced-only Across route first on chains without XChainSender), else `best`.
+ */
+export function pickDefaultXSwapRoute(routes: readonly XSwapQuote[]): XSwapQuote | undefined {
+  return routes.find((route) => route.executable) ?? routes[0]
 }
 
 export type XSwapFlow = 'same-chain' | 'cross-chain'
