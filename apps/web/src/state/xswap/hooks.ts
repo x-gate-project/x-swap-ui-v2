@@ -1,11 +1,25 @@
-import { useQuery } from '@tanstack/react-query'
+import { useInfiniteQuery, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Currency, CurrencyAmount, Percent } from '@uniswap/sdk-core'
 import { useFallbackListTokens } from 'hooks/Tokens'
 import useDebounce from 'hooks/useDebounce'
-import { useMemo } from 'react'
-import { getXSwapChains, getXSwapQuote, getXSwapTokens, isXSwapApiEnabled } from 'state/xswap/client'
+import { useCallback, useMemo } from 'react'
+import {
+  getXSwapChains,
+  getXSwapOrder,
+  getXSwapOrders,
+  getXSwapQuote,
+  getXSwapTokens,
+  isXSwapApiEnabled,
+} from 'state/xswap/client'
 import { XSwapError, getXSwapErrorMessage, toXSwapError } from 'state/xswap/errors'
-import { XSwapChain, XSwapQuoteRequest, XSwapQuoteResponse, XSwapToken } from 'state/xswap/types'
+import {
+  XSWAP_TERMINAL_ORDER_STATUSES,
+  XSwapChain,
+  XSwapOrder,
+  XSwapQuoteRequest,
+  XSwapQuoteResponse,
+  XSwapToken,
+} from 'state/xswap/types'
 import {
   XSwapChainMode,
   XSwapFlow,
@@ -15,6 +29,7 @@ import {
   isXSwapNativeAddress,
   percentToBps,
   toXSwapAddress,
+  xswapTokenKey,
   xswapTokenToCurrency,
 } from 'state/xswap/utils'
 import { InterfaceChainId } from 'uniswap/src/types/chains'
@@ -24,15 +39,20 @@ import { InterfaceChainId } from 'uniswap/src/types/chains'
 const CATALOG_STALE_TIME_MS = 60_000
 const QUOTE_STALE_TIME_MS = 15_000
 const QUOTE_DEBOUNCE_MS = 300
+const ORDER_POLL_MS = 3_000
+const ORDER_HISTORY_POLL_MS = 15_000
 
-const xswapQueryKeys = {
+export const xswapQueryKeys = {
   chains: ['xswap', 'chains'] as const,
   tokens: (chainId?: number) => ['xswap', 'tokens', chainId] as const,
+  quotes: ['xswap', 'quote'] as const,
   quote: (params?: XSwapQuoteRequest) => ['xswap', 'quote', params] as const,
+  order: (id?: string) => ['xswap', 'order', id] as const,
+  orders: (wallet?: string) => ['xswap', 'orders', wallet?.toLowerCase()] as const,
 }
 
 /** `GET /v1/chains`: chains enabled in API config. Empty while loading or when the API is disabled. */
-function useXSwapChains({ enabled = true }: { enabled?: boolean } = {}): {
+export function useXSwapChains({ enabled = true }: { enabled?: boolean } = {}): {
   chains: XSwapChain[]
   chainIds?: number[]
   loading: boolean
@@ -82,6 +102,8 @@ export function useXSwapTokenCurrencies(
 ): { entries: XSwapTokenEntry[]; loading: boolean } {
   const { data: tokens, isLoading } = useXSwapTokens(chainId, { enabled })
   const listTokens = useFallbackListTokens(chainId)
+  const { chains } = useXSwapChains({ enabled })
+  const wrappedNative = chains.find((c) => c.chainId === chainId)?.wrappedNative
 
   const entries = useMemo(() => {
     if (!tokens) {
@@ -92,10 +114,11 @@ export function useXSwapTokenCurrencies(
       const listToken = isXSwapNativeAddress(token.address)
         ? undefined
         : listTokensByAddress.get(token.address.toLowerCase())
-      const currency = listToken && listToken.chainId === token.chainId ? listToken : xswapTokenToCurrency(token)
+      const currency =
+        listToken && listToken.chainId === token.chainId ? listToken : xswapTokenToCurrency(token, wrappedNative)
       return { token, currency }
     })
-  }, [listTokens, tokens])
+  }, [listTokens, tokens, wrappedNative])
 
   return { entries, loading: isLoading }
 }
@@ -115,6 +138,8 @@ type UseXSwapQuoteArgs = {
   /** User slippage; undefined lets the API pick its default. */
   slippage?: Percent
   enabled?: boolean
+  /** Re-quote interval so a shown quote does not go stale (default 15 s); false while the user executes one. */
+  refetchIntervalMs?: number | false
 }
 
 export function buildXSwapQuoteRequest({
@@ -123,7 +148,7 @@ export function buildXSwapQuoteRequest({
   inputAmount,
   swapper,
   slippage,
-}: Omit<UseXSwapQuoteArgs, 'enabled'>): XSwapQuoteRequest | undefined {
+}: Omit<UseXSwapQuoteArgs, 'enabled' | 'refetchIntervalMs'>): XSwapQuoteRequest | undefined {
   if (!inputCurrency || !outputCurrency || !inputAmount || !swapper) {
     return undefined
   }
@@ -148,7 +173,11 @@ export function buildXSwapQuoteRequest({
  * `POST /v1/quote` for the current pair, then dispatch on `routeClass`: `local` is the same-chain flow, any other
  * class is the cross-chain flow.
  */
-export function useXSwapQuote({ enabled = true, ...args }: UseXSwapQuoteArgs): XSwapQuoteState {
+export function useXSwapQuote({
+  enabled = true,
+  refetchIntervalMs = QUOTE_STALE_TIME_MS,
+  ...args
+}: UseXSwapQuoteArgs): XSwapQuoteState {
   const { inputCurrency, outputCurrency, inputAmount, swapper, slippage } = args
   const request = useMemo(
     () => buildXSwapQuoteRequest({ inputCurrency, outputCurrency, inputAmount, swapper, slippage }),
@@ -169,8 +198,8 @@ export function useXSwapQuote({ enabled = true, ...args }: UseXSwapQuoteArgs): X
     queryFn: ({ signal }) => getXSwapQuote(debouncedRequest as XSwapQuoteRequest, signal),
     enabled: active,
     staleTime: QUOTE_STALE_TIME_MS,
-    // Quotes expire (`expiresAt`); keep the gate fresh while the pair stays on screen.
-    refetchInterval: QUOTE_STALE_TIME_MS,
+    // Quotes expire (`expiresAt`); keep them fresh while the pair stays on screen.
+    refetchInterval: refetchIntervalMs,
     // Every quote error code is a definite answer; retrying only delays the message.
     retry: false,
   })
@@ -192,4 +221,71 @@ export function useXSwapQuote({ enabled = true, ...args }: UseXSwapQuoteArgs): X
     }
     return { status: active ? 'loading' : 'idle' }
   }, [active, data, enabled, error, isDebouncing, request])
+}
+
+/** Drops every cached quote and asks again, e.g. after `quote_unavailable`. */
+export function useXSwapRequote(): () => Promise<void> {
+  const queryClient = useQueryClient()
+  return useCallback(() => queryClient.resetQueries({ queryKey: xswapQueryKeys.quotes }), [queryClient])
+}
+
+export function isXSwapOrderTerminal(order?: XSwapOrder): boolean {
+  return Boolean(order && XSWAP_TERMINAL_ORDER_STATUSES.has(order.status))
+}
+
+/** `GET /v1/orders/:id`, polled until the order is terminal. `initial` is shown until the first poll answers. */
+export function useXSwapOrder(id?: string, initial?: XSwapOrder) {
+  return useQuery({
+    queryKey: xswapQueryKeys.order(id),
+    queryFn: ({ signal }) => getXSwapOrder(id as string, signal),
+    enabled: isXSwapApiEnabled() && !!id,
+    initialData: initial && initial.id === id ? initial : undefined,
+    // Polls from the start: a registered order is at most SUBMITTED.
+    initialDataUpdatedAt: 0,
+    refetchInterval: (query) => (isXSwapOrderTerminal(query.state.data) ? false : ORDER_POLL_MS),
+    // A transient error must not stop the polling.
+    retry: true,
+  })
+}
+
+/** `GET /v1/orders?wallet=`, newest first, one page per cursor. */
+export function useXSwapOrderHistory(wallet?: string) {
+  return useInfiniteQuery({
+    queryKey: xswapQueryKeys.orders(wallet),
+    queryFn: ({ pageParam, signal }) => getXSwapOrders(wallet as string, pageParam, signal),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (page) => page.nextCursor ?? undefined,
+    enabled: isXSwapApiEnabled() && !!wallet,
+    refetchInterval: ORDER_HISTORY_POLL_MS,
+  })
+}
+
+export type XSwapTokenLookup = (chainId: number, address: string) => XSwapToken | undefined
+
+/**
+ * Finds API tokens by chain and address across several chains, e.g. to format the amounts of a route's legs or of an
+ * order whose output is on another chain. Unknown tokens (and chains the API does not list) return undefined.
+ */
+export function useXSwapTokenLookup(chainIds: (number | undefined)[]): XSwapTokenLookup {
+  const uniqueChainIds = useMemo(
+    () => [...new Set(chainIds.filter((id): id is number => !!id))].sort((a, b) => a - b),
+    [chainIds],
+  )
+  const results = useQueries({
+    queries: uniqueChainIds.map((chainId) => ({
+      queryKey: xswapQueryKeys.tokens(chainId),
+      queryFn: ({ signal }: { signal: AbortSignal }) => getXSwapTokens(chainId, signal),
+      enabled: isXSwapApiEnabled(),
+      staleTime: CATALOG_STALE_TIME_MS,
+    })),
+  })
+  const dataKey = results.map((r) => r.dataUpdatedAt).join(',')
+  const byKey = useMemo(() => {
+    const map = new Map<string, XSwapToken>()
+    results.forEach((r) => r.data?.forEach((token) => map.set(xswapTokenKey(token.chainId, token.address), token)))
+    return map
+    // `results` is a new array every render; rebuild only when some list changed.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dataKey])
+  return useCallback((chainId, address) => byKey.get(xswapTokenKey(chainId, address)), [byKey])
 }

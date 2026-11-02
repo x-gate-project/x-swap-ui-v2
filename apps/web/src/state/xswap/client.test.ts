@@ -1,5 +1,15 @@
 import fetch from 'jest-fetch-mock'
-import { XSwapApiError, getXSwapChains, getXSwapQuote, getXSwapTokens, isXSwapApiEnabled } from 'state/xswap/client'
+import {
+  XSwapApiError,
+  getXSwapChains,
+  getXSwapOrder,
+  getXSwapOrders,
+  getXSwapQuote,
+  getXSwapTokens,
+  isXSwapApiEnabled,
+  refreshXSwapQuote,
+  registerXSwapOrder,
+} from 'state/xswap/client'
 
 fetch.enableMocks()
 
@@ -81,5 +91,43 @@ describe('x-swap API client', () => {
     const error = await getXSwapChains().catch((e) => e)
     expect(error).toBeInstanceOf(XSwapApiError)
     expect(error.code).toBe('request_failed')
+  })
+
+  it('refreshes a quote', async () => {
+    fetch.mockResponseOnce(JSON.stringify({ quoteId: 'q2' }))
+    await expect(refreshXSwapQuote('q/1')).resolves.toEqual({ quoteId: 'q2' })
+    const [url, init] = fetch.mock.calls[0]
+    expect(url).toBe(`${BASE}/quote/q%2F1/refresh`)
+    expect(init?.method).toBe('POST')
+  })
+
+  it('reports an expired quote as quote_unavailable', async () => {
+    fetch.mockResponseOnce(JSON.stringify({ code: 'quote_unavailable' }), { status: 410 })
+    const error = await refreshXSwapQuote('q1').catch((e) => e)
+    expect(error.code).toBe('quote_unavailable')
+    expect(error.status).toBe(410)
+  })
+
+  it('registers an order', async () => {
+    fetch.mockResponseOnce(JSON.stringify({ id: 'o1' }), { status: 201 })
+    await expect(registerXSwapOrder({ quoteId: 'q1', txHash: '0xabc' })).resolves.toEqual({ id: 'o1' })
+    const [url, init] = fetch.mock.calls[0]
+    expect(url).toBe(`${BASE}/orders`)
+    expect(init?.method).toBe('POST')
+    expect(JSON.parse(init?.body as string)).toEqual({ quoteId: 'q1', txHash: '0xabc' })
+  })
+
+  it('reads an order', async () => {
+    fetch.mockResponseOnce(JSON.stringify({ id: 'o1' }))
+    await getXSwapOrder('o1')
+    expect(fetch.mock.calls[0][0]).toBe(`${BASE}/orders/o1`)
+  })
+
+  it("lists a wallet's orders with a cursor", async () => {
+    fetch.mockResponse(JSON.stringify({ orders: [], nextCursor: null }))
+    await getXSwapOrders('0xabc')
+    await getXSwapOrders('0xabc', 'c/1')
+    expect(fetch.mock.calls[0][0]).toBe(`${BASE}/orders?wallet=0xabc`)
+    expect(fetch.mock.calls[1][0]).toBe(`${BASE}/orders?wallet=0xabc&cursor=c%2F1`)
   })
 })
