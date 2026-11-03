@@ -5,6 +5,7 @@ import {
   getXSwapOrder,
   getXSwapOrders,
   getXSwapQuote,
+  getXSwapRoutes,
   getXSwapTokens,
   isXSwapApiEnabled,
   refreshXSwapQuote,
@@ -48,6 +49,18 @@ describe('x-swap API client', () => {
     fetch.mockResponseOnce(JSON.stringify({ tokens: [] }))
     await expect(getXSwapTokens(81)).resolves.toEqual([])
     expect(fetch.mock.calls[0][0]).toBe(`${BASE}/tokens?chainId=81`)
+  })
+
+  it('loads the destinations of an input token', async () => {
+    const body = {
+      tokenIn: { chainId: 11155111, address: '0x0000000000000000000000000000000000000000' },
+      destinations: [{ chainId: 84532, address: '0xabc', routeClass: 'evm-native', executable: true }],
+    }
+    fetch.mockResponseOnce(JSON.stringify(body))
+    await expect(getXSwapRoutes(11155111, '0x0000000000000000000000000000000000000000')).resolves.toEqual(body)
+    expect(fetch.mock.calls[0][0]).toBe(
+      `${BASE}/routes?tokenInChainId=11155111&tokenIn=0x0000000000000000000000000000000000000000`,
+    )
   })
 
   it('posts the quote request', async () => {

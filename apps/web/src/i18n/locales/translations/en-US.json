@@ -1126,6 +1126,8 @@
   "xswap.error.unsupportedToken": "Token not supported",
   "xswap.swap.exactInputOnly": "Enter the amount to sell. The amount to buy is quoted from it.",
   "xswap.tokenSelector.alreadySelected": "Already selected on the other side",
+  "xswap.tokenSelector.quoteOnly": "Quote only",
+  "xswap.tokenSelector.quoteOnlyTooltip": "Routes to this token can be priced but not executed yet",
   "xswap.tokenSelector.title": "Tokens",
   "xswap.tokenSelector.unavailable": "Not available for swaps right now",
   "xswap.execute.error.generic": "Something went wrong, try again",

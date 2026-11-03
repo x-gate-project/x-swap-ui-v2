@@ -6,6 +6,7 @@ import {
   XSwapQuote,
   XSwapQuoteRequest,
   XSwapQuoteResponse,
+  XSwapRoutesResponse,
   XSwapToken,
 } from 'state/xswap/types'
 
@@ -70,6 +71,19 @@ export async function getXSwapChains(signal?: AbortSignal): Promise<XSwapChain[]
 export async function getXSwapTokens(chainId: number, signal?: AbortSignal): Promise<XSwapToken[]> {
   const { tokens } = await request<{ tokens: XSwapToken[] }>(`/tokens?chainId=${chainId}`, { signal })
   return tokens
+}
+
+/**
+ * Tokens `tokenIn` can reach. An unknown or denylisted `tokenIn` is `unsupported_token` (400); `risk.killSwitch`
+ * answers an empty list.
+ */
+export function getXSwapRoutes(
+  tokenInChainId: number,
+  tokenIn: string,
+  signal?: AbortSignal,
+): Promise<XSwapRoutesResponse> {
+  const query = new URLSearchParams({ tokenInChainId: String(tokenInChainId), tokenIn })
+  return request<XSwapRoutesResponse>(`/routes?${query.toString()}`, { signal })
 }
 
 /** Every provider's quote at once. No quote is an `XSwapApiError` (`no_route` carries `details.rejected`). */

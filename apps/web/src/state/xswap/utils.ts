@@ -1,7 +1,7 @@
 import { Currency, NativeCurrency, Percent, Token } from '@uniswap/sdk-core'
 import { WRAPPED_NATIVE_CURRENCY, nativeOnChain } from 'constants/tokens'
 import JSBI from 'jsbi'
-import { XSwapToken, XSwapTokenRef } from 'state/xswap/types'
+import { XSwapRouteDestination, XSwapToken, XSwapTokenRef } from 'state/xswap/types'
 import { zeroAddress } from 'viem'
 
 /** The zero address is the native token on the wire, both ways. */
@@ -28,6 +28,74 @@ function currencyXSwapKey(currency: Currency): string {
 /** True when both sides are the same token on the same chain; the API never quotes such a pair. */
 export function isSameXSwapToken(a?: Currency | null, b?: Currency | null): boolean {
   return Boolean(a && b && currencyXSwapKey(a) === currencyXSwapKey(b))
+}
+
+/** Destinations of one input token (`GET /v1/routes`), looked up by token. */
+export type XSwapReachability = {
+  /** `xswapTokenKey` -> true when at least one route to the token is executable. */
+  tokens: ReadonlyMap<string, boolean>
+  /** Chains with at least one reachable token. */
+  chainIds: ReadonlySet<number>
+}
+
+/**
+ * Indexes `GET /v1/routes` destinations. The API never lists a wrap or unwrap (native routes as its wrapper), but the
+ * swap form runs those itself, so the input's wrap counterpart (from `GET /v1/chains` `wrappedNative`) is added.
+ */
+export function buildXSwapReachability(
+  destinations: XSwapRouteDestination[],
+  input: { chainId: number; address: XSwapTokenRef; wrappedNative?: string },
+): XSwapReachability {
+  const tokens = new Map<string, boolean>()
+  const chainIds = new Set<number>()
+  const add = (chainId: number, address: string, executable: boolean) => {
+    const key = xswapTokenKey(chainId, address)
+    tokens.set(key, Boolean(tokens.get(key)) || executable)
+    chainIds.add(chainId)
+  }
+  destinations.forEach((d) => add(d.chainId, d.address, d.executable))
+  const { wrappedNative } = input
+  if (wrappedNative) {
+    if (isXSwapNativeAddress(input.address)) {
+      add(input.chainId, wrappedNative, true)
+    } else if (input.address.toLowerCase() === wrappedNative.toLowerCase()) {
+      add(input.chainId, XSWAP_NATIVE_ADDRESS, true)
+    }
+  }
+  return { tokens, chainIds }
+}
+
+/** `quote-only`: every route to the token is priced only, it cannot be executed yet. */
+export type XSwapDestinationStatus = 'executable' | 'quote-only' | 'unreachable'
+
+export function getXSwapDestinationStatus(reachability: XSwapReachability, currency: Currency): XSwapDestinationStatus {
+  const executable = reachability.tokens.get(currencyXSwapKey(currency))
+  if (executable === undefined) {
+    return 'unreachable'
+  }
+  return executable ? 'executable' : 'quote-only'
+}
+
+/**
+ * Chain the output picker lists: the preferred one while it has a reachable token, else the first chain (in
+ * `GET /v1/chains` order) that has one. Without reachability, or when nothing is reachable, the preferred chain.
+ */
+export function getXSwapOutputChainId({
+  preferredChainId,
+  chainIds,
+  reachability,
+}: {
+  preferredChainId?: number
+  chainIds?: number[]
+  reachability?: XSwapReachability
+}): number | undefined {
+  if (!reachability || reachability.chainIds.size === 0) {
+    return preferredChainId
+  }
+  if (preferredChainId !== undefined && reachability.chainIds.has(preferredChainId)) {
+    return preferredChainId
+  }
+  return chainIds?.find((id) => reachability.chainIds.has(id)) ?? preferredChainId
 }
 
 /**

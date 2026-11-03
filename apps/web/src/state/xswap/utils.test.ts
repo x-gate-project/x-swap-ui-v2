@@ -3,10 +3,13 @@ import { DAI, USDC_MAINNET, nativeOnChain } from 'constants/tokens'
 import { buildXSwapQuoteRequest } from 'state/xswap/hooks'
 import {
   XSWAP_NATIVE_ADDRESS,
+  buildXSwapReachability,
   formatXSwapEta,
   formatXSwapUnits,
   getXSwapChainMode,
+  getXSwapDestinationStatus,
   getXSwapFlow,
+  getXSwapOutputChainId,
   isSameXSwapToken,
   percentToBps,
   shortenXSwapHash,
@@ -247,5 +250,88 @@ describe('xswapTokenToCurrency on a chain the app does not know', () => {
     expect(currency.isNative).toBe(true)
     expect(currency.wrapped.address).toBe(weth)
     expect(xswapTokenToCurrency(token, weth)).toBe(currency)
+  })
+})
+
+describe('x-swap reachability', () => {
+  const WETH = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'
+  const BASE_SEPOLIA = 84532
+  const BASE_USDC = '0x036CbD53842c5426634e7929541eC2318f3dCF7e'
+  const input = { chainId: UniverseChainId.Mainnet, address: USDC_MAINNET.address }
+
+  it('marks a token executable when any of its routes is', () => {
+    const reachability = buildXSwapReachability(
+      [
+        { chainId: BASE_SEPOLIA, address: BASE_USDC, routeClass: 'evm-native', executable: false },
+        { chainId: BASE_SEPOLIA, address: BASE_USDC.toLowerCase(), routeClass: 'composite', executable: true },
+        { chainId: UniverseChainId.Mainnet, address: DAI.address, routeClass: 'local', executable: false },
+      ],
+      input,
+    )
+    const baseUsdc = new Token(BASE_SEPOLIA, BASE_USDC, 6, 'USDC')
+    expect(getXSwapDestinationStatus(reachability, baseUsdc)).toBe('executable')
+    expect(getXSwapDestinationStatus(reachability, DAI)).toBe('quote-only')
+    expect(getXSwapDestinationStatus(reachability, ETH)).toBe('unreachable')
+    expect([...reachability.chainIds].sort()).toEqual([UniverseChainId.Mainnet, BASE_SEPOLIA].sort())
+  })
+
+  it('treats the native currency as the zero address', () => {
+    const reachability = buildXSwapReachability(
+      [{ chainId: UniverseChainId.Mainnet, address: XSWAP_NATIVE_ADDRESS, routeClass: 'local', executable: true }],
+      input,
+    )
+    expect(getXSwapDestinationStatus(reachability, ETH)).toBe('executable')
+  })
+
+  it('keeps the wrap and unwrap the API does not list', () => {
+    const fromNative = buildXSwapReachability([], {
+      chainId: UniverseChainId.Mainnet,
+      address: XSWAP_NATIVE_ADDRESS,
+      wrappedNative: WETH,
+    })
+    expect(getXSwapDestinationStatus(fromNative, new Token(UniverseChainId.Mainnet, WETH, 18, 'WETH'))).toBe(
+      'executable',
+    )
+    expect(fromNative.chainIds.has(UniverseChainId.Mainnet)).toBe(true)
+
+    const fromWrapped = buildXSwapReachability([], {
+      chainId: UniverseChainId.Mainnet,
+      address: WETH.toLowerCase(),
+      wrappedNative: WETH,
+    })
+    expect(getXSwapDestinationStatus(fromWrapped, ETH)).toBe('executable')
+
+    const fromOther = buildXSwapReachability([], { ...input, wrappedNative: WETH })
+    expect(fromOther.tokens.size).toBe(0)
+    expect(fromOther.chainIds.size).toBe(0)
+  })
+
+  describe('getXSwapOutputChainId', () => {
+    const reachability = buildXSwapReachability(
+      [{ chainId: BASE_SEPOLIA, address: BASE_USDC, routeClass: 'evm-native', executable: true }],
+      input,
+    )
+    const chainIds = [UniverseChainId.Mainnet, 10081, BASE_SEPOLIA]
+
+    it('keeps the preferred chain while it has a reachable token', () => {
+      expect(getXSwapOutputChainId({ preferredChainId: BASE_SEPOLIA, chainIds, reachability })).toBe(BASE_SEPOLIA)
+    })
+
+    it('moves to the first chain with a reachable token', () => {
+      expect(getXSwapOutputChainId({ preferredChainId: UniverseChainId.Mainnet, chainIds, reachability })).toBe(
+        BASE_SEPOLIA,
+      )
+    })
+
+    it('keeps the preferred chain without reachability or when nothing is reachable', () => {
+      expect(getXSwapOutputChainId({ preferredChainId: 10081, chainIds })).toBe(10081)
+      expect(
+        getXSwapOutputChainId({
+          preferredChainId: 10081,
+          chainIds,
+          reachability: buildXSwapReachability([], input),
+        }),
+      ).toBe(10081)
+    })
   })
 })
