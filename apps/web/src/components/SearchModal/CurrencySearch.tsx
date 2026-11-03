@@ -8,6 +8,7 @@ import CurrencyList, { CurrencyRow, formatAnalyticsEventProperties } from 'compo
 import { PaddedColumn, SearchInput, Separator } from 'components/SearchModal/styled'
 import { useCurrencySearchResults } from 'components/SearchModal/useCurrencySearchResults'
 import { useXSwapCurrencySearchResults } from 'components/SearchModal/useXSwapCurrencySearchResults'
+import { XSwapChainPicker } from 'components/SearchModal/XSwapChainPicker'
 import useDebounce from 'hooks/useDebounce'
 import { useOnClickOutside } from 'hooks/useOnClickOutside'
 import useSelectChain from 'hooks/useSelectChain'
@@ -52,6 +53,11 @@ export interface CurrencySearchFilters {
    * the API is not configured, keep the token lists.
    */
   xswapApiTokens?: boolean
+  /**
+   * With `xswapApiTokens`, pick the token on any chain the API enables without switching the wallet: the output side
+   * of a cross-chain swap.
+   */
+  xswapAnyChain?: boolean
 }
 
 const DEFAULT_CURRENCY_SEARCH_FILTERS: CurrencySearchFilters = {
@@ -59,6 +65,7 @@ const DEFAULT_CURRENCY_SEARCH_FILTERS: CurrencySearchFilters = {
   disableNonToken: false,
   onlyShowCurrenciesWithBalance: false,
   xswapApiTokens: false,
+  xswapAnyChain: false,
 }
 
 interface CurrencySearchProps {
@@ -80,7 +87,11 @@ export function CurrencySearch({
   isOpen,
   filters,
 }: CurrencySearchProps) {
-  const { showCommonBases: showCommonBasesFilter, xswapApiTokens: xswapApiTokensFilter } = {
+  const {
+    showCommonBases: showCommonBasesFilter,
+    xswapApiTokens: xswapApiTokensFilter,
+    xswapAnyChain: xswapAnyChainFilter,
+  } = {
     ...DEFAULT_CURRENCY_SEARCH_FILTERS,
     ...filters,
   }
@@ -89,6 +100,10 @@ export function CurrencySearch({
     enabled: Boolean(xswapApiTokensFilter) && isXSwapApiEnabled(),
   })
   const xswapApiTokens = xswapChainMode === 'api'
+  // The output of a cross-chain swap lives on another chain than the wallet; its picker keeps its own chain.
+  const xswapAnyChain = xswapApiTokens && Boolean(xswapAnyChainFilter)
+  const [pickedTokenChainId, setTokenChainId] = useState<number | undefined>()
+  const tokenChainId = xswapAnyChain ? pickedTokenChainId ?? selectedCurrency?.chainId ?? chainId : chainId
   // Common bases come from local config and may not be listed by the API.
   const showCommonBases = showCommonBasesFilter && xswapChainMode === 'legacy'
 
@@ -109,6 +124,7 @@ export function CurrencySearch({
     skip: xswapChainMode !== 'legacy',
   })
   const xswapSearchResults = useXSwapCurrencySearchResults({
+    chainId: tokenChainId,
     searchQuery: debouncedQuery,
     otherSelectedCurrency,
     enabled: xswapApiTokens,
@@ -127,7 +143,7 @@ export function CurrencySearch({
   const selectChain = useSelectChain()
   const handleCurrencySelect = useCallback(
     async (currency: Currency, hasWarning?: boolean) => {
-      if (currency.chainId !== chainId) {
+      if (currency.chainId !== chainId && !xswapAnyChain) {
         const result = await selectChain(currency.chainId)
         if (!result) {
           // failed to switch chains, don't select the currency
@@ -139,13 +155,14 @@ export function CurrencySearch({
         onDismiss()
       }
     },
-    [chainId, onCurrencySelect, onDismiss, selectChain],
+    [chainId, onCurrencySelect, onDismiss, selectChain, xswapAnyChain],
   )
 
   // clear the input on open
   useEffect(() => {
     if (isOpen) {
       setSearchQuery('')
+      setTokenChainId(undefined)
     }
   }, [isOpen])
 
@@ -214,10 +231,21 @@ export function CurrencySearch({
               onChange={handleInput}
               onKeyDown={handleEnter}
             />
-            <ChainSelectorWrapper>
-              <ChainSelector />
-            </ChainSelectorWrapper>
+            {!xswapAnyChain && (
+              <ChainSelectorWrapper>
+                <ChainSelector />
+              </ChainSelectorWrapper>
+            )}
           </Row>
+          {xswapAnyChain && (
+            <XSwapChainPicker
+              selectedChainId={tokenChainId}
+              onSelect={(id) => {
+                setTokenChainId(id)
+                fixedList.current?.scrollTo(0)
+              }}
+            />
+          )}
           {showCommonBases && (
             <CommonBases
               chainId={chainId}

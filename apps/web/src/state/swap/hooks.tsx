@@ -53,7 +53,7 @@ export function useSwapAndLimitContext() {
 }
 
 export function useSwapActionHandlers(): {
-  onCurrencySelection: (field: Field, currency: Currency) => void
+  onCurrencySelection: (field: Field, currency: Currency, options?: { allowCrossChain?: boolean }) => void
   onSwitchTokens: (options: { newOutputHasTax: boolean; previouslyEstimatedOutput: string }) => void
   onUserInput: (field: Field, typedValue: string) => void
 } {
@@ -61,7 +61,7 @@ export function useSwapActionHandlers(): {
   const { currencyState, setCurrencyState } = useSwapAndLimitContext()
 
   const onCurrencySelection = useCallback(
-    (field: Field, currency: Currency) => {
+    (field: Field, currency: Currency, options?: { allowCrossChain?: boolean }) => {
       const [currentCurrencyKey, otherCurrencyKey]: (keyof CurrencyState)[] =
         field === Field.INPUT ? ['inputCurrency', 'outputCurrency'] : ['outputCurrency', 'inputCurrency']
       const otherCurrency = currencyState[otherCurrencyKey]
@@ -75,8 +75,8 @@ export function useSwapActionHandlers(): {
           ...swapState,
           independentField: swapState.independentField === Field.INPUT ? Field.OUTPUT : Field.INPUT,
         }))
-        // multichain ux case where we set input or output to different chain
-      } else if (otherCurrency?.chainId !== currency.chainId) {
+        // multichain ux case where we set input or output to different chain; a cross-chain swap keeps both sides
+      } else if (otherCurrency?.chainId !== currency.chainId && !options?.allowCrossChain) {
         setCurrencyState((state) => ({
           ...state,
           [currentCurrencyKey]: currency,
@@ -153,9 +153,13 @@ export function useDerivedSwapInfo(state: SwapState): SwapInfo {
 
   const { independentField, typedValue } = state
 
+  // A cross-chain pair (x-swap API orders) has no client-side trade, taxes or output balance on this chain.
+  const isCrossChain = Boolean(inputCurrency && outputCurrency && inputCurrency.chainId !== outputCurrency.chainId)
+  const sameChainOutputCurrency = isCrossChain ? undefined : outputCurrency
+
   const { inputTax, outputTax } = useSwapTaxes(
     inputCurrency?.isToken ? inputCurrency.address : undefined,
-    outputCurrency?.isToken ? outputCurrency.address : undefined,
+    sameChainOutputCurrency?.isToken ? sameChainOutputCurrency.address : undefined,
     chainId,
   )
 
@@ -176,8 +180,8 @@ export function useDerivedSwapInfo(state: SwapState): SwapInfo {
     swapQuoteLatency?: number
   } = useDebouncedTrade(
     isExactIn ? TradeType.EXACT_INPUT : TradeType.EXACT_OUTPUT,
-    parsedAmount,
-    (isExactIn ? outputCurrency : inputCurrency) ?? undefined,
+    isCrossChain ? undefined : parsedAmount,
+    (isExactIn ? sameChainOutputCurrency : inputCurrency) ?? undefined,
     state.routerPreferenceOverride as RouterPreference.API | undefined,
     account.address,
   )
@@ -260,7 +264,11 @@ export function useDerivedSwapInfo(state: SwapState): SwapInfo {
     }
 
     // compare input balance to max input based on version
-    const [balanceIn, maxAmountIn] = [currencyBalances[Field.INPUT], trade?.trade?.maximumAmountIn(allowedSlippage)]
+    // A cross-chain order spends exactly the input amount.
+    const [balanceIn, maxAmountIn] = [
+      currencyBalances[Field.INPUT],
+      trade?.trade?.maximumAmountIn(allowedSlippage) ?? (isCrossChain && isExactIn ? parsedAmount : undefined),
+    ]
 
     if (balanceIn && maxAmountIn && balanceIn.lessThan(maxAmountIn)) {
       inputError = (
@@ -284,6 +292,8 @@ export function useDerivedSwapInfo(state: SwapState): SwapInfo {
     isDisconnected,
     insufficientGas,
     nativeCurrency.symbol,
+    isCrossChain,
+    isExactIn,
   ])
 
   return useMemo(

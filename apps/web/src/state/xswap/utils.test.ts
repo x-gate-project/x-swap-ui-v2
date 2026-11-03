@@ -3,11 +3,15 @@ import { DAI, USDC_MAINNET, nativeOnChain } from 'constants/tokens'
 import { buildXSwapQuoteRequest } from 'state/xswap/hooks'
 import {
   XSWAP_NATIVE_ADDRESS,
+  formatXSwapEta,
+  formatXSwapUnits,
   getXSwapChainMode,
   getXSwapFlow,
   isSameXSwapToken,
   percentToBps,
+  shortenXSwapHash,
   toXSwapAddress,
+  xswapExplorerTxUrl,
   xswapTokenToCurrency,
 } from 'state/xswap/utils'
 import { UniverseChainId } from 'uniswap/src/types/chains'
@@ -178,5 +182,70 @@ describe('getXSwapChainMode', () => {
 
   it('waits while the chain list loads', () => {
     expect(getXSwapChainMode({ apiEnabled: true, chainId: UniverseChainId.Mainnet, loading: true })).toBe('loading')
+  })
+})
+
+describe('formatXSwapUnits', () => {
+  it('formats base units with at most 6 decimals', () => {
+    expect(formatXSwapUnits('1500000', 6)).toBe('1.5')
+    expect(formatXSwapUnits('1000000000000000000', 18)).toBe('1')
+    expect(formatXSwapUnits('1234567891', 9)).toBe('1.234567')
+    expect(formatXSwapUnits('0', 18)).toBe('0')
+    expect(formatXSwapUnits('1', 18, 0)).toBe('<1')
+  })
+
+  it('shows dust as <0.000001', () => {
+    expect(formatXSwapUnits('1', 18)).toBe('<0.000001')
+  })
+
+  it('returns a non-integer as is', () => {
+    expect(formatXSwapUnits('abc', 18)).toBe('abc')
+  })
+})
+
+describe('formatXSwapEta', () => {
+  it('formats seconds and minutes', () => {
+    expect(formatXSwapEta(45)).toBe('45s')
+    expect(formatXSwapEta(90)).toBe('1m 30s')
+    expect(formatXSwapEta(120)).toBe('2m')
+    expect(formatXSwapEta(119.6)).toBe('2m')
+    expect(formatXSwapEta(59.6)).toBe('1m')
+  })
+})
+
+describe('xswapExplorerTxUrl', () => {
+  it('links chains the app does not list', () => {
+    expect(xswapExplorerTxUrl(421614, '0xabc')).toBe('https://sepolia.arbiscan.io/tx/0xabc')
+  })
+
+  it('falls back to the given explorer, else none', () => {
+    expect(xswapExplorerTxUrl(1, '0xabc', 'https://etherscan.io/')).toBe('https://etherscan.io/tx/0xabc')
+    expect(xswapExplorerTxUrl(999, '0xabc')).toBeUndefined()
+  })
+})
+
+describe('shortenXSwapHash', () => {
+  it('keeps both ends', () => {
+    expect(shortenXSwapHash('0x1234567890abcdef')).toBe('0x1234…cdef')
+    expect(shortenXSwapHash('0x12')).toBe('0x12')
+  })
+})
+
+describe('xswapTokenToCurrency on a chain the app does not know', () => {
+  const token = {
+    chainId: 421614,
+    address: XSWAP_NATIVE_ADDRESS,
+    symbol: 'ETH',
+    decimals: 18,
+    class: 'native',
+    available: true,
+  }
+
+  it('wraps native to the API wrappedNative', () => {
+    const weth = '0x980B62Da83eFf3D4576C647993b0c1D7faf17c73'
+    const currency = xswapTokenToCurrency(token, weth)
+    expect(currency.isNative).toBe(true)
+    expect(currency.wrapped.address).toBe(weth)
+    expect(xswapTokenToCurrency(token, weth)).toBe(currency)
   })
 })

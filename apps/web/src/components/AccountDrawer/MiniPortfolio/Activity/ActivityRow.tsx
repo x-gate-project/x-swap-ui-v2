@@ -1,5 +1,6 @@
 import { InterfaceElementName } from '@uniswap/analytics-events'
 import { useOpenOffchainActivityModal } from 'components/AccountDrawer/MiniPortfolio/Activity/OffchainActivityModal'
+import { useOpenXSwapOrderModal } from 'components/AccountDrawer/MiniPortfolio/Activity/XSwapOrderModal'
 import { useTimeSince } from 'components/AccountDrawer/MiniPortfolio/Activity/parseRemote'
 import { Activity } from 'components/AccountDrawer/MiniPortfolio/Activity/types'
 import { PortfolioLogo } from 'components/AccountDrawer/MiniPortfolio/PortfolioLogo'
@@ -60,14 +61,20 @@ export function ActivityRow({ activity }: { activity: Activity }) {
     prefixIconSrc,
     suffixIconSrc,
     offchainOrderDetails,
+    xswapOrder,
   } = activity
 
   const openOffchainActivityModal = useOpenOffchainActivityModal()
+  const openXSwapOrderModal = useOpenXSwapOrderModal()
 
   const { ENSName } = useENSName(otherAccount)
   const explorerUrl = getExplorerLink(chainId, hash, ExplorerDataType.TRANSACTION)
 
   const onClick = useCallback(() => {
+    if (xswapOrder) {
+      openXSwapOrderModal(xswapOrder)
+      return
+    }
     if (offchainOrderDetails) {
       openOffchainActivityModal(offchainOrderDetails, {
         inputLogo: activity?.logos?.[0],
@@ -77,7 +84,7 @@ export function ActivityRow({ activity }: { activity: Activity }) {
     }
 
     window.open(getExplorerLink(chainId, hash, ExplorerDataType.TRANSACTION), '_blank')
-  }, [activity?.logos, chainId, hash, offchainOrderDetails, openOffchainActivityModal])
+  }, [activity?.logos, chainId, hash, offchainOrderDetails, openOffchainActivityModal, openXSwapOrderModal, xswapOrder])
 
   return (
     <Trace

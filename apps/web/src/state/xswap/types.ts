@@ -38,9 +38,9 @@ type XSwapRouteClassName = XSwapRouteClass | (string & {})
 
 type XSwapRouting = 'SWAP' | 'WRAP' | 'UNWRAP' | 'BRIDGE' | 'BRIDGE_SWAP'
 
-type XSwapTxKind = 'approve' | 'approve-reset' | 'permit2-approve' | 'deposit'
+export type XSwapTxKind = 'approve' | 'approve-reset' | 'permit2-approve' | 'deposit'
 
-type XSwapTx = {
+export type XSwapTx = {
   chainId: number
   kind: XSwapTxKind
   to: string
@@ -52,7 +52,7 @@ type XSwapTx = {
 type XSwapShape = 'bridge' | 'swap-bridge' | 'bridge-swap' | 'swap-bridge-swap' | 'swap'
 
 /** One leg of a quoted route, in execution order. */
-type XSwapLeg =
+export type XSwapLeg =
   | {
       type: 'swap'
       chainId: number
@@ -88,7 +88,7 @@ type XSwapPermitTypedData = {
   }
 }
 
-type XSwapQuote = {
+export type XSwapQuote = {
   quoteId: string
   provider: string
   routing: XSwapRouting
@@ -143,3 +143,55 @@ export type XSwapErrorBody = {
   requestId?: string
   details?: Record<string, unknown>
 }
+
+/** Order lifecycle written by the tracker. `EXPIRED` is not terminal: a refund follows. */
+const XSWAP_ORDER_STATUSES = [
+  'SUBMITTED',
+  'DEPOSITED',
+  'FILLED',
+  'FILLED_FALLBACK',
+  'FAILED_ORIGIN',
+  'EXPIRED',
+  'REFUNDED',
+] as const
+export type XSwapOrderStatus = (typeof XSWAP_ORDER_STATUSES)[number]
+
+export const XSWAP_TERMINAL_ORDER_STATUSES: ReadonlySet<XSwapOrderStatus> = new Set([
+  'FILLED',
+  'FILLED_FALLBACK',
+  'FAILED_ORIGIN',
+  'REFUNDED',
+])
+
+/** `POST /v1/orders`, `GET /v1/orders/:id`. */
+export type XSwapOrder = {
+  id: string
+  quoteId: string
+  provider: string
+  routeClass: string
+  swapper: string
+  tokenIn: { chainId: number; address: XSwapTokenRef; amount: string }
+  tokenOut: { chainId: number; address: XSwapTokenRef }
+  outputAmount: string
+  minOutputAmount: string
+  actualOutputAmount?: string
+  fallbackToken?: string
+  status: XSwapOrderStatus
+  state: 'pending' | 'success' | 'failed' | 'refunded'
+  /** Past its SLA; ops is alerted. */
+  stuck: boolean
+  verified: boolean
+  depositId?: string
+  originTxHash: string
+  fillTxHash?: string
+  refundTxHash?: string
+  /** XGate: LayerZero message id. */
+  lzGuid?: string
+  composeTxHash?: string
+  fillDeadline: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+/** `GET /v1/orders?wallet=&cursor=`. */
+export type XSwapOrdersPage = { orders: XSwapOrder[]; nextCursor: string | null }

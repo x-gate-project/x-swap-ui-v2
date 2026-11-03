@@ -1,5 +1,5 @@
-import { Currency, Percent, Token } from '@uniswap/sdk-core'
-import { nativeOnChain } from 'constants/tokens'
+import { Currency, NativeCurrency, Percent, Token } from '@uniswap/sdk-core'
+import { WRAPPED_NATIVE_CURRENCY, nativeOnChain } from 'constants/tokens'
 import JSBI from 'jsbi'
 import { XSwapToken, XSwapTokenRef } from 'state/xswap/types'
 import { zeroAddress } from 'viem'
@@ -17,7 +17,7 @@ export function toXSwapAddress(currency: Currency): XSwapTokenRef {
 }
 
 /** Key that is equal for two currencies only when they are the same token on the same chain. */
-function xswapTokenKey(chainId: number, address: string): string {
+export function xswapTokenKey(chainId: number, address: string): string {
   return `${chainId}-${address.toLowerCase()}`
 }
 
@@ -30,10 +30,46 @@ export function isSameXSwapToken(a?: Currency | null, b?: Currency | null): bool
   return Boolean(a && b && currencyXSwapKey(a) === currencyXSwapKey(b))
 }
 
+/**
+ * Native currency of a chain the app does not know (e.g. a testnet only the API serves). `nativeOnChain` would throw on
+ * `.wrapped` there; this one wraps to the API's `wrappedNative`.
+ */
+class XSwapNativeCurrency extends NativeCurrency {
+  private readonly wrappedToken: Token
+
+  constructor(chainId: number, symbol: string, wrappedNative: string) {
+    super(chainId, 18, symbol, symbol)
+    this.wrappedToken = new Token(chainId, wrappedNative, 18, `W${symbol}`, `Wrapped ${symbol}`)
+  }
+
+  get wrapped(): Token {
+    return this.wrappedToken
+  }
+
+  equals(other: Currency): boolean {
+    return other.isNative && other.chainId === this.chainId
+  }
+}
+
+const xswapNativeCurrencies = new Map<number, XSwapNativeCurrency>()
+
+/** The chain's native currency; `wrappedNative` (from `GET /v1/chains`) covers chains the app has no WETH for. */
+function xswapNativeCurrency(chainId: number, symbol: string, wrappedNative?: string): Currency {
+  if (WRAPPED_NATIVE_CURRENCY[chainId] || !wrappedNative) {
+    return nativeOnChain(chainId)
+  }
+  let currency = xswapNativeCurrencies.get(chainId)
+  if (!currency) {
+    currency = new XSwapNativeCurrency(chainId, symbol, wrappedNative)
+    xswapNativeCurrencies.set(chainId, currency)
+  }
+  return currency
+}
+
 /** API token to an SDK currency; the zero address becomes the chain's native currency. */
-export function xswapTokenToCurrency(token: XSwapToken): Currency {
+export function xswapTokenToCurrency(token: XSwapToken, wrappedNative?: string): Currency {
   if (isXSwapNativeAddress(token.address)) {
-    return nativeOnChain(token.chainId)
+    return xswapNativeCurrency(token.chainId, token.symbol, wrappedNative)
   }
   return new Token(token.chainId, token.address, token.decimals, token.symbol, token.symbol)
 }
@@ -80,4 +116,59 @@ export function getXSwapChainMode({
     return 'loading'
   }
   return chainIds?.includes(chainId) ? 'api' : 'legacy'
+}
+
+// Explorers of chains the API serves that the app itself does not list.
+const XSWAP_EXPLORERS: Record<number, string> = {
+  11155111: 'https://sepolia.etherscan.io',
+  421614: 'https://sepolia.arbiscan.io',
+  84532: 'https://sepolia.basescan.org',
+  11155420: 'https://sepolia-optimism.etherscan.io',
+  10081: 'https://explorer.testnet.japanopenchain.org',
+  81: 'https://explorer.japanopenchain.org',
+}
+
+/** Explorer link of a tx on any chain the API serves; undefined when the chain's explorer is unknown. */
+export function xswapExplorerTxUrl(chainId: number, hash: string, fallbackExplorer?: string): string | undefined {
+  const base = (XSWAP_EXPLORERS[chainId] ?? fallbackExplorer)?.replace(/\/+$/, '')
+  return base ? `${base}/tx/${hash}` : undefined
+}
+
+/** `0x1234…abcd`. */
+export function shortenXSwapHash(hash: string, chars = 4): string {
+  return hash.length > chars * 2 + 2 ? `${hash.slice(0, chars + 2)}…${hash.slice(-chars)}` : hash
+}
+
+/** Base units to a short human amount: at most `maxDecimals` decimals, trailing zeros dropped. */
+export function formatXSwapUnits(amount: string, decimals: number, maxDecimals = 6): string {
+  let value: bigint
+  try {
+    value = BigInt(amount)
+  } catch {
+    return amount
+  }
+  const negative = value < 0n
+  if (negative) {
+    value = -value
+  }
+  const base = 10n ** BigInt(decimals)
+  const whole = value / base
+  const fraction = (value % base).toString().padStart(decimals, '0').slice(0, maxDecimals).replace(/0+$/, '')
+  const formatted = fraction ? `${whole}.${fraction}` : whole.toString()
+  if (formatted === '0' && value > 0n) {
+    return maxDecimals > 0 ? `<0.${'0'.repeat(maxDecimals - 1)}1` : '<1'
+  }
+  return negative ? `-${formatted}` : formatted
+}
+
+/** `90` -> `1m 30s`, `45` -> `45s`, `3600` -> `60m`. */
+export function formatXSwapEta(etaSec: number): string {
+  // Round first so e.g. 119.6 s is `2m`, not `1m 60s`.
+  const total = Math.max(0, Math.round(etaSec))
+  if (total < 60) {
+    return `${total}s`
+  }
+  const minutes = Math.floor(total / 60)
+  const seconds = total % 60
+  return seconds ? `${minutes}m ${seconds}s` : `${minutes}m`
 }

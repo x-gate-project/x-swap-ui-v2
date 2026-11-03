@@ -6,9 +6,12 @@ import { useMemo } from 'react'
 import { useSwapAndLimitContext } from 'state/swap/hooks'
 import { XSwapTokenEntry, useXSwapTokenCurrencies } from 'state/xswap/hooks'
 import { isSameXSwapToken } from 'state/xswap/utils'
+import { InterfaceChainId } from 'uniswap/src/types/chains'
 import { currencyKey } from 'utils/currencyKey'
 
 interface XSwapCurrencySearchParams {
+  /** Chain to list; defaults to the swap form's chain. */
+  chainId?: number
   searchQuery?: string
   otherSelectedCurrency?: Currency | null
   enabled?: boolean
@@ -33,6 +36,7 @@ function matchesQuery(entry: XSwapTokenEntry, query: string): boolean {
  * other side cannot be picked again.
  */
 export function useXSwapCurrencySearchResults({
+  chainId: chainIdParam,
   searchQuery,
   otherSelectedCurrency,
   enabled = true,
@@ -40,7 +44,8 @@ export function useXSwapCurrencySearchResults({
   allCurrencyRows: CurrencyListRow[]
   loading: boolean
 } {
-  const { chainId } = useSwapAndLimitContext()
+  const { chainId: swapChainId } = useSwapAndLimitContext()
+  const chainId = (chainIdParam ?? swapChainId) as InterfaceChainId | undefined
   const { entries, loading } = useXSwapTokenCurrencies(chainId, { enabled })
   const { balanceMap } = useTokenBalances()
 
