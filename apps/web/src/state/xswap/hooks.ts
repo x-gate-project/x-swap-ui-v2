@@ -136,7 +136,7 @@ function isXSwapClientError(error: unknown): boolean {
 }
 
 /**
- * `GET /v1/routes` for `inputCurrency`: the tokens it can reach. Undefined while loading, on error, without an input or
+ * `GET /v1/routes` for `inputCurrency`: the tokens it can reach. Undefined while it or `GET /v1/chains` loads, on error, without an input or
  * when disabled: callers then show every token. Reachable is not a guaranteed quote; `no_route` stays possible.
  */
 export function useXSwapReachability(
@@ -146,7 +146,8 @@ export function useXSwapReachability(
   const chainId = inputCurrency?.chainId
   const tokenIn = inputCurrency ? toXSwapAddress(inputCurrency) : undefined
   const active = enabled && isXSwapApiEnabled() && !!chainId && !!tokenIn
-  const { chains } = useXSwapChains({ enabled: active })
+  // `wrappedNative` adds the wrap / unwrap counterpart: without it a wrap output would read as unreachable.
+  const { chains, loading: chainsLoading } = useXSwapChains({ enabled: active })
   const wrappedNative = chains.find((c) => c.chainId === chainId)?.wrappedNative
   const { data } = useQuery({
     queryKey: xswapQueryKeys.routes(chainId, tokenIn),
@@ -158,10 +159,10 @@ export function useXSwapReachability(
   })
   return useMemo(
     () =>
-      active && data && chainId && tokenIn
+      active && !chainsLoading && data && chainId && tokenIn
         ? buildXSwapReachability(data.destinations, { chainId, address: tokenIn, wrappedNative })
         : undefined,
-    [active, chainId, data, tokenIn, wrappedNative],
+    [active, chainId, chainsLoading, data, tokenIn, wrappedNative],
   )
 }
 

@@ -63,8 +63,12 @@ export function useXSwapCurrencySearchResults({
     const status = (entry: XSwapTokenEntry): XSwapDestinationStatus =>
       reachability ? getXSwapDestinationStatus(reachability, entry.currency) : 'executable'
     const sorted = entries
-      .filter((entry) => status(entry) !== 'unreachable' && matchesQuery(entry, searchQuery ?? ''))
-      .map((entry) => ({ ...entry, quoteOnly: status(entry) === 'quote-only' }))
+      .filter((entry) => matchesQuery(entry, searchQuery ?? ''))
+      .map((entry) => {
+        const entryStatus = status(entry)
+        return { ...entry, reachable: entryStatus !== 'unreachable', quoteOnly: entryStatus === 'quote-only' }
+      })
+      .filter((entry) => entry.reachable)
       .sort((a, b) => {
         // Available tokens first, then executable before quote-only, then by balance, then by symbol.
         if (a.token.available !== b.token.available) {

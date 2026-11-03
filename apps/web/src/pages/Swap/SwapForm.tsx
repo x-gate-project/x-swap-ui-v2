@@ -410,7 +410,8 @@ export function SwapForm({ disableTokenInputs = false, onCurrencyChange }: SwapF
   }, [isCrossChainPair, setCurrencyState, xswapChainMode])
 
   // A new input drops an output it cannot reach (`GET /v1/routes`). While the routes load or fail, the output stays;
-  // the quote still answers `no_route` for a pair that has none.
+  // the quote still answers `no_route` for a pair that has none. Switching the tokens counts as a new input: when the
+  // reverse direction has no route, the output is dropped too, as the pair could never be quoted.
   const xswapReachability = useXSwapReachability(currencies[Field.INPUT], { enabled: xswapChainMode === 'api' })
   const xswapOutput = currencies[Field.OUTPUT]
   const xswapOutputUnreachable = Boolean(

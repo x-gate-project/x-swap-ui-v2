@@ -155,7 +155,7 @@ export function CurrencyRow({
   disabled?: boolean
   tooltip?: string
   showAddress?: boolean
-  /** Short label shown in place of the token list tags, e.g. "Quote only". */
+  /** Short label shown before the token list tags, e.g. "Quote only". */
   tag?: string
 }) {
   const account = useAccount()
@@ -216,13 +216,12 @@ export function CurrencyRow({
           </AutoColumn>
           <Column>
             <RowFixed style={{ justifySelf: 'flex-end' }}>
-              {tag ? (
+              {tag && (
                 <TagContainer>
                   <Tag data-testid="currency-row-tag">{tag}</Tag>
                 </TagContainer>
-              ) : (
-                <TokenTags currency={currency} />
               )}
+              <TokenTags currency={currency} />
             </RowFixed>
           </Column>
           {showCurrencyAmount && (
