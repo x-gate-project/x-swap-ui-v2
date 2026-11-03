@@ -20,27 +20,24 @@ function orderStatus(order: XSwapOrder): TransactionStatus {
   }
 }
 
+const ORDER_TITLES: Record<'local' | 'crossChain', Record<XSwapOrder['state'], () => string>> = {
+  local: {
+    pending: () => t('xswap.activity.local.pending'),
+    success: () => t('xswap.activity.local.success'),
+    failed: () => t('xswap.activity.local.failed'),
+    // A same-chain swap is one tx, so nothing is held to refund; show it as failed if the API ever says so.
+    refunded: () => t('xswap.activity.local.failed'),
+  },
+  crossChain: {
+    pending: () => t('xswap.activity.pending'),
+    success: () => t('xswap.activity.success'),
+    failed: () => t('xswap.activity.failed'),
+    refunded: () => t('xswap.activity.refunded'),
+  },
+}
+
 function orderTitle(order: XSwapOrder): string {
-  if (order.routeClass === 'local') {
-    switch (order.state) {
-      case 'pending':
-        return t('xswap.activity.local.pending')
-      case 'success':
-        return t('xswap.activity.local.success')
-      default:
-        return t('xswap.activity.local.failed')
-    }
-  }
-  switch (order.state) {
-    case 'pending':
-      return t('xswap.activity.pending')
-    case 'success':
-      return t('xswap.activity.success')
-    case 'refunded':
-      return t('xswap.activity.refunded')
-    default:
-      return t('xswap.activity.failed')
-  }
+  return ORDER_TITLES[order.routeClass === 'local' ? 'local' : 'crossChain'][order.state]()
 }
 
 /**

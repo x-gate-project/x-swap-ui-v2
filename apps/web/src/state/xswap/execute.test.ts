@@ -1,6 +1,7 @@
 import { XSwapApiError } from 'state/xswap/client'
 import {
   XSwapExecutionDeps,
+  XSwapPermitRejectedError,
   XSwapPlanError,
   XSwapQuoteChangedError,
   XSwapQuoteExpiredError,
@@ -47,15 +48,18 @@ const permit2Approve = (spender: string, token = TOKEN): XSwapTx => ({
 
 const deposit = (data = '0xdead', to = SENDER): XSwapTx => ({ chainId: CHAIN, kind: 'deposit', to, data, value: '0' })
 
-const permit = (overrides: { spender?: string; token?: string; amount?: string; permit2?: string } = {}) =>
+const permit = (
+  overrides: { spender?: string; token?: string; amount?: string; permit2?: string; sigDeadline?: string } = {},
+) =>
   ({
     domain: { name: 'Permit2', chainId: CHAIN, verifyingContract: overrides.permit2 ?? PERMIT2 },
-    types: {},
+    types: { PermitSingle: [] },
     primaryType: 'PermitSingle',
     message: {
-      details: { token: overrides.token ?? TOKEN, amount: overrides.amount ?? '100', expiration: 1_000, nonce: 0 },
+      // Unix seconds; NOW is 1_000 s.
+      details: { token: overrides.token ?? TOKEN, amount: overrides.amount ?? '100', expiration: 10_000, nonce: 0 },
       spender: overrides.spender ?? ROUTER,
-      sigDeadline: '1000',
+      sigDeadline: overrides.sigDeadline ?? '10000',
     },
   }) satisfies XSwapPermitTypedData
 
@@ -158,6 +162,21 @@ describe('planXSwapTxs with a permit', () => {
     expect(planXSwapTxs(localQuote({ txs: [approve(PERMIT2), deposit('0xdead', ROUTER)] }))).toHaveLength(2)
   })
 
+  it('rejects a permit on a contract other than the canonical Permit2', () => {
+    const q = localQuote({ txs: [approve(OTHER), deposit('0xdead', ROUTER)], permit: permit({ permit2: OTHER }) })
+    expect(() => planXSwapTxs(q)).toThrow(XSwapPlanError)
+  })
+
+  it('rejects a permit2-approve on a contract other than the canonical Permit2', () => {
+    const q = quote({ txs: [approve(OTHER), { ...permit2Approve(SENDER), to: OTHER }, deposit()] })
+    expect(() => planXSwapTxs(q)).toThrow(XSwapPlanError)
+  })
+
+  it('rejects a permit that is not a PermitSingle', () => {
+    const q = localQuote({ permit: { ...permit(), primaryType: 'PermitBatch' } as unknown as XSwapPermitTypedData })
+    expect(() => planXSwapTxs(q)).toThrow(XSwapPlanError)
+  })
+
   it.each([
     ['to another spender', { spender: OTHER }],
     ['on another token', { token: OTHER }],
@@ -245,6 +264,55 @@ describe('executeXSwapQuote with a permit', () => {
     const d = deps({ permitQuote: jest.fn(async () => signedQuote(overrides as Partial<XSwapQuote>)) })
     await expect(executeXSwapQuote(localQuote(), d)).rejects.toBeInstanceOf(errorClass)
     expect(d.sent.map((t) => t.kind)).toEqual(['approve'])
+  })
+
+  it('does not sign a permit whose signature deadline has passed', async () => {
+    const d = deps()
+    await expect(executeXSwapQuote(localQuote({ permit: permit({ sigDeadline: '1005' }) }), d)).rejects.toBeInstanceOf(
+      XSwapQuoteExpiredError,
+    )
+    expect(d.signPermit).not.toHaveBeenCalled()
+  })
+
+  it('does not send a signed quote about to expire', async () => {
+    const d = deps({ permitQuote: jest.fn(async () => signedQuote({ expiresAt: NOW + 5_000 })) })
+    await expect(executeXSwapQuote(localQuote(), d)).rejects.toBeInstanceOf(XSwapQuoteExpiredError)
+    expect(d.sent.map((t) => t.kind)).toEqual(['approve'])
+  })
+
+  it.each([
+    ['permit_unavailable', XSwapQuoteChangedError],
+    ['validator_failed', XSwapPermitRejectedError],
+    ['simulation_failed', XSwapPermitRejectedError],
+  ])('maps a %s answer to the permit', async (code, errorClass) => {
+    const d = deps({
+      permitQuote: jest.fn(async () => {
+        throw new XSwapApiError(code, 422)
+      }),
+    })
+    await expect(executeXSwapQuote(localQuote(), d)).rejects.toBeInstanceOf(errorClass)
+  })
+
+  it('stops when a refresh after the approvals approves the router directly instead of through Permit2', async () => {
+    let now = NOW
+    const refreshed = localQuote({
+      quoteId: 'q2',
+      expiresAt: NOW + 120_000,
+      permit: undefined,
+      txs: [approve(ROUTER), deposit('0xbeef', ROUTER)],
+    })
+    const d = deps({
+      now: () => now,
+      refreshQuote: jest.fn(async () => refreshed),
+      waitForTx: jest.fn(async () => {
+        now += 60_000
+        return true
+      }),
+    })
+    const error = await executeXSwapQuote(localQuote(), d, { usePermit: false }).catch((e) => e)
+    expect(error).toBeInstanceOf(XSwapQuoteChangedError)
+    expect(error.reason).toBe('route')
+    expect(d.sent.map((t) => t.kind)).toEqual(['approve', 'permit2-approve'])
   })
 
   it('does not refresh a signed quote that expired', async () => {
