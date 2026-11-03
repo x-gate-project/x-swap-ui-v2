@@ -14,7 +14,7 @@ import { useOnClickOutside } from 'hooks/useOnClickOutside'
 import useSelectChain from 'hooks/useSelectChain'
 import useToggle from 'hooks/useToggle'
 import { useTokenBalances } from 'hooks/useTokenBalances'
-import { Trans, t } from 'i18n'
+import { t, Trans } from 'i18n'
 import useNativeCurrency from 'lib/hooks/useNativeCurrency'
 import tryParseCurrencyAmount from 'lib/utils/tryParseCurrencyAmount'
 import { ChangeEvent, KeyboardEvent, RefObject, useCallback, useEffect, useRef, useState } from 'react'
@@ -23,7 +23,8 @@ import { FixedSizeList } from 'react-window'
 import { Text } from 'rebass'
 import { useSwapAndLimitContext } from 'state/swap/hooks'
 import { isXSwapApiEnabled } from 'state/xswap/client'
-import { useXSwapChainMode } from 'state/xswap/hooks'
+import { useXSwapChainMode, useXSwapChains, useXSwapReachability } from 'state/xswap/hooks'
+import { getXSwapOutputChainId } from 'state/xswap/utils'
 import styled, { useTheme } from 'styled-components'
 import { CloseIcon, ThemedText } from 'theme/components'
 import Trace from 'uniswap/src/features/telemetry/Trace'
@@ -103,7 +104,17 @@ export function CurrencySearch({
   // The output of a cross-chain swap lives on another chain than the wallet; its picker keeps its own chain.
   const xswapAnyChain = xswapApiTokens && Boolean(xswapAnyChainFilter)
   const [pickedTokenChainId, setTokenChainId] = useState<number | undefined>()
-  const tokenChainId = xswapAnyChain ? pickedTokenChainId ?? selectedCurrency?.chainId ?? chainId : chainId
+  // Once the input is picked, the output side lists only the tokens (and chains) it can reach. While the routes load
+  // or when they fail, every token is listed.
+  const xswapReachability = useXSwapReachability(otherSelectedCurrency, { enabled: xswapAnyChain })
+  const { chainIds: xswapChainIds } = useXSwapChains({ enabled: xswapAnyChain })
+  const tokenChainId = xswapAnyChain
+    ? getXSwapOutputChainId({
+        preferredChainId: pickedTokenChainId ?? selectedCurrency?.chainId ?? chainId,
+        chainIds: xswapChainIds,
+        reachability: xswapReachability,
+      })
+    : chainId
   // Common bases come from local config and may not be listed by the API.
   const showCommonBases = showCommonBasesFilter && xswapChainMode === 'legacy'
 
@@ -127,6 +138,7 @@ export function CurrencySearch({
     chainId: tokenChainId,
     searchQuery: debouncedQuery,
     otherSelectedCurrency,
+    reachability: xswapReachability,
     enabled: xswapApiTokens,
   })
 
@@ -240,6 +252,7 @@ export function CurrencySearch({
           {xswapAnyChain && (
             <XSwapChainPicker
               selectedChainId={tokenChainId}
+              reachableChainIds={xswapReachability?.chainIds}
               onSelect={(id) => {
                 setTokenChainId(id)
                 fixedList.current?.scrollTo(0)

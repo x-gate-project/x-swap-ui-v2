@@ -9,6 +9,7 @@ import {
   getXSwapOrder,
   getXSwapOrders,
   getXSwapQuote,
+  getXSwapRoutes,
   getXSwapTokens,
   isXSwapApiEnabled,
 } from 'state/xswap/client'
@@ -24,6 +25,8 @@ import {
 import {
   XSwapChainMode,
   XSwapFlow,
+  XSwapReachability,
+  buildXSwapReachability,
   getXSwapChainMode,
   getXSwapFlow,
   isSameXSwapToken,
@@ -48,6 +51,7 @@ const ORDER_MAX_RETRIES = 3
 export const xswapQueryKeys = {
   chains: ['xswap', 'chains'] as const,
   tokens: (chainId?: number) => ['xswap', 'tokens', chainId] as const,
+  routes: (chainId?: number, tokenIn?: string) => ['xswap', 'routes', chainId, tokenIn?.toLowerCase()] as const,
   quotes: ['xswap', 'quote'] as const,
   quote: (params?: XSwapQuoteRequest) => ['xswap', 'quote', params] as const,
   order: (id?: string) => ['xswap', 'order', id] as const,
@@ -124,6 +128,41 @@ export function useXSwapTokenCurrencies(
   }, [listTokens, tokens, wrappedNative])
 
   return { entries, loading: isLoading }
+}
+
+/** A definite answer (e.g. `unsupported_token`); retrying only delays the fallback. */
+function isXSwapClientError(error: unknown): boolean {
+  return error instanceof XSwapApiError && error.status >= 400 && error.status < 500 && error.status !== 429
+}
+
+/**
+ * `GET /v1/routes` for `inputCurrency`: the tokens it can reach. Undefined while loading, on error, without an input or
+ * when disabled: callers then show every token. Reachable is not a guaranteed quote; `no_route` stays possible.
+ */
+export function useXSwapReachability(
+  inputCurrency?: Currency | null,
+  { enabled = true }: { enabled?: boolean } = {},
+): XSwapReachability | undefined {
+  const chainId = inputCurrency?.chainId
+  const tokenIn = inputCurrency ? toXSwapAddress(inputCurrency) : undefined
+  const active = enabled && isXSwapApiEnabled() && !!chainId && !!tokenIn
+  const { chains } = useXSwapChains({ enabled: active })
+  const wrappedNative = chains.find((c) => c.chainId === chainId)?.wrappedNative
+  const { data } = useQuery({
+    queryKey: xswapQueryKeys.routes(chainId, tokenIn),
+    queryFn: ({ signal }) => getXSwapRoutes(chainId as number, tokenIn as string, signal),
+    enabled: active,
+    // The API caches the answer per input for `quote.edgeCacheSec` and recomputes it on a config change.
+    staleTime: CATALOG_STALE_TIME_MS,
+    retry: (failureCount, error) => failureCount < 2 && !isXSwapClientError(error),
+  })
+  return useMemo(
+    () =>
+      active && data && chainId && tokenIn
+        ? buildXSwapReachability(data.destinations, { chainId, address: tokenIn, wrappedNative })
+        : undefined,
+    [active, chainId, data, tokenIn, wrappedNative],
+  )
 }
 
 type XSwapQuoteState =
@@ -249,9 +288,7 @@ export function useXSwapOrder(id?: string, initial?: XSwapOrder) {
     initialDataUpdatedAt: 0,
     refetchInterval: (query) => (isXSwapOrderTerminal(query.state.data) ? false : ORDER_POLL_MS),
     // A transient error must not stop the polling, but a definite answer (e.g. 404) is not retried.
-    retry: (failureCount, error) =>
-      failureCount < ORDER_MAX_RETRIES &&
-      !(error instanceof XSwapApiError && error.status >= 400 && error.status < 500 && error.status !== 429),
+    retry: (failureCount, error) => failureCount < ORDER_MAX_RETRIES && !isXSwapClientError(error),
   })
 }
 

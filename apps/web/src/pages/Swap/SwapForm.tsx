@@ -53,8 +53,15 @@ import { useSwapActionHandlers, useSwapAndLimitContext, useSwapContext } from 's
 import { CurrencyState } from 'state/swap/types'
 import { useUserSlippageTolerance } from 'state/user/hooks'
 import { SlippageTolerance } from 'state/user/types'
-import { useXSwapChainMode, useXSwapQuote, useXSwapTokenLookup, xswapQueryKeys } from 'state/xswap/hooks'
+import {
+  useXSwapChainMode,
+  useXSwapQuote,
+  useXSwapReachability,
+  useXSwapTokenLookup,
+  xswapQueryKeys,
+} from 'state/xswap/hooks'
 import { XSwapOrder } from 'state/xswap/types'
+import { getXSwapDestinationStatus } from 'state/xswap/utils'
 import { useTheme } from 'styled-components'
 import { ExternalLink, ThemedText } from 'theme/components'
 import { maybeLogFirstSwapAction } from 'tracing/swapFlowLoggers'
@@ -401,6 +408,19 @@ export function SwapForm({ disableTokenInputs = false, onCurrencyChange }: SwapF
       setCurrencyState((state) => ({ ...state, outputCurrency: undefined }))
     }
   }, [isCrossChainPair, setCurrencyState, xswapChainMode])
+
+  // A new input drops an output it cannot reach (`GET /v1/routes`). While the routes load or fail, the output stays;
+  // the quote still answers `no_route` for a pair that has none.
+  const xswapReachability = useXSwapReachability(currencies[Field.INPUT], { enabled: xswapChainMode === 'api' })
+  const xswapOutput = currencies[Field.OUTPUT]
+  const xswapOutputUnreachable = Boolean(
+    xswapReachability && xswapOutput && getXSwapDestinationStatus(xswapReachability, xswapOutput) === 'unreachable',
+  )
+  useEffect(() => {
+    if (xswapOutputUnreachable && !xswapExecuting) {
+      setCurrencyState((state) => ({ ...state, outputCurrency: undefined }))
+    }
+  }, [setCurrencyState, xswapExecuting, xswapOutputUnreachable])
 
   const queryClient = useQueryClient()
   const handleXSwapOrder = useCallback(

@@ -36,6 +36,24 @@ type XSwapRouteClass =
 // eslint-disable-next-line @typescript-eslint/ban-types -- `string & {}` keeps literal autocompletion
 type XSwapRouteClassName = XSwapRouteClass | (string & {})
 
+/**
+ * `GET /v1/routes?tokenInChainId=&tokenIn=`: every token the input can reach, from structural checks only (no provider
+ * call, no pricing). Listed means a path exists, not that a quote will succeed. A token reachable through more than
+ * one route class may appear once per class.
+ */
+export type XSwapRouteDestination = {
+  chainId: number
+  address: XSwapTokenRef
+  routeClass: XSwapRouteClassName
+  /** false: only quote-only bridge edges reach the token (contracts not deployed yet). */
+  executable: boolean
+}
+
+export type XSwapRoutesResponse = {
+  tokenIn: { chainId: number; address: XSwapTokenRef }
+  destinations: XSwapRouteDestination[]
+}
+
 type XSwapRouting = 'SWAP' | 'WRAP' | 'UNWRAP' | 'BRIDGE' | 'BRIDGE_SWAP'
 
 export type XSwapTxKind = 'approve' | 'approve-reset' | 'permit2-approve' | 'deposit'

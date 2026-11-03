@@ -142,6 +142,7 @@ export function CurrencyRow({
   disabled,
   tooltip,
   showAddress,
+  tag,
 }: {
   currency: Currency
   onSelect: (hasWarning: boolean) => void
@@ -154,6 +155,8 @@ export function CurrencyRow({
   disabled?: boolean
   tooltip?: string
   showAddress?: boolean
+  /** Short label shown in place of the token list tags, e.g. "Quote only". */
+  tag?: string
 }) {
   const account = useAccount()
   const key = currencyListRowKey(currency)
@@ -213,7 +216,13 @@ export function CurrencyRow({
           </AutoColumn>
           <Column>
             <RowFixed style={{ justifySelf: 'flex-end' }}>
-              <TokenTags currency={currency} />
+              {tag ? (
+                <TagContainer>
+                  <Tag data-testid="currency-row-tag">{tag}</Tag>
+                </TagContainer>
+              ) : (
+                <TokenTags currency={currency} />
+              )}
             </RowFixed>
           </Column>
           {showCurrencyAmount && (
@@ -270,6 +279,7 @@ export class CurrencyListRow {
       disabled?: boolean
       showAddress?: boolean
       tooltip?: string
+      tag?: string
     },
   ) {}
 }
@@ -355,6 +365,7 @@ export default function CurrencyList({
             disabled={row.options?.disabled}
             tooltip={row.options?.tooltip}
             showAddress={row.options?.showAddress}
+            tag={row.options?.tag}
           />
         )
       } else {
