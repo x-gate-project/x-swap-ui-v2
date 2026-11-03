@@ -1110,5 +1110,18 @@
   "wallet.termsAndConsent": "and consent to its",
   "wallet.wrongNet": "Your wallet is connected to the wrong network.",
   "week": "week",
-  "weeks": "weeks"
+  "weeks": "weeks",
+  "xswap.error.generic": "Unable to get a quote, retry",
+  "xswap.error.invalidSlippage": "Slippage too high",
+  "xswap.error.invalidSlippage.max": "Slippage too high (max {{max}})",
+  "xswap.error.localUnsupported": "Same-chain swap not available on this chain",
+  "xswap.error.noRoute": "No route for this pair",
+  "xswap.error.priceUnavailable": "Price unavailable, retry",
+  "xswap.error.quoteTimeout": "Quote timed out, retry",
+  "xswap.error.unsupportedToken": "Token not supported",
+  "xswap.swap.crossChainUnavailable": "Cross-chain swaps are coming soon",
+  "xswap.swap.exactInputOnly": "Enter the amount to sell. The amount to buy is quoted from it.",
+  "xswap.tokenSelector.alreadySelected": "Already selected on the other side",
+  "xswap.tokenSelector.title": "Tokens",
+  "xswap.tokenSelector.unavailable": "Not available for swaps right now"
 }

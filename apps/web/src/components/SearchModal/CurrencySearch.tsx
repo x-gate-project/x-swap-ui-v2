@@ -7,6 +7,7 @@ import CommonBases from 'components/SearchModal/CommonBases'
 import CurrencyList, { CurrencyRow, formatAnalyticsEventProperties } from 'components/SearchModal/CurrencyList'
 import { PaddedColumn, SearchInput, Separator } from 'components/SearchModal/styled'
 import { useCurrencySearchResults } from 'components/SearchModal/useCurrencySearchResults'
+import { useXSwapCurrencySearchResults } from 'components/SearchModal/useXSwapCurrencySearchResults'
 import useDebounce from 'hooks/useDebounce'
 import { useOnClickOutside } from 'hooks/useOnClickOutside'
 import useSelectChain from 'hooks/useSelectChain'
@@ -20,6 +21,8 @@ import AutoSizer from 'react-virtualized-auto-sizer'
 import { FixedSizeList } from 'react-window'
 import { Text } from 'rebass'
 import { useSwapAndLimitContext } from 'state/swap/hooks'
+import { isXSwapApiEnabled } from 'state/xswap/client'
+import { useXSwapChainMode } from 'state/xswap/hooks'
 import styled, { useTheme } from 'styled-components'
 import { CloseIcon, ThemedText } from 'theme/components'
 import Trace from 'uniswap/src/features/telemetry/Trace'
@@ -44,12 +47,18 @@ export interface CurrencySearchFilters {
   showCommonBases?: boolean
   disableNonToken?: boolean
   onlyShowCurrenciesWithBalance?: boolean
+  /**
+   * Source tokens from the x-swap API (swap form only) on chains the API enables; other chains, or every chain when
+   * the API is not configured, keep the token lists.
+   */
+  xswapApiTokens?: boolean
 }
 
 const DEFAULT_CURRENCY_SEARCH_FILTERS: CurrencySearchFilters = {
   showCommonBases: true,
   disableNonToken: false,
   onlyShowCurrenciesWithBalance: false,
+  xswapApiTokens: false,
 }
 
 interface CurrencySearchProps {
@@ -71,11 +80,17 @@ export function CurrencySearch({
   isOpen,
   filters,
 }: CurrencySearchProps) {
-  const { showCommonBases } = {
+  const { showCommonBases: showCommonBasesFilter, xswapApiTokens: xswapApiTokensFilter } = {
     ...DEFAULT_CURRENCY_SEARCH_FILTERS,
     ...filters,
   }
   const { chainId } = useSwapAndLimitContext()
+  const xswapChainMode = useXSwapChainMode(chainId, {
+    enabled: Boolean(xswapApiTokensFilter) && isXSwapApiEnabled(),
+  })
+  const xswapApiTokens = xswapChainMode === 'api'
+  // Common bases come from local config and may not be listed by the API.
+  const showCommonBases = showCommonBasesFilter && xswapChainMode === 'legacy'
 
   const theme = useTheme()
 
@@ -86,16 +101,24 @@ export function CurrencySearch({
   const debouncedQuery = useDebounce(searchQuery, 200)
   const isAddressSearch = isAddress(debouncedQuery)
 
-  const {
-    searchCurrency,
-    allCurrencyRows,
-    loading: currencySearchResultsLoading,
-  } = useCurrencySearchResults({
+  const legacySearchResults = useCurrencySearchResults({
     searchQuery: debouncedQuery,
     filters,
     selectedCurrency,
     otherSelectedCurrency,
+    skip: xswapChainMode !== 'legacy',
   })
+  const xswapSearchResults = useXSwapCurrencySearchResults({
+    searchQuery: debouncedQuery,
+    otherSelectedCurrency,
+    enabled: xswapApiTokens,
+  })
+
+  // The API list is searched by symbol and address already; a pasted address is not imported.
+  const searchCurrency = xswapChainMode === 'legacy' ? legacySearchResults.searchCurrency : undefined
+  const { allCurrencyRows } = xswapApiTokens ? xswapSearchResults : legacySearchResults
+  const currencySearchResultsLoading =
+    xswapChainMode === 'loading' || (xswapApiTokens ? xswapSearchResults.loading : legacySearchResults.loading)
 
   const { balanceMap } = useTokenBalances()
 
@@ -139,9 +162,12 @@ export function CurrencySearch({
   const handleEnter = useCallback(
     (e: KeyboardEvent<HTMLInputElement>) => {
       if (e.key === 'Enter') {
-        const currencyResults = allCurrencyRows.filter((currencyRow) => !!currencyRow.currency)
+        const currencyResults = allCurrencyRows.filter(
+          (currencyRow) => !!currencyRow.currency && !currencyRow.options?.disabled,
+        )
         const s = debouncedQuery.toLowerCase().trim()
-        if (s === native?.symbol?.toLowerCase()) {
+        // With the API list, native is only selectable through its (possibly disabled) row.
+        if (!xswapApiTokens && s === native?.symbol?.toLowerCase()) {
           handleCurrencySelect(native)
         } else if (currencyResults.length > 0) {
           if (
@@ -154,7 +180,7 @@ export function CurrencySearch({
         }
       }
     },
-    [allCurrencyRows, debouncedQuery, native, handleCurrencySelect],
+    [allCurrencyRows, debouncedQuery, native, handleCurrencySelect, xswapApiTokens],
   )
 
   // menu ui

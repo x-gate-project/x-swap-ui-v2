@@ -46,6 +46,9 @@ import { InterfaceTrade, RouterPreference, TradeState } from 'state/routing/type
 import { isClassicTrade } from 'state/routing/utils'
 import { useSwapActionHandlers, useSwapAndLimitContext, useSwapContext } from 'state/swap/hooks'
 import { CurrencyState } from 'state/swap/types'
+import { useUserSlippageTolerance } from 'state/user/hooks'
+import { SlippageTolerance } from 'state/user/types'
+import { useXSwapChainMode, useXSwapQuote } from 'state/xswap/hooks'
 import { useTheme } from 'styled-components'
 import { ExternalLink, ThemedText } from 'theme/components'
 import { maybeLogFirstSwapAction } from 'tracing/swapFlowLoggers'
@@ -66,6 +69,7 @@ import { didUserReject } from 'utils/swapErrorToUserReadableMessage'
 
 const SWAP_FORM_CURRENCY_SEARCH_FILTERS = {
   showCommonBases: true,
+  xswapApiTokens: true,
 }
 
 interface SwapFormProps {
@@ -74,7 +78,8 @@ interface SwapFormProps {
 }
 
 export function SwapForm({ disableTokenInputs = false, onCurrencyChange }: SwapFormProps) {
-  const { isDisconnected, chainId: connectedChainId } = useAccount()
+  const account = useAccount()
+  const { isDisconnected, chainId: connectedChainId } = account
 
   const trace = useTrace()
 
@@ -293,6 +298,38 @@ export function SwapForm({ disableTokenInputs = false, onCurrencyChange }: SwapF
   const userHasSpecifiedInputOutput = Boolean(
     currencies[Field.INPUT] && currencies[Field.OUTPUT] && parsedAmounts[independentField]?.greaterThan(JSBI.BigInt(0)),
   )
+
+  // x-swap API quote, on chains the API enables; other chains keep the client-side router. The API classifies the
+  // pair: `local` keeps the same-chain flow, any other route class is a cross-chain order (#66). It only quotes exact
+  // input, so the output amount field is read-only on API chains.
+  const xswapChainMode = useXSwapChainMode(chainId)
+  // While the API chain list loads, treat the chain as an API chain so the form cannot swap through the router first.
+  const usesXSwapApi = xswapChainMode !== 'legacy'
+  const [userSlippageTolerance] = useUserSlippageTolerance()
+  const xswapQuote = useXSwapQuote({
+    enabled: xswapChainMode === 'api' && !showWrap && independentField === Field.INPUT,
+    inputCurrency: currencies[Field.INPUT],
+    outputCurrency: currencies[Field.OUTPUT],
+    inputAmount: parsedAmounts[Field.INPUT],
+    swapper: account.address,
+    slippage: userSlippageTolerance === SlippageTolerance.Auto ? undefined : userSlippageTolerance,
+  })
+  const xswapQuoteError = xswapQuote.status === 'error' ? xswapQuote.message : undefined
+  const xswapCrossChain = xswapQuote.status === 'success' && xswapQuote.flow === 'cross-chain'
+  // Only a same-chain API quote lets the swap go on; cross-chain orders wait for #66.
+  const xswapSameChainReady = xswapQuote.status === 'success' && xswapQuote.flow === 'same-chain'
+
+  useEffect(() => {
+    // The API only quotes exact input: an exact output amount (e.g. `exactField=output` in the URL) would leave the
+    // read-only output field set and the swap button disabled with no way out.
+    if (usesXSwapApi && independentField === Field.OUTPUT) {
+      setSwapState((state) => ({
+        ...state,
+        independentField: Field.INPUT,
+        typedValue: '',
+      }))
+    }
+  }, [independentField, setSwapState, usesXSwapApi])
 
   const maximumAmountIn = useMaxAmountIn(trade, allowedSlippage)
   const allowance = usePermit2Allowance(
@@ -593,15 +630,21 @@ export function SwapForm({ disableTokenInputs = false, onCurrencyChange }: SwapF
                 id={InterfaceSectionName.CURRENCY_OUTPUT_PANEL}
                 loading={independentField === Field.INPUT && routeIsSyncing}
                 numericalInputSettings={{
-                  // We disable numerical input here if the selected token has tax, since we cannot guarantee exact_outputs for FOT tokens
-                  disabled: inputTokenHasTax || outputTokenHasTax,
+                  // We disable numerical input here if the selected token has tax, since we cannot guarantee exact_outputs for FOT tokens.
+                  // The x-swap API only quotes exact input, so the output is read-only on API chains.
+                  disabled: inputTokenHasTax || outputTokenHasTax || usesXSwapApi,
                   // Focus the input currency panel if the user tries to type into the disabled output currency panel
                   onDisabledClick: () => inputCurrencyNumericalInputRef.current?.focus(),
-                  disabledTooltipBody: (
-                    <OutputTaxTooltipBody
-                      currencySymbol={currencies[inputTokenHasTax ? Field.INPUT : Field.OUTPUT]?.symbol}
-                    />
-                  ),
+                  disabledTooltipBody:
+                    inputTokenHasTax || outputTokenHasTax ? (
+                      <OutputTaxTooltipBody
+                        currencySymbol={currencies[inputTokenHasTax ? Field.INPUT : Field.OUTPUT]?.symbol}
+                      />
+                    ) : (
+                      <ThemedText.LabelMicro color="textPrimary">
+                        <Trans i18nKey="xswap.swap.exactInputOnly" />
+                      </ThemedText.LabelMicro>
+                    ),
                 }}
               />
             </Trace>
@@ -659,6 +702,17 @@ export function SwapForm({ disableTokenInputs = false, onCurrencyChange }: SwapF
                 <Trans i18nKey="common.unwrap.button" />
               ) : null}
             </ButtonPrimary>
+          ) : xswapQuoteError && userHasSpecifiedInputOutput ? (
+            <GrayCard style={{ textAlign: 'center' }} data-testid="xswap-quote-error">
+              <ThemedText.DeprecatedMain mb="4px">{xswapQuoteError}</ThemedText.DeprecatedMain>
+            </GrayCard>
+          ) : xswapCrossChain && userHasSpecifiedInputOutput ? (
+            // Placeholder until the cross-chain order flow lands (#66).
+            <GrayCard style={{ textAlign: 'center' }} data-testid="xswap-cross-chain">
+              <ThemedText.DeprecatedMain mb="4px">
+                <Trans i18nKey="xswap.swap.crossChainUnavailable" />
+              </ThemedText.DeprecatedMain>
+            </GrayCard>
           ) : routeNotFound && userHasSpecifiedInputOutput && !routeIsLoading && !routeIsSyncing ? (
             <GrayCard style={{ textAlign: 'center' }}>
               <ThemedText.DeprecatedMain mb="4px">
@@ -680,7 +734,12 @@ export function SwapForm({ disableTokenInputs = false, onCurrencyChange }: SwapF
                 }}
                 id="swap-button"
                 data-testid="swap-button"
-                disabled={isUsingBlockedExtension || !getIsReviewableQuote(trade, tradeState, swapInputError)}
+                disabled={
+                  isUsingBlockedExtension ||
+                  !getIsReviewableQuote(trade, tradeState, swapInputError) ||
+                  // Wait for the API to accept the pair before the same-chain flow can go on.
+                  (usesXSwapApi && !swapInputError && !xswapSameChainReady)
+                }
                 error={!swapInputError && priceImpactSeverity > 2 && allowance.state === AllowanceState.ALLOWED}
               >
                 <Text fontSize={20}>
