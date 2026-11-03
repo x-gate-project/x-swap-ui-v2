@@ -28,6 +28,7 @@ import {
   SwapState,
 } from 'state/swap/types'
 import { useUserSlippageToleranceWithDefault } from 'state/user/hooks'
+import { useXSwapChainMode } from 'state/xswap/hooks'
 import { FeatureFlags } from 'uniswap/src/features/gating/flags'
 import { useFeatureFlag } from 'uniswap/src/features/gating/hooks'
 import { InterfaceChainId, UniverseChainId } from 'uniswap/src/types/chains'
@@ -156,6 +157,10 @@ export function useDerivedSwapInfo(state: SwapState): SwapInfo {
   // A cross-chain pair (x-swap API orders) has no client-side trade, taxes or output balance on this chain.
   const isCrossChain = Boolean(inputCurrency && outputCurrency && inputCurrency.chainId !== outputCurrency.chainId)
   const sameChainOutputCurrency = isCrossChain ? undefined : outputCurrency
+  // On x-swap API chains every swap, same-chain included, is quoted and sent by the API: the router is not asked, and
+  // the balance check is on the exact input the API spends.
+  const usesXSwapApi = useXSwapChainMode(chainId) !== 'legacy'
+  const skipsRouter = isCrossChain || usesXSwapApi
 
   const { inputTax, outputTax } = useSwapTaxes(
     inputCurrency?.isToken ? inputCurrency.address : undefined,
@@ -180,7 +185,7 @@ export function useDerivedSwapInfo(state: SwapState): SwapInfo {
     swapQuoteLatency?: number
   } = useDebouncedTrade(
     isExactIn ? TradeType.EXACT_INPUT : TradeType.EXACT_OUTPUT,
-    isCrossChain ? undefined : parsedAmount,
+    skipsRouter ? undefined : parsedAmount,
     (isExactIn ? sameChainOutputCurrency : inputCurrency) ?? undefined,
     state.routerPreferenceOverride as RouterPreference.API | undefined,
     account.address,
@@ -264,10 +269,10 @@ export function useDerivedSwapInfo(state: SwapState): SwapInfo {
     }
 
     // compare input balance to max input based on version
-    // A cross-chain order spends exactly the input amount.
+    // An x-swap API swap spends exactly the input amount.
     const [balanceIn, maxAmountIn] = [
       currencyBalances[Field.INPUT],
-      trade?.trade?.maximumAmountIn(allowedSlippage) ?? (isCrossChain && isExactIn ? parsedAmount : undefined),
+      trade?.trade?.maximumAmountIn(allowedSlippage) ?? (skipsRouter && isExactIn ? parsedAmount : undefined),
     ]
 
     if (balanceIn && maxAmountIn && balanceIn.lessThan(maxAmountIn)) {
@@ -292,7 +297,7 @@ export function useDerivedSwapInfo(state: SwapState): SwapInfo {
     isDisconnected,
     insufficientGas,
     nativeCurrency.symbol,
-    isCrossChain,
+    skipsRouter,
     isExactIn,
   ])
 

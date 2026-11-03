@@ -1,7 +1,9 @@
+import { Percent } from '@uniswap/sdk-core'
 import { ButtonPrimary } from 'components/Button'
 import { GrayCard } from 'components/Card'
 import Loader from 'components/Icons/LoadingSpinner'
 import { wagmiConfig } from 'components/Web3Provider/wagmi'
+import confirmPriceImpactWithoutFee from 'components/swap/confirmPriceImpactWithoutFee'
 import { ErrorText, Label, Muted, Row, TxLink, xswapRouteKey } from 'components/swap/XSwap/shared'
 import useSelectChain from 'hooks/useSelectChain'
 import { t } from 'i18n'
@@ -11,6 +13,7 @@ import { XSwapApiError, permitXSwapQuote, refreshXSwapQuote, registerXSwapOrder 
 import { getXSwapErrorMessage, toXSwapError } from 'state/xswap/errors'
 import {
   XSwapExecutionDeps,
+  XSwapPermitRejectedError,
   XSwapPlanError,
   XSwapQuoteChangedError,
   XSwapQuoteExpiredError,
@@ -89,13 +92,14 @@ function useXSwapExecutionDeps(): XSwapExecutionDeps {
       refreshQuote: (quoteId) => refreshXSwapQuote(quoteId),
       permitQuote: (quoteId, signature) => permitXSwapQuote(quoteId, signature),
       registerOrder: (params) => registerXSwapOrder(params),
-      signPermit: async ({ domain, types, message }: XSwapPermitTypedData) => {
+      signPermit: async ({ domain, types, primaryType, message }: XSwapPermitTypedData) => {
         await ensureChain(domain.chainId)
-        // Permit2's `PermitSingle`: uint160 amount and uint256 sigDeadline go to the wallet as bigints.
+        // Permit2's `PermitSingle` (planXSwapTxs checked the shape): uint160 amount and uint256 sigDeadline go to the
+        // wallet as bigints.
         return signTypedData(wagmiConfig, {
           domain: { ...domain, verifyingContract: domain.verifyingContract as `0x${string}` },
           types,
-          primaryType: 'PermitSingle',
+          primaryType,
           message: {
             ...message,
             details: { ...message.details, amount: BigInt(message.details.amount) },
@@ -124,10 +128,6 @@ function useXSwapExecutionDeps(): XSwapExecutionDeps {
   }, [selectChain])
 }
 
-/** API answers to `POST /v1/quote/:quoteId/permit` that mean the shown quote cannot be sent as is. */
-const PERMIT_STALE_CODES = new Set(['permit_unavailable'])
-const PERMIT_REJECTED_CODES = new Set(['validator_failed', 'simulation_failed'])
-
 type ExecutionError = { message: string; depositHash?: { chainId: number; hash: string } }
 
 function toExecutionError(error: unknown, chainId: number): ExecutionError {
@@ -149,10 +149,7 @@ function toExecutionError(error: unknown, chainId: number): ExecutionError {
   if (error instanceof XSwapRegisterError) {
     return { message: t('xswap.execute.error.register'), depositHash: { chainId, hash: error.txHash } }
   }
-  if (error instanceof XSwapApiError && PERMIT_STALE_CODES.has(error.code)) {
-    return { message: t('xswap.execute.error.quoteChanged') }
-  }
-  if (error instanceof XSwapApiError && PERMIT_REJECTED_CODES.has(error.code)) {
+  if (error instanceof XSwapPermitRejectedError) {
     return { message: t('xswap.execute.error.permitRejected') }
   }
   if (error instanceof XSwapApiError) {
@@ -212,6 +209,10 @@ export function XSwapExecutePanel({ quote: selected, inputError, onExecutingChan
   useEffect(() => () => onExecutingChange(false), [onExecutingChange])
 
   const execute = useCallback(async () => {
+    // The router's review flow asks for the same confirmation; an API swap has no review step.
+    if (!confirmPriceImpactWithoutFee(new Percent(Math.round(selected.priceImpactBps), 10_000))) {
+      return
+    }
     setExecuting(selected)
     setError(undefined)
     setSteps(undefined)
@@ -230,11 +231,7 @@ export function XSwapExecutePanel({ quote: selected, inputError, onExecutingChan
       logger.warn('XSwapExecutePanel', 'execute', 'x-swap order failed', e)
       setSteps((current) => current?.map((step) => (step.status === 'active' ? { ...step, status: 'error' } : step)))
       setError(toExecutionError(e, selected.tokenIn.chainId))
-      if (
-        e instanceof XSwapQuoteExpiredError ||
-        e instanceof XSwapQuoteChangedError ||
-        (e instanceof XSwapApiError && PERMIT_STALE_CODES.has(e.code))
-      ) {
+      if (e instanceof XSwapQuoteExpiredError || e instanceof XSwapQuoteChangedError) {
         requote()
       }
     } finally {
