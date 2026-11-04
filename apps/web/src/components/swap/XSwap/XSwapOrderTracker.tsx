@@ -209,6 +209,14 @@ export function XSwapOrderTracker({ order: initial, onClose }: { order: XSwapOrd
             </dd>
           </>
         )}
+        {order.composeTxHash && (
+          <>
+            <dt>{t('xswap.order.composeTx')}</dt>
+            <dd>
+              <TxLink chainId={order.tokenOut.chainId} hash={order.composeTxHash} />
+            </dd>
+          </>
+        )}
         {order.lzGuid && (
           <>
             <dt>{t('xswap.order.lzMessage')}</dt>

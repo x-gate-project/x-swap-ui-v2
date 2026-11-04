@@ -1147,6 +1147,7 @@
   "xswap.execute.step.deposit": "Send the order",
   "xswap.execute.step.permit2Approve": "Allow the swap contract to spend through Permit2",
   "xswap.execute.switchRoute": "Swap with {{provider}} instead",
+  "xswap.order.composeTx": "Destination swap tx",
   "xswap.order.fillTx": "Fill tx",
   "xswap.order.live": "Updating…",
   "xswap.order.lzMessage": "LayerZero message",
