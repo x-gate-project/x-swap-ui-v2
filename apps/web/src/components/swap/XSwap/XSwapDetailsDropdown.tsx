@@ -3,14 +3,12 @@ import AnimatedDropdown from 'components/AnimatedDropdown'
 import Column from 'components/Column'
 import { LoadingOpacityContainer } from 'components/Loader/styled'
 import { RowBetween, RowFixed } from 'components/Row'
-import { TooltipSize } from 'components/Tooltip'
 import { DetailLineItem } from 'components/swap/DetailLineItem'
 import { SlippageTooltipContent } from 'components/swap/SwapLineItem'
 import TradePrice from 'components/swap/TradePrice'
+import { XSwapRouteLegs, xswapLegSummary } from 'components/swap/XSwap/XSwapRouteLegs'
 import {
-  formatXSwapTokenAmount,
   formatXSwapTokenSymbol,
-  useXSwapChainName,
   useXSwapLegTokenLookup,
   useXSwapNativeSymbol,
   xswapProviderName,
@@ -85,11 +83,6 @@ const RouteOption = styled.button<{ $selected: boolean }>`
   }
 `
 
-const Legs = styled.ol`
-  margin: 0;
-  padding-left: 16px;
-`
-
 type Props = {
   routes?: XSwapQuote[]
   selected?: XSwapQuote
@@ -114,34 +107,6 @@ function quoteSlippage(quote: XSwapQuote): Percent | undefined {
     return undefined
   }
   return new Percent((out - BigInt(quote.minOutputAmount)).toString(), out.toString())
-}
-
-function LegsTooltip({ legs, lookup: listLookup }: { legs: XSwapLeg[]; lookup: XSwapTokenLookup }) {
-  const lookup = useXSwapLegTokenLookup(listLookup)
-  const chainName = useXSwapChainName()
-  const nativeSymbol = useXSwapNativeSymbol()
-  const amount = (chainId: number, address: string, value: string) =>
-    formatXSwapTokenAmount(lookup, nativeSymbol, chainId, address, value)
-  return (
-    <Legs data-testid="xswap-route-legs">
-      {legs.map((leg, i) => (
-        <li key={i}>
-          {leg.type === 'swap'
-            ? t('xswap.route.leg.swap', {
-                amountIn: amount(leg.chainId, leg.tokenIn, leg.amountIn),
-                amountOut: amount(leg.chainId, leg.tokenOut, leg.expectedOut),
-                chain: chainName(leg.chainId),
-              })
-            : t('xswap.route.leg.bridge', {
-                from: chainName(leg.tokenInChainId),
-                to: chainName(leg.tokenOutChainId),
-                amountOut: amount(leg.tokenOutChainId, leg.tokenOut, leg.expectedOut),
-                provider: xswapProviderName(leg.provider),
-              })}
-        </li>
-      ))}
-    </Legs>
-  )
 }
 
 /**
@@ -224,6 +189,8 @@ export function XSwapDetailsDropdown({
   }, [legLookup, lookup, nativeSymbol, outputCurrency, selected])
 
   const canOpen = Boolean(selected)
+  // A same-chain swap is one leg the rows above already describe; any route with a bridge shows its legs.
+  const showLegs = Boolean(selected?.legs?.some((leg) => leg.type === 'bridge') || (selected?.legs?.length ?? 0) > 1)
 
   return (
     <Wrapper data-testid="xswap-details">
@@ -328,13 +295,10 @@ export function XSwapDetailsDropdown({
               syncing={syncing}
               LineItem={{
                 Label: () => <Trans i18nKey="swap.orderRouting" />,
-                TooltipBody: selected.legs?.length
-                  ? () => <LegsTooltip legs={selected.legs ?? []} lookup={lookup} />
-                  : undefined,
-                tooltipSize: TooltipSize.Large,
                 Value: () => <>{xswapProviderName(selected.provider)}</>,
               }}
             />
+            {showLegs && selected.legs && <XSwapRouteLegs legs={selected.legs} lookup={lookup} />}
             {routes && routes.length > 1 && (
               <Column gap="xs" data-testid="xswap-routes">
                 <ThemedText.BodySmall color="neutral2">{t('xswap.route.title')}</ThemedText.BodySmall>
@@ -349,7 +313,7 @@ export function XSwapDetailsDropdown({
                     data-testid={`xswap-route-${route.provider}`}
                   >
                     <ThemedText.BodySmall>
-                      {xswapProviderName(route.provider)}
+                      {(route.legs?.length ?? 0) > 1 ? xswapLegSummary(route.legs) : xswapProviderName(route.provider)}
                       {route.quoteId === bestQuoteId && ` · ${t('xswap.route.best')}`}
                       {!route.executable && ` · ${t('xswap.route.quoteOnly')}`}
                       {` · ~${formatXSwapEta(route.etaSec)}`}
