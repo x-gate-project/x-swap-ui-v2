@@ -143,22 +143,23 @@ export function xswapTokenToCurrency(token: XSwapToken, wrappedNative?: string):
 }
 
 /**
- * Finds an API token by chain and address. Route legs carry the wrapped address where the user sends or receives the
- * native token; when the wrapper itself is not listed, it resolves to the chain's native token.
+ * Resolves a route leg's token. Legs carry the wrapped address where the user sends or receives the native token; when
+ * the wrapper itself is not listed, it resolves to the chain's native token. Only for legs: a token the user actually
+ * holds afterwards (the fallback token, an order's received token) must keep its own address, as WETH is not ETH.
  */
-export function findXSwapToken(
-  tokens: ReadonlyMap<string, XSwapToken>,
+export function resolveXSwapLegToken(
+  lookup: (chainId: number, address: string) => XSwapToken | undefined,
   chains: readonly XSwapChain[],
   chainId: number,
   address: string,
 ): XSwapToken | undefined {
-  const token = tokens.get(xswapTokenKey(chainId, address))
+  const token = lookup(chainId, address)
   if (token || isXSwapNativeAddress(address)) {
     return token
   }
   const wrappedNative = chains.find((c) => c.chainId === chainId)?.wrappedNative
   return wrappedNative && wrappedNative.toLowerCase() === address.toLowerCase()
-    ? tokens.get(xswapTokenKey(chainId, XSWAP_NATIVE_ADDRESS))
+    ? lookup(chainId, XSWAP_NATIVE_ADDRESS)
     : undefined
 }
 

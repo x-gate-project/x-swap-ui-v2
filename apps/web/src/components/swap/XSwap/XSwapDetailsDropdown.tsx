@@ -9,7 +9,9 @@ import { SlippageTooltipContent } from 'components/swap/SwapLineItem'
 import TradePrice from 'components/swap/TradePrice'
 import {
   formatXSwapTokenAmount,
+  formatXSwapTokenSymbol,
   useXSwapChainName,
+  useXSwapLegTokenLookup,
   useXSwapNativeSymbol,
   xswapProviderName,
   xswapRouteKey,
@@ -21,7 +23,7 @@ import { useUserSlippageTolerance } from 'state/user/hooks'
 import { SlippageTolerance } from 'state/user/types'
 import { XSwapTokenLookup } from 'state/xswap/hooks'
 import { XSwapLeg, XSwapQuote } from 'state/xswap/types'
-import { formatXSwapEta, formatXSwapUnits, shortenXSwapHash } from 'state/xswap/utils'
+import { formatXSwapEta, formatXSwapUnits } from 'state/xswap/utils'
 import styled, { DefaultTheme, useTheme } from 'styled-components'
 import { ThemedText } from 'theme/components'
 import { NumberType, useFormatter } from 'utils/formatNumbers'
@@ -114,7 +116,8 @@ function quoteSlippage(quote: XSwapQuote): Percent | undefined {
   return new Percent((out - BigInt(quote.minOutputAmount)).toString(), out.toString())
 }
 
-function LegsTooltip({ legs, lookup }: { legs: XSwapLeg[]; lookup: XSwapTokenLookup }) {
+function LegsTooltip({ legs, lookup: listLookup }: { legs: XSwapLeg[]; lookup: XSwapTokenLookup }) {
+  const lookup = useXSwapLegTokenLookup(listLookup)
   const chainName = useXSwapChainName()
   const nativeSymbol = useXSwapNativeSymbol()
   const amount = (chainId: number, address: string, value: string) =>
@@ -161,6 +164,8 @@ export function XSwapDetailsDropdown({
   const [open, setOpen] = useState(false)
   const { formatCurrencyAmount, formatPercent } = useFormatter()
   const nativeSymbol = useXSwapNativeSymbol()
+  // The bridge fee is in the bridged leg's token, which may be an unlisted wrapped native.
+  const legLookup = useXSwapLegTokenLookup(lookup)
   const isAutoSlippage = useUserSlippageTolerance()[0] === SlippageTolerance.Auto
 
   const price = useMemo(
@@ -176,7 +181,7 @@ export function XSwapDetailsDropdown({
       return undefined
     }
     const bridge = selected.legs?.find((leg): leg is Extract<XSwapLeg, { type: 'bridge' }> => leg.type === 'bridge')
-    const feeToken = bridge ? lookup(bridge.tokenInChainId, bridge.tokenIn) : undefined
+    const feeToken = bridge ? legLookup(bridge.tokenInChainId, bridge.tokenIn) : undefined
     const bridgeFee = (['lp', 'relayer', 'app'] as const).reduce((sum, key) => sum + BigInt(selected.fees[key]), 0n)
     const fees: string[] = []
     if (bridgeFee > 0n) {
@@ -210,8 +215,13 @@ export function XSwapDetailsDropdown({
       minOutput: CurrencyAmount.fromRawAmount(outputCurrency, selected.minOutputAmount),
       fees,
       feeBreakdown,
+      // The token the user holds if the destination swap fails: a wrapped native stays wrapped, so no leg lookup.
+      fallbackSymbol:
+        selected.destSwap && selected.fallbackToken
+          ? formatXSwapTokenSymbol(lookup, nativeSymbol, selected.tokenOut.chainId, selected.fallbackToken)
+          : undefined,
     }
-  }, [lookup, nativeSymbol, outputCurrency, selected])
+  }, [legLookup, lookup, nativeSymbol, outputCurrency, selected])
 
   const canOpen = Boolean(selected)
 
@@ -297,18 +307,13 @@ export function XSwapDetailsDropdown({
                 Value: () => <>{details.fees.length ? details.fees.join(' + ') : '0'}</>,
               }}
             />
-            {selected.destSwap && selected.fallbackToken && (
+            {details.fallbackSymbol && (
               <DetailLineItem
                 syncing={syncing}
                 LineItem={{
                   Label: () => <>{t('xswap.route.fallback')}</>,
                   TooltipBody: () => <>{t('xswap.route.fallback.tooltip')}</>,
-                  Value: () => (
-                    <>
-                      {lookup(selected.tokenOut.chainId, selected.fallbackToken ?? '')?.symbol ??
-                        shortenXSwapHash(selected.fallbackToken ?? '')}
-                    </>
-                  ),
+                  Value: () => <>{details.fallbackSymbol}</>,
                 }}
               />
             )}

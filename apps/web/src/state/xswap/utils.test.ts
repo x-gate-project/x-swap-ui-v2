@@ -5,7 +5,6 @@ import { XSwapQuote, XSwapToken } from 'state/xswap/types'
 import {
   XSWAP_NATIVE_ADDRESS,
   buildXSwapReachability,
-  findXSwapToken,
   formatXSwapEta,
   formatXSwapUnits,
   getXSwapChainMode,
@@ -15,6 +14,7 @@ import {
   isSameXSwapToken,
   percentToBps,
   pickDefaultXSwapRoute,
+  resolveXSwapLegToken,
   shortenXSwapHash,
   toXSwapAddress,
   xswapExplorerTxUrl,
@@ -339,7 +339,7 @@ describe('x-swap reachability', () => {
   })
 })
 
-describe('findXSwapToken', () => {
+describe('resolveXSwapLegToken', () => {
   const WETH = '0x980B62Da83eFf3D4576C647993b0c1D7faf17c73'
   const chains = [{ chainId: 421614, name: 'Arbitrum Sepolia', nativeSymbol: 'ETH', wrappedNative: WETH }]
   const native: XSwapToken = {
@@ -356,24 +356,27 @@ describe('findXSwapToken', () => {
     symbol: 'USDC',
     decimals: 6,
   }
-  const byKey = (tokens: XSwapToken[]) => new Map(tokens.map((t) => [`${t.chainId}-${t.address.toLowerCase()}`, t]))
+  const byKey = (tokens: XSwapToken[]) => {
+    const map = new Map(tokens.map((t) => [`${t.chainId}-${t.address.toLowerCase()}`, t]))
+    return (chainId: number, address: string) => map.get(`${chainId}-${address.toLowerCase()}`)
+  }
 
   it('finds a listed token, ignoring address case', () => {
-    expect(findXSwapToken(byKey([usdc]), chains, 421614, usdc.address.toUpperCase().replace('0X', '0x'))).toBe(usdc)
+    expect(resolveXSwapLegToken(byKey([usdc]), chains, 421614, usdc.address.toUpperCase().replace('0X', '0x'))).toBe(usdc)
   })
 
   it('resolves an unlisted wrapped native to the native token', () => {
-    expect(findXSwapToken(byKey([native]), chains, 421614, WETH.toLowerCase())).toBe(native)
+    expect(resolveXSwapLegToken(byKey([native]), chains, 421614, WETH.toLowerCase())).toBe(native)
   })
 
   it('prefers the listed wrapper over the native token', () => {
     const weth = { ...native, address: WETH, symbol: 'WETH' }
-    expect(findXSwapToken(byKey([native, weth]), chains, 421614, WETH)).toBe(weth)
+    expect(resolveXSwapLegToken(byKey([native, weth]), chains, 421614, WETH)).toBe(weth)
   })
 
   it('returns undefined for unknown tokens and chains', () => {
-    expect(findXSwapToken(byKey([native]), chains, 421614, usdc.address)).toBeUndefined()
-    expect(findXSwapToken(byKey([native]), chains, 84532, WETH)).toBeUndefined()
+    expect(resolveXSwapLegToken(byKey([native]), chains, 421614, usdc.address)).toBeUndefined()
+    expect(resolveXSwapLegToken(byKey([native]), chains, 84532, WETH)).toBeUndefined()
   })
 })
 

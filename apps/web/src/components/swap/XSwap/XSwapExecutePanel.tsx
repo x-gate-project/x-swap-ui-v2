@@ -1,10 +1,10 @@
 import { Percent } from '@uniswap/sdk-core'
-import { ButtonPrimary } from 'components/Button'
+import { ButtonLight, ButtonPrimary } from 'components/Button'
 import { GrayCard } from 'components/Card'
 import Loader from 'components/Icons/LoadingSpinner'
 import { wagmiConfig } from 'components/Web3Provider/wagmi'
 import confirmPriceImpactWithoutFee from 'components/swap/confirmPriceImpactWithoutFee'
-import { ErrorText, Label, Muted, Row, TxLink, xswapRouteKey } from 'components/swap/XSwap/shared'
+import { ErrorText, Label, Muted, Row, TxLink, xswapProviderName, xswapRouteKey } from 'components/swap/XSwap/shared'
 import useSelectChain from 'hooks/useSelectChain'
 import { t } from 'i18n'
 import { ReactNode, useCallback, useEffect, useMemo, useState } from 'react'
@@ -161,8 +161,10 @@ function toExecutionError(error: unknown, chainId: number): ExecutionError {
 type Props = {
   /** The route to execute: the one picked in the details dropdown, `best` by default. */
   quote: XSwapQuote
-  /** Some route of this quote can be sent: a priced-only `quote` points the user to the other routes. */
-  hasExecutableRoute?: boolean
+  /** A route of this quote that can be sent while `quote` is priced only: the panel offers to switch to it. */
+  executableAlternative?: XSwapQuote
+  /** Picks a route by `xswapRouteKey`. */
+  onSelectRoute?: (routeKey: string) => void
   /** Why the swap cannot go on (no wallet, no balance, …); shown on the button. */
   inputError?: ReactNode
   onExecutingChange: (executing: boolean) => void
@@ -182,7 +184,8 @@ const Wrapper = styled.div`
  */
 export function XSwapExecutePanel({
   quote: selected,
-  hasExecutableRoute,
+  executableAlternative,
+  onSelectRoute,
   inputError,
   onExecutingChange,
   onOrder,
@@ -256,7 +259,15 @@ export function XSwapExecutePanel({
         // Priced only: contracts are not deployed on this route yet, there is nothing to sign.
         <GrayCard style={{ textAlign: 'center' }} data-testid="xswap-quote-only">
           <ThemedText.DeprecatedMain mb="4px">{t('xswap.execute.quoteOnly')}</ThemedText.DeprecatedMain>
-          {hasExecutableRoute && <Muted>{t('xswap.execute.pickExecutableRoute')}</Muted>}
+          {executableAlternative && onSelectRoute && (
+            <ButtonLight
+              mt="12px"
+              onClick={() => onSelectRoute(xswapRouteKey(executableAlternative))}
+              data-testid="xswap-switch-route"
+            >
+              {t('xswap.execute.switchRoute', { provider: xswapProviderName(executableAlternative.provider) })}
+            </ButtonLight>
+          )}
         </GrayCard>
       ) : (
         <ButtonPrimary

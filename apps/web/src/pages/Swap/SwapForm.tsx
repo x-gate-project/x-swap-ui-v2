@@ -334,7 +334,8 @@ export function SwapForm({ disableTokenInputs = false, onCurrencyChange }: SwapF
       currencies[Field.INPUT]?.chainId !== currencies[Field.OUTPUT]?.chainId,
   )
   const [xswapExecuting, setXSwapExecuting] = useState(false)
-  // The route the user picked (`xswapRouteKey`); undefined is `best`.
+  // The route the user picked (`xswapRouteKey`), or the default route pinned when `best` cannot be sent; undefined is
+  // `best`.
   const [xswapPickedRoute, setXSwapPickedRoute] = useState<string>()
   const [xswapOrder, setXSwapOrder] = useState<XSwapOrder>()
   const xswapQuote = useXSwapQuote({
@@ -373,11 +374,23 @@ export function SwapForm({ disableTokenInputs = false, onCurrencyChange }: SwapF
     .map((c) => (c ? `${c.chainId}-${c.isNative ? 'native' : c.address.toLowerCase()}` : ''))
     .join('|')
   useEffect(() => setXSwapPickedRoute(undefined), [xswapPairKey])
-  const xswapSelectedQuote =
-    xswapRouteOptions?.find((q) => xswapRouteKey(q) === xswapPickedRoute) ??
-    (xswapRouteOptions && pickDefaultXSwapRoute(xswapRouteOptions))
-  // A priced-only route was picked while another route can be sent: the panel points the user to the routes.
-  const xswapHasExecutableRoute = Boolean(xswapRouteOptions?.some((q) => q.executable))
+  const xswapDefaultRoute = xswapRouteOptions && pickDefaultXSwapRoute(xswapRouteOptions)
+  const xswapSelectedQuote = xswapRouteOptions?.find((q) => xswapRouteKey(q) === xswapPickedRoute) ?? xswapDefaultRoute
+  // A default other than `best` is pinned like a pick: a re-quote whose ranking changes must not switch the provider
+  // (and its output, fees and txs) under the user. A default that is `best` keeps following `best`, as before.
+  const xswapPinnedDefault =
+    xswapPickedRoute === undefined && xswapDefaultRoute && xswapDefaultRoute.quoteId !== xswapResponse?.best.quoteId
+      ? xswapRouteKey(xswapDefaultRoute)
+      : undefined
+  useEffect(() => {
+    if (xswapPinnedDefault) {
+      setXSwapPickedRoute(xswapPinnedDefault)
+    }
+  }, [xswapPinnedDefault])
+  // A priced-only route is selected while another route can be sent: the panel offers to switch to it.
+  const xswapExecutableAlternative = xswapSelectedQuote?.executable
+    ? undefined
+    : xswapRouteOptions && pickDefaultXSwapRoute(xswapRouteOptions.filter((q) => q.executable))
   // A native input of a cross-chain order also pays the bridge's native fee in the deposit's `value`: the amount alone
   // may pass the balance check while the deposit cannot be sent.
   const xswapInputError = useMemo(() => {
@@ -824,7 +837,8 @@ export function SwapForm({ disableTokenInputs = false, onCurrencyChange }: SwapF
           ) : xswapSelectedQuote && userHasSpecifiedInputOutput ? (
             <XSwapExecutePanel
               quote={xswapSelectedQuote}
-              hasExecutableRoute={xswapHasExecutableRoute}
+              executableAlternative={xswapExecutableAlternative}
+              onSelectRoute={setXSwapPickedRoute}
               inputError={swapInputError ?? xswapInputError}
               onExecutingChange={setXSwapExecuting}
               onOrder={handleXSwapOrder}

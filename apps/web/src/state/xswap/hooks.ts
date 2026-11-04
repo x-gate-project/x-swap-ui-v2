@@ -27,7 +27,6 @@ import {
   XSwapFlow,
   XSwapReachability,
   buildXSwapReachability,
-  findXSwapToken,
   getXSwapChainMode,
   getXSwapFlow,
   isSameXSwapToken,
@@ -337,6 +336,5 @@ export function useXSwapTokenLookup(chainIds: (number | undefined)[]): XSwapToke
     // `results` is a new array every render; rebuild only when some list changed.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dataKey])
-  const { chains } = useXSwapChains()
-  return useCallback((chainId, address) => findXSwapToken(byKey, chains, chainId, address), [byKey, chains])
+  return useCallback((chainId, address) => byKey.get(xswapTokenKey(chainId, address)), [byKey])
 }
