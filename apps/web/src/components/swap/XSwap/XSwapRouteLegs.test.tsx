@@ -162,6 +162,7 @@ describe('XSwapRouteLegs', () => {
         venue: 'uniswap-v2',
         path: { tokens: [USDTX_JOC, WJOC] },
       },
+      // The swap ends in WJOC while XGate takes native JOC: the router unwraps between the legs, so both read as JOC.
       {
         type: 'bridge',
         provider: 'xgate',
@@ -186,5 +187,50 @@ describe('XSwapRouteLegs', () => {
     expect(items[1]).toHaveTextContent('JOC → JOCX')
     expect(items[1]).toHaveTextContent('JOC Testnet → Arbitrum Sepolia via X-Gate')
     expect(items[1]).toHaveTextContent('LayerZero fee 0.0025 JOC')
+  })
+
+  // JOCX on Arbitrum Sepolia → USDTX on JOC: XGate bridges JOCX as JOC, then the LayerZero compose swaps it on JOC.
+  it('renders the destination swap after an XGate bridge', () => {
+    const legs: XSwapLeg[] = [
+      {
+        type: 'bridge',
+        provider: 'xgate',
+        tokenInChainId: 421614,
+        tokenOutChainId: 10081,
+        tokenIn: JOCX,
+        tokenOut: XSWAP_NATIVE_ADDRESS,
+        expectedOut: '200000000000000000000',
+        minOut: '200000000000000000000',
+        nativeFee: '1500000000000000',
+      },
+      {
+        type: 'swap',
+        chainId: 10081,
+        tokenIn: WJOC,
+        tokenOut: USDTX_JOC,
+        amountIn: '200000000000000000000',
+        expectedOut: '10000000',
+        minOut: '9950000',
+        venue: 'uniswap-v2',
+        path: { tokens: [WJOC, USDTX_JOC] },
+      },
+    ]
+    expect(xswapLegSummary(legs)).toBe('X-Gate → Swap')
+    render(
+      <ThemeProvider theme={getTheme(false)}>
+        <XSwapRouteLegs legs={legs} lookup={lookup} />
+      </ThemeProvider>,
+    )
+    const items = screen.getAllByRole('listitem')
+    expect(items.map((item) => item.getAttribute('data-testid'))).toEqual([
+      'xswap-route-leg-bridge',
+      'xswap-route-leg-swap',
+    ])
+    expect(items[0]).toHaveTextContent('JOCX → JOC')
+    expect(items[0]).toHaveTextContent('Arbitrum Sepolia → JOC Testnet via X-Gate')
+    // The LayerZero fee is paid in the source chain's native token.
+    expect(items[0]).toHaveTextContent('LayerZero fee 0.0015 ETH')
+    expect(items[1]).toHaveTextContent('JOC → USDTX')
+    expect(items[1]).toHaveTextContent('JOC Testnet · Uniswap v2 · out 10 USDTX (min 9.95 USDTX)')
   })
 })
