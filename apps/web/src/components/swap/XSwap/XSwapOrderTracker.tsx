@@ -213,9 +213,7 @@ export function XSwapOrderTracker({ order: initial, onClose }: { order: XSwapOrd
           <>
             <dt>{t('xswap.order.lzMessage')}</dt>
             <dd>
-              <ExternalLink href={layerZeroScanUrl(order.tokenIn.chainId, order.lzGuid)}>
-                {shortenXSwapHash(order.lzGuid, 6)}
-              </ExternalLink>
+              <ExternalLink href={layerZeroScanUrl(order.lzGuid)}>{shortenXSwapHash(order.lzGuid, 6)}</ExternalLink>
             </dd>
           </>
         )}

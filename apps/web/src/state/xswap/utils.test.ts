@@ -433,11 +433,7 @@ describe('xswapNativeValue / xswapBridgeNativeFee', () => {
 })
 
 describe('layerZeroScanUrl', () => {
-  it('links testnet orders to the testnet site', () => {
-    expect(layerZeroScanUrl(10081, '0xabc')).toBe('https://testnet.layerzeroscan.com/tx/0xabc')
-  })
-
-  it('links mainnet orders to the main site', () => {
-    expect(layerZeroScanUrl(81, '0xabc')).toBe('https://layerzeroscan.com/tx/0xabc')
+  it('links the message on the testnet site', () => {
+    expect(layerZeroScanUrl('0xabc')).toBe('https://testnet.layerzeroscan.com/tx/0xabc')
   })
 })

@@ -241,13 +241,12 @@ export function xswapExplorerTxUrl(chainId: number, hash: string, fallbackExplor
   return base ? `${base}/tx/${hash}` : undefined
 }
 
-// Testnets the API serves; LayerZero Scan lists their messages on its testnet site.
-const XSWAP_TESTNET_CHAIN_IDS = new Set([11155111, 421614, 84532, 11155420, 10081])
+// XGate runs on testnets only for now: every order's message is on LayerZero Scan's testnet site.
+const LAYERZERO_SCAN_URL = 'https://testnet.layerzeroscan.com'
 
-/** LayerZero Scan link of an XGate order's message (`lzGuid`), on the testnet site when the source chain is a testnet. */
-export function layerZeroScanUrl(sourceChainId: number, guid: string): string {
-  const host = XSWAP_TESTNET_CHAIN_IDS.has(sourceChainId) ? 'testnet.layerzeroscan.com' : 'layerzeroscan.com'
-  return `https://${host}/tx/${guid}`
+/** LayerZero Scan link of an XGate order's message (`lzGuid`). */
+export function layerZeroScanUrl(guid: string): string {
+  return `${LAYERZERO_SCAN_URL}/tx/${guid}`
 }
 
 /** `0x1234…abcd`. */
