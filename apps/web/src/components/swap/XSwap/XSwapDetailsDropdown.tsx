@@ -6,12 +6,11 @@ import { RowBetween, RowFixed } from 'components/Row'
 import { DetailLineItem } from 'components/swap/DetailLineItem'
 import { SlippageTooltipContent } from 'components/swap/SwapLineItem'
 import TradePrice from 'components/swap/TradePrice'
-import { XSwapRouteLegs, xswapLegSummary, xswapNativeFeeLabel } from 'components/swap/XSwap/XSwapRouteLegs'
+import { XSwapRouteLegs, xswapNativeFeeLabel, xswapRouteName, xswapShowsLegs } from 'components/swap/XSwap/XSwapRouteLegs'
 import {
   formatXSwapTokenSymbol,
   useXSwapLegTokenLookup,
   useXSwapNativeSymbol,
-  xswapProviderName,
   xswapRouteKey,
 } from 'components/swap/XSwap/shared'
 import { Trans, t } from 'i18n'
@@ -202,7 +201,7 @@ export function XSwapDetailsDropdown({
 
   const canOpen = Boolean(selected)
   // A same-chain swap is one leg the rows above already describe; any route with a bridge shows its legs.
-  const showLegs = Boolean(selected?.legs?.some((leg) => leg.type === 'bridge') || (selected?.legs?.length ?? 0) > 1)
+  const showLegs = xswapShowsLegs(selected?.legs)
 
   return (
     <Wrapper data-testid="xswap-details">
@@ -307,7 +306,7 @@ export function XSwapDetailsDropdown({
               syncing={syncing}
               LineItem={{
                 Label: () => <Trans i18nKey="swap.orderRouting" />,
-                Value: () => <>{xswapProviderName(selected.provider)}</>,
+                Value: () => <>{xswapRouteName(selected)}</>,
               }}
             />
             {showLegs && selected.legs && <XSwapRouteLegs legs={selected.legs} lookup={lookup} />}
@@ -325,7 +324,7 @@ export function XSwapDetailsDropdown({
                     data-testid={`xswap-route-${route.provider}`}
                   >
                     <ThemedText.BodySmall>
-                      {(route.legs?.length ?? 0) > 1 ? xswapLegSummary(route.legs) : xswapProviderName(route.provider)}
+                      {xswapRouteName(route)}
                       {route.quoteId === bestQuoteId && ` · ${t('xswap.route.best')}`}
                       {!route.executable && ` · ${t('xswap.route.quoteOnly')}`}
                       {` · ~${formatXSwapEta(route.etaSec)}`}
