@@ -61,7 +61,7 @@ import {
   xswapQueryKeys,
 } from 'state/xswap/hooks'
 import { XSwapOrder } from 'state/xswap/types'
-import { getXSwapDestinationStatus } from 'state/xswap/utils'
+import { getXSwapDestinationStatus, pickDefaultXSwapRoute } from 'state/xswap/utils'
 import { useTheme } from 'styled-components'
 import { ExternalLink, ThemedText } from 'theme/components'
 import { maybeLogFirstSwapAction } from 'tracing/swapFlowLoggers'
@@ -334,7 +334,8 @@ export function SwapForm({ disableTokenInputs = false, onCurrencyChange }: SwapF
       currencies[Field.INPUT]?.chainId !== currencies[Field.OUTPUT]?.chainId,
   )
   const [xswapExecuting, setXSwapExecuting] = useState(false)
-  // The route the user picked (`xswapRouteKey`); undefined is `best`.
+  // The route the user picked (`xswapRouteKey`), or the default route pinned when `best` cannot be sent; undefined is
+  // `best`.
   const [xswapPickedRoute, setXSwapPickedRoute] = useState<string>()
   const [xswapOrder, setXSwapOrder] = useState<XSwapOrder>()
   const xswapQuote = useXSwapQuote({
@@ -373,8 +374,23 @@ export function SwapForm({ disableTokenInputs = false, onCurrencyChange }: SwapF
     .map((c) => (c ? `${c.chainId}-${c.isNative ? 'native' : c.address.toLowerCase()}` : ''))
     .join('|')
   useEffect(() => setXSwapPickedRoute(undefined), [xswapPairKey])
-  const xswapSelectedQuote =
-    xswapRouteOptions?.find((q) => xswapRouteKey(q) === xswapPickedRoute) ?? xswapResponse?.best
+  const xswapDefaultRoute = xswapRouteOptions && pickDefaultXSwapRoute(xswapRouteOptions)
+  const xswapSelectedQuote = xswapRouteOptions?.find((q) => xswapRouteKey(q) === xswapPickedRoute) ?? xswapDefaultRoute
+  // A default other than `best` is pinned like a pick: a re-quote whose ranking changes must not switch the provider
+  // (and its output, fees and txs) under the user. A default that is `best` keeps following `best`, as before.
+  const xswapPinnedDefault =
+    xswapPickedRoute === undefined && xswapDefaultRoute && xswapDefaultRoute.quoteId !== xswapResponse?.best.quoteId
+      ? xswapRouteKey(xswapDefaultRoute)
+      : undefined
+  useEffect(() => {
+    if (xswapPinnedDefault) {
+      setXSwapPickedRoute(xswapPinnedDefault)
+    }
+  }, [xswapPinnedDefault])
+  // A priced-only route is selected while another route can be sent: the panel offers to switch to it.
+  const xswapExecutableAlternative = xswapSelectedQuote?.executable
+    ? undefined
+    : xswapRouteOptions && pickDefaultXSwapRoute(xswapRouteOptions.filter((q) => q.executable))
   // A native input of a cross-chain order also pays the bridge's native fee in the deposit's `value`: the amount alone
   // may pass the balance check while the deposit cannot be sent.
   const xswapInputError = useMemo(() => {
@@ -409,9 +425,11 @@ export function SwapForm({ disableTokenInputs = false, onCurrencyChange }: SwapF
   // the quote still answers `no_route` for a pair that has none. Switching the tokens counts as a new input: when the
   // reverse direction has no route, the output is dropped too, as the pair could never be quoted.
   const xswapReachability = useXSwapReachability(currencies[Field.INPUT], { enabled: xswapChainMode === 'api' })
-  const xswapOutput = currencies[Field.OUTPUT]
+  const xswapOutputCurrency = currencies[Field.OUTPUT]
   const xswapOutputUnreachable = Boolean(
-    xswapReachability && xswapOutput && getXSwapDestinationStatus(xswapReachability, xswapOutput) === 'unreachable',
+    xswapReachability &&
+      xswapOutputCurrency &&
+      getXSwapDestinationStatus(xswapReachability, xswapOutputCurrency) === 'unreachable',
   )
   useEffect(() => {
     if (xswapOutputUnreachable && !xswapExecuting) {
@@ -590,8 +608,7 @@ export function SwapForm({ disableTokenInputs = false, onCurrencyChange }: SwapF
   )
 
   // On API chains the router's trade is not what gets sent.
-  const showPriceImpactWarning =
-    !usesXSwapApi && isClassicTrade(trade) && largerPriceImpact && priceImpactSeverity > 3
+  const showPriceImpactWarning = !usesXSwapApi && isClassicTrade(trade) && largerPriceImpact && priceImpactSeverity > 3
 
   const prevTrade = usePrevious(trade)
   useEffect(() => {
@@ -820,6 +837,8 @@ export function SwapForm({ disableTokenInputs = false, onCurrencyChange }: SwapF
           ) : xswapSelectedQuote && userHasSpecifiedInputOutput ? (
             <XSwapExecutePanel
               quote={xswapSelectedQuote}
+              executableAlternative={xswapExecutableAlternative}
+              onSelectRoute={setXSwapPickedRoute}
               inputError={swapInputError ?? xswapInputError}
               onExecutingChange={setXSwapExecuting}
               onOrder={handleXSwapOrder}

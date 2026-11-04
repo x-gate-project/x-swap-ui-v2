@@ -1,10 +1,10 @@
 import { Percent } from '@uniswap/sdk-core'
-import { ButtonPrimary } from 'components/Button'
+import { ButtonLight, ButtonPrimary } from 'components/Button'
 import { GrayCard } from 'components/Card'
 import Loader from 'components/Icons/LoadingSpinner'
 import { wagmiConfig } from 'components/Web3Provider/wagmi'
 import confirmPriceImpactWithoutFee from 'components/swap/confirmPriceImpactWithoutFee'
-import { ErrorText, Label, Muted, Row, TxLink, xswapRouteKey } from 'components/swap/XSwap/shared'
+import { ErrorText, Label, Muted, Row, TxLink, xswapProviderName, xswapRouteKey } from 'components/swap/XSwap/shared'
 import useSelectChain from 'hooks/useSelectChain'
 import { t } from 'i18n'
 import { ReactNode, useCallback, useEffect, useMemo, useState } from 'react'
@@ -24,8 +24,8 @@ import {
   executeXSwapQuote,
 } from 'state/xswap/execute'
 import { useXSwapRequote } from 'state/xswap/hooks'
-import { getXSwapFlow } from 'state/xswap/utils'
 import { XSwapOrder, XSwapPermitTypedData, XSwapQuote, XSwapTx } from 'state/xswap/types'
+import { getXSwapFlow } from 'state/xswap/utils'
 import styled from 'styled-components'
 import { ThemedText } from 'theme/components'
 import { InterfaceChainId } from 'uniswap/src/types/chains'
@@ -161,6 +161,10 @@ function toExecutionError(error: unknown, chainId: number): ExecutionError {
 type Props = {
   /** The route to execute: the one picked in the details dropdown, `best` by default. */
   quote: XSwapQuote
+  /** A route of this quote that can be sent while `quote` is priced only: the panel offers to switch to it. */
+  executableAlternative?: XSwapQuote
+  /** Picks a route by `xswapRouteKey`. */
+  onSelectRoute?: (routeKey: string) => void
   /** Why the swap cannot go on (no wallet, no balance, …); shown on the button. */
   inputError?: ReactNode
   onExecutingChange: (executing: boolean) => void
@@ -178,7 +182,14 @@ const Wrapper = styled.div`
  * offers one, sends the deposit (the swap itself for `local`) and registers the order. A priced-only route
  * (`executable: false`) has nothing to sign, so it gets no button.
  */
-export function XSwapExecutePanel({ quote: selected, inputError, onExecutingChange, onOrder }: Props) {
+export function XSwapExecutePanel({
+  quote: selected,
+  executableAlternative,
+  onSelectRoute,
+  inputError,
+  onExecutingChange,
+  onOrder,
+}: Props) {
   const deps = useXSwapExecutionDeps()
   const requote = useXSwapRequote()
 
@@ -248,6 +259,15 @@ export function XSwapExecutePanel({ quote: selected, inputError, onExecutingChan
         // Priced only: contracts are not deployed on this route yet, there is nothing to sign.
         <GrayCard style={{ textAlign: 'center' }} data-testid="xswap-quote-only">
           <ThemedText.DeprecatedMain mb="4px">{t('xswap.execute.quoteOnly')}</ThemedText.DeprecatedMain>
+          {executableAlternative && onSelectRoute && (
+            <ButtonLight
+              mt="12px"
+              onClick={() => onSelectRoute(xswapRouteKey(executableAlternative))}
+              data-testid="xswap-switch-route"
+            >
+              {t('xswap.execute.switchRoute', { provider: xswapProviderName(executableAlternative.provider) })}
+            </ButtonLight>
+          )}
         </GrayCard>
       ) : (
         <ButtonPrimary

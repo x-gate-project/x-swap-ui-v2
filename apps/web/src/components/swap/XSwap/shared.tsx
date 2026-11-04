@@ -1,6 +1,13 @@
 import { XSwapTokenLookup, useXSwapChains } from 'state/xswap/hooks'
 import { XSwapQuote } from 'state/xswap/types'
-import { formatXSwapUnits, isXSwapNativeAddress, shortenXSwapHash, xswapExplorerTxUrl } from 'state/xswap/utils'
+import { useCallback } from 'react'
+import {
+  formatXSwapUnits,
+  isXSwapNativeAddress,
+  resolveXSwapLegToken,
+  shortenXSwapHash,
+  xswapExplorerTxUrl,
+} from 'state/xswap/utils'
 import styled from 'styled-components'
 import { ExternalLink } from 'theme/components'
 import { UNIVERSE_CHAIN_INFO } from 'uniswap/src/constants/chains'
@@ -81,6 +88,28 @@ export function useXSwapNativeSymbol(): (chainId: number) => string {
     chains.find((c) => c.chainId === chainId)?.nativeSymbol ??
     UNIVERSE_CHAIN_INFO[chainId as InterfaceChainId]?.nativeCurrency.symbol ??
     'ETH'
+}
+
+/** `lookup` for route legs: an unlisted wrapped native reads as the native token (see `resolveXSwapLegToken`). */
+export function useXSwapLegTokenLookup(lookup: XSwapTokenLookup): XSwapTokenLookup {
+  const { chains } = useXSwapChains()
+  return useCallback(
+    (chainId: number, address: string) => resolveXSwapLegToken(lookup, chains, chainId, address),
+    [chains, lookup],
+  )
+}
+
+/** Symbol of a token; the native symbol for the zero address, else a shortened address when the API does not list it. */
+export function formatXSwapTokenSymbol(
+  lookup: XSwapTokenLookup,
+  nativeSymbol: (chainId: number) => string,
+  chainId: number,
+  address: string,
+): string {
+  return (
+    lookup(chainId, address)?.symbol ??
+    (isXSwapNativeAddress(address) ? nativeSymbol(chainId) : shortenXSwapHash(address))
+  )
 }
 
 /** `amount` of a token in its own units with its symbol; raw base units when the API does not list the token. */
