@@ -112,7 +112,7 @@ export function permitXSwapQuote(quoteId: string, signature: string): Promise<XS
   })
 }
 
-/** Starts tracking the order once its deposit tx is mined. */
+/** Starts tracking the order from its deposit tx, mined or still pending. */
 export function registerXSwapOrder(params: { quoteId: string; txHash: string }): Promise<XSwapOrder> {
   return request<XSwapOrder>('/orders', { method: 'POST', body: JSON.stringify(params) })
 }

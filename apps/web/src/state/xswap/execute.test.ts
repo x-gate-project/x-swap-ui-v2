@@ -435,7 +435,23 @@ describe('executeXSwapQuote', () => {
     const error = await executeXSwapQuote(quote(), d).catch((e) => e)
     expect(error).toBeInstanceOf(XSwapRegisterError)
     expect(error.txHash).toBe('0xhash2')
-    expect(registerOrder).toHaveBeenCalledTimes(3)
+    expect(registerOrder).toHaveBeenCalledTimes(4)
+  })
+
+  it('registers the deposit without waiting for its receipt', async () => {
+    const d = deps()
+    await executeXSwapQuote(quote(), d)
+    expect(d.waitForTx).toHaveBeenCalledTimes(1)
+    expect(d.waitForTx).toHaveBeenCalledWith(d.sent[0].chainId, '0xhash1')
+  })
+
+  it('retries a deposit the API does not see yet', async () => {
+    const registerOrder = jest
+      .fn()
+      .mockRejectedValueOnce(new XSwapApiError('tx_not_found', 404))
+      .mockResolvedValueOnce(order)
+    await expect(executeXSwapQuote(quote(), deps({ registerOrder }))).resolves.toBe(order)
+    expect(registerOrder).toHaveBeenCalledTimes(2)
   })
 
   it('does not retry a definite registration error', async () => {
