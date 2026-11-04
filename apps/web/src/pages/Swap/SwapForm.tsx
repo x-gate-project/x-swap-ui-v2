@@ -395,14 +395,18 @@ export function SwapForm({ disableTokenInputs = false, onCurrencyChange }: SwapF
     : xswapRouteOptions && pickDefaultXSwapRoute(xswapRouteOptions.filter((q) => q.executable))
   // The deposit's `value` carries the input amount of a native input and the bridge's native fee (XGate's LayerZero
   // fee). The amount alone may pass the balance check while the deposit cannot be sent; an ERC-20 input still needs
-  // the native token for that fee.
+  // the native token for that fee. That balance is read only on the connected chain: off it, the cached balances may
+  // miss the chain and read as 0, and the user switches chain before sending anyway.
   const xswapInputCurrency = currencies[Field.INPUT]
   const xswapFeeCurrency = useMemo(
     () =>
-      usesXSwapApi && xswapInputCurrency && !xswapInputCurrency.isNative
+      usesXSwapApi &&
+      xswapInputCurrency &&
+      !xswapInputCurrency.isNative &&
+      xswapInputCurrency.chainId === account.chainId
         ? nativeOnChain(xswapInputCurrency.chainId)
         : undefined,
-    [usesXSwapApi, xswapInputCurrency],
+    [account.chainId, usesXSwapApi, xswapInputCurrency],
   )
   const xswapFeeBalance = useCurrencyBalance(account.address, xswapFeeCurrency)
   const xswapInputError = useMemo(() => {

@@ -107,4 +107,34 @@ describe('XSwapRouteLegs', () => {
     expect(items[1]).toHaveTextContent('Sepolia → Arbitrum Sepolia via Across')
     expect(items[2]).toHaveTextContent('out 5000 JOCX (min 4975 JOCX)')
   })
+
+  it('shows the LayerZero fee of an XGate bridge', () => {
+    // JOCX on Arbitrum Sepolia → ETH on Sepolia over XGate: the LayerZero fee is paid in the source chain's native.
+    const xgate: XSwapLeg = {
+      type: 'bridge',
+      provider: 'xgate',
+      tokenInChainId: 421614,
+      tokenOutChainId: 11155111,
+      tokenIn: JOCX,
+      tokenOut: XSWAP_NATIVE_ADDRESS,
+      expectedOut: '1000000000000000000',
+      minOut: '1000000000000000000',
+      nativeFee: '120000000000000',
+    }
+    render(
+      <ThemeProvider theme={getTheme(false)}>
+        <XSwapRouteLegs legs={[xgate]} lookup={lookup} />
+      </ThemeProvider>,
+    )
+    expect(screen.getByRole('listitem')).toHaveTextContent('LayerZero fee 0.00012 ETH')
+  })
+
+  it('shows no native fee when the bridge charges none', () => {
+    render(
+      <ThemeProvider theme={getTheme(false)}>
+        <XSwapRouteLegs legs={COMPOSITE} lookup={lookup} />
+      </ThemeProvider>,
+    )
+    expect(screen.getAllByRole('listitem')[1]).not.toHaveTextContent('fee')
+  })
 })
