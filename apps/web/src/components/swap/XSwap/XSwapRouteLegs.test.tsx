@@ -29,6 +29,9 @@ jest.mock('state/xswap/hooks', () => ({
 const USDC = '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238'
 const JOCX = '0xB1660F8CDbf2102Ac74C6CD6d7CD6A65E481e5fe'
 const USDTX_JOC = '0x382eb09D8cE59968683001947EF04cB34f7A180E'
+const USDCX_JOC = '0x367f476c9B5fA1e64F3d7EE19c3E4E2f76D42200'
+// Placeholder: only a lookup key here.
+const USDT = '0x5555555555555555555555555555555555555555'
 const WJOC = '0x8B85219c0767Ce4FA5ae5944d71aB4a3De27090d'
 
 const token = (chainId: number, address: string, symbol: string, decimals: number): XSwapToken => ({
@@ -43,9 +46,11 @@ const tokens = new Map(
   [
     token(11155111, XSWAP_NATIVE_ADDRESS, 'ETH', 18),
     token(11155111, USDC, 'USDC', 6),
+    token(11155111, USDT, 'USDT', 6),
     token(421614, JOCX, 'JOCX', 18),
     token(10081, XSWAP_NATIVE_ADDRESS, 'JOC', 18),
     token(10081, USDTX_JOC, 'USDTX', 6),
+    token(10081, USDCX_JOC, 'USDCX', 6),
   ].map((t) => [xswapTokenKey(t.chainId, t.address), t]),
 )
 // As `useXSwapTokenLookup`: listed tokens only; the component resolves the unlisted wrapped native itself.
@@ -234,13 +239,36 @@ describe('XSwapRouteLegs', () => {
     expect(items[1]).toHaveTextContent('JOC Testnet · Uniswap v2 · out 10 USDTX (min 9.95 USDTX)')
   })
 
+  // Real USDT on Sepolia → USDTX on JOC: XGate locks the real stable, one bridge leg across families.
+  it('renders the XGate lock of the real stable', () => {
+    render(
+      <ThemeProvider theme={getTheme(false)}>
+        <XSwapRouteLegs
+          legs={[
+            {
+              type: 'bridge',
+              provider: 'xgate',
+              tokenInChainId: 11155111,
+              tokenOutChainId: 10081,
+              tokenIn: USDT,
+              tokenOut: USDTX_JOC,
+              expectedOut: '10000000',
+              minOut: '10000000',
+              nativeFee: '2500000000000000',
+            },
+          ]}
+          lookup={lookup}
+        />
+      </ThemeProvider>,
+    )
+    const [leg] = screen.getAllByRole('listitem')
+    expect(leg).toHaveTextContent('USDT → USDTX')
+    expect(leg).toHaveTextContent('Sepolia → JOC Testnet via X-Gate · out 10 USDTX (min 10 USDTX)')
+    expect(leg).toHaveTextContent('LayerZero fee 0.0025 ETH')
+  })
+
   // USDCX on JOC → real USDC on Sepolia: XGate burns USDCX for the real stable, one bridge leg across families.
   it('renders the XGate burn to the real stable', () => {
-    const USDCX_JOC = '0x367f476c9B5fA1e64F3d7EE19c3E4E2f76D42200'
-    const lookupWithUsdcx = (chainId: number, address: string) =>
-      address.toLowerCase() === USDCX_JOC.toLowerCase() && chainId === 10081
-        ? token(10081, USDCX_JOC, 'USDCX', 6)
-        : lookup(chainId, address)
     render(
       <ThemeProvider theme={getTheme(false)}>
         <XSwapRouteLegs
@@ -257,12 +285,13 @@ describe('XSwapRouteLegs', () => {
               nativeFee: '1000000000000000',
             },
           ]}
-          lookup={lookupWithUsdcx}
+          lookup={lookup}
         />
       </ThemeProvider>,
     )
     const [leg] = screen.getAllByRole('listitem')
     expect(leg).toHaveTextContent('USDCX → USDC')
     expect(leg).toHaveTextContent('JOC Testnet → Sepolia via X-Gate · out 10 USDC (min 10 USDC)')
+    expect(leg).toHaveTextContent('LayerZero fee 0.001 JOC')
   })
 })
