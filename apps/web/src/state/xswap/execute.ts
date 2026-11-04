@@ -6,7 +6,7 @@ import { decodeFunctionData, erc20Abi, parseAbi } from 'viem'
 /** Leave the user time to sign before the quote expires; a quote closer to expiry is refreshed first. */
 const XSWAP_QUOTE_EXPIRY_MARGIN_MS = 15_000
 
-const REGISTER_ATTEMPTS = 3
+const REGISTER_ATTEMPTS = 4
 const REGISTER_RETRY_DELAY_MS = 2_000
 
 const permit2ApproveAbi = parseAbi([
@@ -265,7 +265,7 @@ export type XSwapExecutionDeps = {
   signPermit: (permit: XSwapPermitTypedData) => Promise<string>
   /** Switches the wallet to `tx.chainId` if needed, sends the tx and returns its hash. */
   sendTx: (tx: XSwapTx) => Promise<string>
-  /** Resolves true when the tx succeeded, false when it reverted. */
+  /** Resolves true when the tx succeeded, false when it reverted. Only approvals are waited for. */
   waitForTx: (chainId: number, hash: string) => Promise<boolean>
   registerOrder: (params: { quoteId: string; txHash: string }) => Promise<XSwapOrder>
 }
@@ -386,8 +386,15 @@ async function registerWithRetry(
       return await deps.registerOrder(params)
     } catch (error) {
       lastError = error
-      // A definite answer (e.g. quote_not_found, tx_sender_mismatch) does not change on retry.
-      if (error instanceof XSwapApiError && error.status >= 400 && error.status < 500 && error.status !== 429) {
+      // A definite answer (e.g. quote_not_found, tx_sender_mismatch) does not change on retry; `tx_not_found` does once
+      // the just-sent deposit reaches the API's RPC.
+      if (
+        error instanceof XSwapApiError &&
+        error.status >= 400 &&
+        error.status < 500 &&
+        error.status !== 429 &&
+        error.code !== 'tx_not_found'
+      ) {
         break
       }
     }
@@ -407,7 +414,9 @@ function depositOf(txs: XSwapTx[]): XSwapTx {
  * 3. with a `permit`: refresh again if needed, sign it, and take the deposit `POST /v1/quote/:quoteId/permit` builds
  *    from the signature; that quote is not refreshed (it would drop the signature), so once expired it fails;
  * 4. else refresh again before the deposit, since approvals take time, and send the refreshed quote's deposit;
- * 5. `POST /v1/orders` with the deposit's quote and hash.
+ * 5. `POST /v1/orders` with the deposit's quote and hash as soon as it is sent, without waiting for its receipt: the
+ *    API takes a pending tx and its tracker follows it (a reverted deposit ends `FAILED_ORIGIN`). Waiting on the UI's own
+ *    RPC could hang forever when that RPC fails, since viem's receipt polling swallows RPC errors.
  *
  * A refresh or a signed quote that lowers `minOutputAmount`, spends another amount, or targets other contracts than the
  * approvals already sent stops with `XSwapQuoteChangedError`.
@@ -502,17 +511,21 @@ export async function executeXSwapQuote(
     callbacks.onStep?.(index, { status: 'active' })
     const hash = await deps.sendTx(tx)
     callbacks.onStep?.(index, { status: 'submitted', hash })
+
+    if (tx.kind === 'deposit') {
+      callbacks.onRegistering?.()
+      const order = await registerWithRetry({ quoteId: quote.quoteId, txHash: hash }, deps)
+      callbacks.onStep?.(index, { status: 'done' })
+      return order
+    }
+
+    // The next tx relies on this approval.
     const ok = await deps.waitForTx(tx.chainId, hash)
     if (!ok) {
       callbacks.onStep?.(index, { status: 'error' })
       throw new XSwapTxRevertedError(tx.kind, hash)
     }
     callbacks.onStep?.(index, { status: 'done' })
-
-    if (tx.kind === 'deposit') {
-      callbacks.onRegistering?.()
-      return registerWithRetry({ quoteId: quote.quoteId, txHash: hash }, deps)
-    }
   }
   // planXSwapSteps guarantees a deposit last.
   throw new XSwapPlanError('no deposit sent')
