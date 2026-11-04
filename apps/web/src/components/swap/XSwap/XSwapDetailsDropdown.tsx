@@ -6,7 +6,7 @@ import { RowBetween, RowFixed } from 'components/Row'
 import { DetailLineItem } from 'components/swap/DetailLineItem'
 import { SlippageTooltipContent } from 'components/swap/SwapLineItem'
 import TradePrice from 'components/swap/TradePrice'
-import { XSwapRouteLegs, xswapLegSummary } from 'components/swap/XSwap/XSwapRouteLegs'
+import { XSwapRouteLegs, xswapLegSummary, xswapNativeFeeLabel } from 'components/swap/XSwap/XSwapRouteLegs'
 import {
   formatXSwapTokenSymbol,
   useXSwapLegTokenLookup,
@@ -21,7 +21,7 @@ import { useUserSlippageTolerance } from 'state/user/hooks'
 import { SlippageTolerance } from 'state/user/types'
 import { XSwapTokenLookup } from 'state/xswap/hooks'
 import { XSwapLeg, XSwapQuote } from 'state/xswap/types'
-import { formatXSwapEta, formatXSwapUnits } from 'state/xswap/utils'
+import { formatXSwapEta, formatXSwapUnits, xswapBridgeNativeFee } from 'state/xswap/utils'
 import styled, { DefaultTheme, useTheme } from 'styled-components'
 import { ThemedText } from 'theme/components'
 import { NumberType, useFormatter } from 'utils/formatNumbers'
@@ -154,6 +154,15 @@ export function XSwapDetailsDropdown({
         feeToken ? `${formatXSwapUnits(bridgeFee.toString(), feeToken.decimals)} ${feeToken.symbol}` : `${bridgeFee}`,
       )
     }
+    // XGate's LayerZero fee, sent as the deposit's `msg.value` on the source chain.
+    const nativeFee = xswapBridgeNativeFee(selected)
+    const nativeFeeText =
+      nativeFee > 0n
+        ? `${formatXSwapUnits(nativeFee.toString(), 18)} ${nativeSymbol(selected.tokenIn.chainId)}`
+        : undefined
+    if (nativeFeeText) {
+      fees.push(nativeFeeText)
+    }
     if (BigInt(selected.fees.gas) > 0n) {
       fees.push(`${formatXSwapUnits(selected.fees.gas, 18)} ${nativeSymbol(selected.tokenIn.chainId)}`)
     }
@@ -169,6 +178,9 @@ export function XSwapDetailsDropdown({
         ([key, label]) =>
           `${label}: ${feeToken ? formatXSwapUnits(selected.fees[key], feeToken.decimals) : selected.fees[key]}`,
       )
+    if (nativeFeeText) {
+      feeBreakdown.push(`${xswapNativeFeeLabel(bridge?.provider)}: ${nativeFeeText}`)
+    }
     if (selected.fees.gas !== '0') {
       feeBreakdown.push(
         `${t('xswap.route.fee.gas')}: ${formatXSwapUnits(selected.fees.gas, 18)} ${nativeSymbol(selected.tokenIn.chainId)}`,

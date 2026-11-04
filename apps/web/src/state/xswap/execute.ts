@@ -294,7 +294,8 @@ function stepsOf(quote: XSwapQuote, txs: XSwapTx[], usePermit: boolean): XSwapSt
   }
   const permit2 = quote.permit.domain.verifyingContract
   const permit2Approvals = txs.filter(
-    (tx) => (tx.kind === 'approve' || tx.kind === 'approve-reset') && sameAddress(decodeErc20ApproveSpender(tx), permit2),
+    (tx) =>
+      (tx.kind === 'approve' || tx.kind === 'approve-reset') && sameAddress(decodeErc20ApproveSpender(tx), permit2),
   )
   return [
     ...permit2Approvals.map(step),

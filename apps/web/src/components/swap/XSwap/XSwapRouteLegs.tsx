@@ -11,6 +11,7 @@ import {
 import { t } from 'i18n'
 import { XSwapTokenLookup } from 'state/xswap/hooks'
 import { XSwapLeg } from 'state/xswap/types'
+import { formatXSwapUnits } from 'state/xswap/utils'
 import styled from 'styled-components'
 import { ThemedText } from 'theme/components'
 
@@ -57,6 +58,11 @@ const VENUE_NAMES: Record<string, string> = {
 }
 
 /** `Swap → Across → Swap`: the route's legs at a glance, to tell routes of one provider apart. */
+/** Label of a bridge's native fee: XGate pays LayerZero with it. */
+export function xswapNativeFeeLabel(provider: string | undefined): string {
+  return provider === 'xgate' ? t('xswap.route.fee.layerZero') : t('xswap.route.fee.bridgeNative')
+}
+
 export function xswapLegSummary(legs: XSwapLeg[] | undefined): string | undefined {
   if (!legs?.length) {
     return undefined
@@ -118,6 +124,8 @@ export function XSwapRouteLegs({ legs, lookup: listLookup }: { legs: XSwapLeg[];
                   amountOut: amount(leg.tokenOutChainId, leg.tokenOut, leg.expectedOut),
                   minOut: amount(leg.tokenOutChainId, leg.tokenOut, leg.minOut),
                 })}
+                {BigInt(leg.nativeFee || '0') > 0n &&
+                  ` · ${xswapNativeFeeLabel(leg.provider)} ${formatXSwapUnits(leg.nativeFee, 18)} ${nativeSymbol(leg.tokenInChainId)}`}
               </Muted>
             </Body>
           )}

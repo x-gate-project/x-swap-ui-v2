@@ -241,7 +241,12 @@ describe('executeXSwapQuote with a permit', () => {
 
   it('skips the signature when the refreshed quote offers no permit', async () => {
     let now = NOW
-    const refreshed = localQuote({ quoteId: 'q2', expiresAt: NOW + 120_000, permit: undefined, txs: [deposit('0xbeef', ROUTER)] })
+    const refreshed = localQuote({
+      quoteId: 'q2',
+      expiresAt: NOW + 120_000,
+      permit: undefined,
+      txs: [deposit('0xbeef', ROUTER)],
+    })
     const d = deps({
       now: () => now,
       refreshQuote: jest.fn(async () => refreshed),

@@ -27,6 +27,7 @@ import confirmPriceImpactWithoutFee from 'components/swap/confirmPriceImpactWith
 import { Field } from 'components/swap/constants'
 import { ArrowContainer, ArrowWrapper, OutputSwapSection, SwapSection } from 'components/swap/styled'
 import { useIsSupportedChainId, useSupportedChainId } from 'constants/chains'
+import { nativeOnChain } from 'constants/tokens'
 import { useCurrencyInfo } from 'hooks/Tokens'
 import { useAccount } from 'hooks/useAccount'
 import { useIsSwapUnsupported } from 'hooks/useIsSwapUnsupported'
@@ -39,6 +40,7 @@ import { useUSDPrice } from 'hooks/useUSDPrice'
 import useWrapCallback, { WrapErrorText } from 'hooks/useWrapCallback'
 import { Trans } from 'i18n'
 import JSBI from 'jsbi'
+import useCurrencyBalance from 'lib/hooks/useCurrencyBalance'
 import { formatSwapQuoteReceivedEventProperties } from 'lib/utils/analytics'
 import { getIsReviewableQuote } from 'pages/Swap'
 import { OutputTaxTooltipBody } from 'pages/Swap/TaxTooltipBody'
@@ -61,7 +63,7 @@ import {
   xswapQueryKeys,
 } from 'state/xswap/hooks'
 import { XSwapOrder } from 'state/xswap/types'
-import { getXSwapDestinationStatus, pickDefaultXSwapRoute } from 'state/xswap/utils'
+import { getXSwapDestinationStatus, pickDefaultXSwapRoute, xswapNativeValue } from 'state/xswap/utils'
 import { useTheme } from 'styled-components'
 import { ExternalLink, ThemedText } from 'theme/components'
 import { maybeLogFirstSwapAction } from 'tracing/swapFlowLoggers'
@@ -391,19 +393,38 @@ export function SwapForm({ disableTokenInputs = false, onCurrencyChange }: SwapF
   const xswapExecutableAlternative = xswapSelectedQuote?.executable
     ? undefined
     : xswapRouteOptions && pickDefaultXSwapRoute(xswapRouteOptions.filter((q) => q.executable))
-  // A native input of a cross-chain order also pays the bridge's native fee in the deposit's `value`: the amount alone
-  // may pass the balance check while the deposit cannot be sent.
+  // The deposit's `value` carries the input amount of a native input and the bridge's native fee (XGate's LayerZero
+  // fee). The amount alone may pass the balance check while the deposit cannot be sent; an ERC-20 input still needs
+  // the native token for that fee. That balance is read only on the connected chain: off it, the cached balances may
+  // miss the chain and read as 0, and the user switches chain before sending anyway.
+  const xswapInputCurrency = currencies[Field.INPUT]
+  const xswapFeeCurrency = useMemo(
+    () =>
+      usesXSwapApi &&
+      xswapInputCurrency &&
+      !xswapInputCurrency.isNative &&
+      xswapInputCurrency.chainId === account.chainId
+        ? nativeOnChain(xswapInputCurrency.chainId)
+        : undefined,
+    [account.chainId, usesXSwapApi, xswapInputCurrency],
+  )
+  const xswapFeeBalance = useCurrencyBalance(account.address, xswapFeeCurrency)
   const xswapInputError = useMemo(() => {
     const balance = currencyBalances[Field.INPUT]
     // While executing, the deposit itself lowers the balance.
-    if (xswapExecuting || !xswapSelectedQuote?.executable || !balance?.currency.isNative) {
+    if (xswapExecuting || !xswapSelectedQuote?.executable || !balance) {
       return undefined
     }
-    const value = xswapSelectedQuote.txs.reduce((sum, tx) => sum + BigInt(tx.value || '0'), 0n)
-    return BigInt(balance.quotient.toString()) < value ? (
-      <Trans i18nKey="common.insufficientTokenBalance.error" values={{ tokenSymbol: balance.currency.symbol }} />
+    const value = xswapNativeValue(xswapSelectedQuote)
+    if (balance.currency.isNative) {
+      return BigInt(balance.quotient.toString()) < value ? (
+        <Trans i18nKey="common.insufficientTokenBalance.error" values={{ tokenSymbol: balance.currency.symbol }} />
+      ) : undefined
+    }
+    return value > 0n && xswapFeeBalance && BigInt(xswapFeeBalance.quotient.toString()) < value ? (
+      <Trans i18nKey="xswap.execute.error.insufficientFee" values={{ symbol: xswapFeeBalance.currency.symbol }} />
     ) : undefined
-  }, [currencyBalances, xswapExecuting, xswapSelectedQuote])
+  }, [currencyBalances, xswapExecuting, xswapFeeBalance, xswapSelectedQuote])
   const xswapOutput = useMemo(() => {
     const outputCurrency = currencies[Field.OUTPUT]
     return xswapSelectedQuote && outputCurrency

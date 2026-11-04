@@ -171,6 +171,16 @@ export function pickDefaultXSwapRoute(routes: readonly XSwapQuote[]): XSwapQuote
   return routes.find((route) => route.executable) ?? routes[0]
 }
 
+/** Native value the quote's txs send: the input amount for a native input, plus a bridge's native fee (XGate). */
+export function xswapNativeValue(quote: XSwapQuote): bigint {
+  return quote.txs.reduce((sum, tx) => sum + BigInt(tx.value || '0'), 0n)
+}
+
+/** LayerZero fee of an XGate route: the bridge legs' `nativeFee`, paid in the source chain's native token. */
+export function xswapBridgeNativeFee(quote: XSwapQuote): bigint {
+  return (quote.legs ?? []).reduce((sum, leg) => (leg.type === 'bridge' ? sum + BigInt(leg.nativeFee || '0') : sum), 0n)
+}
+
 export type XSwapFlow = 'same-chain' | 'cross-chain'
 
 /**
@@ -229,6 +239,14 @@ const XSWAP_EXPLORERS: Record<number, string> = {
 export function xswapExplorerTxUrl(chainId: number, hash: string, fallbackExplorer?: string): string | undefined {
   const base = (XSWAP_EXPLORERS[chainId] ?? fallbackExplorer)?.replace(/\/+$/, '')
   return base ? `${base}/tx/${hash}` : undefined
+}
+
+// XGate runs on testnets only for now: every order's message is on LayerZero Scan's testnet site.
+const LAYERZERO_SCAN_URL = 'https://testnet.layerzeroscan.com'
+
+/** LayerZero Scan link of an XGate order's message (`lzGuid`). */
+export function layerZeroScanUrl(guid: string): string {
+  return `${LAYERZERO_SCAN_URL}/tx/${guid}`
 }
 
 /** `0x1234…abcd`. */
