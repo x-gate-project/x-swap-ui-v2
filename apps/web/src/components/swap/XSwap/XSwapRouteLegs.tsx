@@ -10,7 +10,7 @@ import {
 } from 'components/swap/XSwap/shared'
 import { t } from 'i18n'
 import { XSwapTokenLookup } from 'state/xswap/hooks'
-import { XSwapLeg } from 'state/xswap/types'
+import { XSwapLeg, XSwapQuote } from 'state/xswap/types'
 import { formatXSwapUnits } from 'state/xswap/utils'
 import styled from 'styled-components'
 import { ThemedText } from 'theme/components'
@@ -54,22 +54,44 @@ const Title = styled.div`
 const VENUE_NAMES: Record<string, string> = {
   'uniswap-v3': 'Uniswap v3',
   'uniswap-v2': 'Uniswap v2',
-  uniswap: 'Uniswap API',
+  uniswap: 'Uniswap',
 }
 
-/** `Swap → Across → Swap`: the route's legs at a glance, to tell routes of one provider apart. */
+function xswapVenueName(venue: string): string {
+  return VENUE_NAMES[venue] ?? venue
+}
+
 /** Label of a bridge's native fee: XGate pays LayerZero with it. */
 export function xswapNativeFeeLabel(provider: string | undefined): string {
   return provider === 'xgate' ? t('xswap.route.fee.layerZero') : t('xswap.route.fee.bridgeNative')
 }
 
+/**
+ * `Uniswap v3 → Across → Uniswap v2`: the route's legs at a glance, each swap by its venue and the bridge by its
+ * provider, so composite routes of one shape but different venues can be told apart.
+ */
 export function xswapLegSummary(legs: XSwapLeg[] | undefined): string | undefined {
   if (!legs?.length) {
     return undefined
   }
   return legs
-    .map((leg) => (leg.type === 'swap' ? t('xswap.route.leg.swapTitle') : xswapProviderName(leg.provider)))
+    .map((leg) => (leg.type === 'swap' ? xswapVenueName(leg.venue) : xswapProviderName(leg.provider)))
     .join(' → ')
+}
+
+/** The name of a route: its legs when it has more than one, its provider otherwise. */
+export function xswapRouteName(route: Pick<XSwapQuote, 'provider' | 'legs'>): string {
+  return ((route.legs?.length ?? 0) > 1 && xswapLegSummary(route.legs)) || xswapProviderName(route.provider)
+}
+
+/** Whether a route's legs say more than the details rows: any route with a bridge or more than one leg. */
+export function xswapShowsLegs(legs: XSwapLeg[] | undefined): boolean {
+  return Boolean(legs?.some((leg) => leg.type === 'bridge') || (legs?.length ?? 0) > 1)
+}
+
+/** ` (min X)`, only when the minimum differs from the expected output. */
+function minSuffix(expectedOut: string, minOut: string, formatted: string): string {
+  return BigInt(minOut) === BigInt(expectedOut) ? '' : ` ${t('xswap.route.leg.min', { minOut: formatted })}`
 }
 
 /**
@@ -102,10 +124,11 @@ export function XSwapRouteLegs({ legs, lookup: listLookup }: { legs: XSwapLeg[];
               <Muted>
                 {t('xswap.route.leg.swapDetail', {
                   chain: chainName(leg.chainId),
-                  venue: VENUE_NAMES[leg.venue] ?? leg.venue,
+                  venue: xswapVenueName(leg.venue),
+                  amountIn: amount(leg.chainId, leg.tokenIn, leg.amountIn),
                   amountOut: amount(leg.chainId, leg.tokenOut, leg.expectedOut),
-                  minOut: amount(leg.chainId, leg.tokenOut, leg.minOut),
                 })}
+                {minSuffix(leg.expectedOut, leg.minOut, amount(leg.chainId, leg.tokenOut, leg.minOut))}
               </Muted>
             </Body>
           ) : (
@@ -122,8 +145,8 @@ export function XSwapRouteLegs({ legs, lookup: listLookup }: { legs: XSwapLeg[];
                   to: chainName(leg.tokenOutChainId),
                   provider: xswapProviderName(leg.provider),
                   amountOut: amount(leg.tokenOutChainId, leg.tokenOut, leg.expectedOut),
-                  minOut: amount(leg.tokenOutChainId, leg.tokenOut, leg.minOut),
                 })}
+                {minSuffix(leg.expectedOut, leg.minOut, amount(leg.tokenOutChainId, leg.tokenOut, leg.minOut))}
                 {BigInt(leg.nativeFee || '0') > 0n &&
                   ` · ${xswapNativeFeeLabel(leg.provider)} ${formatXSwapUnits(leg.nativeFee, 18)} ${nativeSymbol(leg.tokenInChainId)}`}
               </Muted>

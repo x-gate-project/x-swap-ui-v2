@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react'
-import { XSwapRouteLegs, xswapLegSummary } from 'components/swap/XSwap/XSwapRouteLegs'
+import { XSwapRouteLegs, xswapLegSummary, xswapRouteName, xswapShowsLegs } from 'components/swap/XSwap/XSwapRouteLegs'
 import { XSwapLeg, XSwapToken } from 'state/xswap/types'
 import { XSWAP_NATIVE_ADDRESS, xswapTokenKey } from 'state/xswap/utils'
 import { ThemeProvider } from 'styled-components'
@@ -93,13 +93,37 @@ const COMPOSITE: XSwapLeg[] = [
 ]
 
 describe('xswapLegSummary', () => {
-  it('names swaps and the bridge provider in order', () => {
-    expect(xswapLegSummary(COMPOSITE)).toBe('Swap → Across → Swap')
+  it('names swaps by venue and the bridge by provider in order', () => {
+    expect(xswapLegSummary(COMPOSITE)).toBe('Uniswap v3 → Across → Uniswap v2')
   })
 
   it('is undefined without legs', () => {
     expect(xswapLegSummary(undefined)).toBeUndefined()
     expect(xswapLegSummary([])).toBeUndefined()
+  })
+})
+
+describe('xswapRouteName', () => {
+  it('names a composite route by its legs', () => {
+    expect(xswapRouteName({ provider: 'composite', legs: COMPOSITE })).toBe('Uniswap v3 → Across → Uniswap v2')
+  })
+
+  it('names a single-leg route by its provider', () => {
+    expect(xswapRouteName({ provider: 'across', legs: [COMPOSITE[1]] })).toBe('Across')
+    expect(xswapRouteName({ provider: 'across' })).toBe('Across')
+  })
+})
+
+describe('xswapShowsLegs', () => {
+  it('hides a same-chain swap', () => {
+    expect(xswapShowsLegs(undefined)).toBe(false)
+    expect(xswapShowsLegs([COMPOSITE[0]])).toBe(false)
+  })
+
+  it('shows any route with a bridge or more than one leg', () => {
+    expect(xswapShowsLegs([COMPOSITE[1]])).toBe(true)
+    expect(xswapShowsLegs([COMPOSITE[0], COMPOSITE[2]])).toBe(true)
+    expect(xswapShowsLegs(COMPOSITE)).toBe(true)
   })
 })
 
@@ -118,9 +142,11 @@ describe('XSwapRouteLegs', () => {
     ])
     // The wrapped native on the swap path reads as the native token.
     expect(items[0]).toHaveTextContent('ETH → USDC')
-    expect(items[0]).toHaveTextContent('Sepolia · Uniswap v3 · out 2500 USDC (min 2487.5 USDC)')
+    expect(items[0]).toHaveTextContent('Sepolia · Uniswap v3 · 1 ETH → 2500 USDC (min 2487.5 USDC)')
+    // The bridge's minimum equals its expected output: no `(min …)`.
     expect(items[1]).toHaveTextContent('Sepolia → Arbitrum Sepolia via Across')
-    expect(items[2]).toHaveTextContent('out 5000 JOCX (min 4975 JOCX)')
+    expect(items[1]).not.toHaveTextContent('min')
+    expect(items[2]).toHaveTextContent('→ 5000 JOCX (min 4975 JOCX)')
   })
 
   it('shows the LayerZero fee of an XGate bridge', () => {
@@ -180,7 +206,7 @@ describe('XSwapRouteLegs', () => {
         nativeFee: '2500000000000000',
       },
     ]
-    expect(xswapLegSummary(legs)).toBe('Swap → X-Gate')
+    expect(xswapLegSummary(legs)).toBe('Uniswap v2 → X-Gate')
     render(
       <ThemeProvider theme={getTheme(false)}>
         <XSwapRouteLegs legs={legs} lookup={lookup} />
@@ -188,7 +214,7 @@ describe('XSwapRouteLegs', () => {
     )
     const items = screen.getAllByRole('listitem')
     expect(items[0]).toHaveTextContent('USDTX → JOC')
-    expect(items[0]).toHaveTextContent('JOC Testnet · Uniswap v2 · out 200 JOC')
+    expect(items[0]).toHaveTextContent('JOC Testnet · Uniswap v2 · 10 USDTX → 200 JOC')
     expect(items[1]).toHaveTextContent('JOC → JOCX')
     expect(items[1]).toHaveTextContent('JOC Testnet → Arbitrum Sepolia via X-Gate')
     expect(items[1]).toHaveTextContent('LayerZero fee 0.0025 JOC')
@@ -220,7 +246,7 @@ describe('XSwapRouteLegs', () => {
         path: { tokens: [WJOC, USDTX_JOC] },
       },
     ]
-    expect(xswapLegSummary(legs)).toBe('X-Gate → Swap')
+    expect(xswapLegSummary(legs)).toBe('X-Gate → Uniswap v2')
     render(
       <ThemeProvider theme={getTheme(false)}>
         <XSwapRouteLegs legs={legs} lookup={lookup} />
@@ -236,7 +262,7 @@ describe('XSwapRouteLegs', () => {
     // The LayerZero fee is paid in the source chain's native token.
     expect(items[0]).toHaveTextContent('LayerZero fee 0.0015 ETH')
     expect(items[1]).toHaveTextContent('JOC → USDTX')
-    expect(items[1]).toHaveTextContent('JOC Testnet · Uniswap v2 · out 10 USDTX (min 9.95 USDTX)')
+    expect(items[1]).toHaveTextContent('JOC Testnet · Uniswap v2 · 200 JOC → 10 USDTX (min 9.95 USDTX)')
   })
 
   // Real USDT on Sepolia → USDTX on JOC: XGate locks the real stable, one bridge leg across families.
@@ -263,7 +289,8 @@ describe('XSwapRouteLegs', () => {
     )
     const [leg] = screen.getAllByRole('listitem')
     expect(leg).toHaveTextContent('USDT → USDTX')
-    expect(leg).toHaveTextContent('Sepolia → JOC Testnet via X-Gate · out 10 USDTX (min 10 USDTX)')
+    expect(leg).toHaveTextContent('Sepolia → JOC Testnet via X-Gate · out 10 USDTX')
+    expect(leg).not.toHaveTextContent('(min')
     expect(leg).toHaveTextContent('LayerZero fee 0.0025 ETH')
   })
 
@@ -291,7 +318,8 @@ describe('XSwapRouteLegs', () => {
     )
     const [leg] = screen.getAllByRole('listitem')
     expect(leg).toHaveTextContent('USDCX → USDC')
-    expect(leg).toHaveTextContent('JOC Testnet → Sepolia via X-Gate · out 10 USDC (min 10 USDC)')
+    expect(leg).toHaveTextContent('JOC Testnet → Sepolia via X-Gate · out 10 USDC')
+    expect(leg).not.toHaveTextContent('(min')
     expect(leg).toHaveTextContent('LayerZero fee 0.001 JOC')
   })
 })
