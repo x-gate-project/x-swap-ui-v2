@@ -40,6 +40,7 @@ export enum TransactionType {
   DEPLOY,
   CANCEL,
   LIMIT,
+  XSWAP_DEPOSIT,
 }
 
 interface BaseTransactionInfo {
@@ -183,6 +184,23 @@ export interface SendTransactionInfo {
   recipient: string
 }
 
+/**
+ * The deposit of an x-swap order (the swap itself for a same-chain `local` route). Its row is replaced by the order's
+ * once the API lists it, since orders are keyed by `originTxHash`. Carries what `POST /v1/orders` needs, so a deposit
+ * whose registration never went through (page closed, API down) can be registered again.
+ */
+export interface XSwapDepositTransactionInfo {
+  type: TransactionType.XSWAP_DEPOSIT
+  quoteId: string
+  routeClass: string
+  inputChainId: number
+  inputCurrencyId: string
+  inputCurrencyAmountRaw: string
+  outputChainId: number
+  outputCurrencyId: string
+  expectedOutputCurrencyAmountRaw: string
+}
+
 export type TransactionInfo =
   | ApproveTransactionInfo
   | ExactOutputSwapTransactionInfo
@@ -203,6 +221,7 @@ export type TransactionInfo =
   | RemoveLiquidityV3TransactionInfo
   | SubmitProposalTransactionInfo
   | SendTransactionInfo
+  | XSwapDepositTransactionInfo
 
 interface BaseTransactionDetails {
   status: TransactionStatus

@@ -7,6 +7,7 @@ import {
   XSwapQuoteExpiredError,
   XSwapRegisterError,
   XSwapTxRevertedError,
+  decodeXSwapApproval,
   executeXSwapQuote,
   planXSwapSteps,
   planXSwapTxs,
@@ -353,6 +354,25 @@ describe('executeXSwapQuote', () => {
     expect(d.refreshQuote).not.toHaveBeenCalled()
   })
 
+  it('reports each sent tx with the quote it belongs to', async () => {
+    const refreshed = quote({ quoteId: 'q2', expiresAt: NOW + 120_000, txs: [deposit('0xbeef')] })
+    let now = NOW
+    const d = deps({
+      now: () => now,
+      refreshQuote: jest.fn(async () => refreshed),
+      waitForTx: jest.fn(async () => {
+        now += 60_000
+        return true
+      }),
+    })
+    const onTxSent = jest.fn()
+    await executeXSwapQuote(quote(), d, { onTxSent })
+    expect(onTxSent.mock.calls.map(([tx, hash, q]) => [tx.kind, hash, q.quoteId])).toEqual([
+      ['approve', '0xhash1', 'q1'],
+      ['deposit', '0xhash2', 'q2'],
+    ])
+  })
+
   it('refreshes an expiring quote before starting', async () => {
     const refreshed = quote({ quoteId: 'q2', expiresAt: NOW + 30_000 })
     const d = deps({ refreshQuote: jest.fn(async () => refreshed) })
@@ -498,5 +518,23 @@ describe('executeXSwapQuote for joc-eth-stable routes', () => {
       ['approve', JOC],
       ['deposit', JOC],
     ])
+  })
+})
+
+describe('decodeXSwapApproval', () => {
+  it('reads the token, spender and amount of an ERC-20 approve', () => {
+    expect(decodeXSwapApproval(approve(SENDER))).toEqual({ token: TOKEN, spender: SENDER, amount: '100' })
+  })
+
+  it('reads a reset as an approval of 0', () => {
+    expect(decodeXSwapApproval(approve(SENDER, 'approve-reset'))).toEqual({ token: TOKEN, spender: SENDER, amount: '0' })
+  })
+
+  it("reads Permit2's allowance of the token", () => {
+    expect(decodeXSwapApproval(permit2Approve(ROUTER))).toEqual({ token: TOKEN, spender: ROUTER, amount: '100' })
+  })
+
+  it('has nothing for a deposit', () => {
+    expect(decodeXSwapApproval(deposit())).toBeUndefined()
   })
 })

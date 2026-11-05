@@ -37,6 +37,7 @@ import ApplicationUpdater from 'state/application/updater'
 import FiatOnRampTransactionsUpdater from 'state/fiatOnRampTransactions/updater'
 import ListsUpdater from 'state/lists/updater'
 import LogsUpdater from 'state/logs/updater'
+import { XSwapRegistrationUpdater } from 'state/xswap/transactions'
 import { StatsigProvider as BaseStatsigProvider, StatsigUser } from 'statsig-react'
 import { ThemeProvider, ThemedGlobalStyle } from 'theme'
 import RadialGradientByChainUpdater from 'theme/components/RadialGradientByChainUpdater'
@@ -72,6 +73,7 @@ function Updaters() {
       <ThemeColorMetaUpdater />
       <ApplicationUpdater />
       <ActivityStateUpdater />
+      <XSwapRegistrationUpdater />
       <MulticallUpdater />
       <LogsUpdater />
       <FiatOnRampTransactionsUpdater />
