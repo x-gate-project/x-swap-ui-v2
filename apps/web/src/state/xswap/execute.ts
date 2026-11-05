@@ -102,13 +102,32 @@ function decodeErc20ApproveSpender(tx: XSwapTx): string {
   throw new XSwapPlanError(`${tx.kind} is not an ERC-20 approve`)
 }
 
-function decodePermit2Approve(tx: XSwapTx): { token: string; spender: string } {
+function decodePermit2Approve(tx: XSwapTx): { token: string; spender: string; amount: bigint } {
   try {
     const { args } = decodeFunctionData({ abi: permit2ApproveAbi, data: tx.data as `0x${string}` })
-    return { token: args[0], spender: args[1] }
+    return { token: args[0], spender: args[1], amount: args[2] }
   } catch {
     throw new XSwapPlanError('permit2-approve is not a Permit2 approve')
   }
+}
+
+/**
+ * What an approval tx of a plan grants: `approve` / `approve-reset` are the input token's ERC-20 `approve` (a reset
+ * grants 0), `permit2-approve` is Permit2's allowance of the token to the deposit target. Undefined for a deposit.
+ */
+export function decodeXSwapApproval(tx: XSwapTx): { token: string; spender: string; amount: string } | undefined {
+  if (tx.kind === 'permit2-approve') {
+    const { token, spender, amount } = decodePermit2Approve(tx)
+    return { token, spender, amount: amount.toString() }
+  }
+  if (tx.kind === 'approve' || tx.kind === 'approve-reset') {
+    const { functionName, args } = decodeFunctionData({ abi: erc20Abi, data: tx.data as `0x${string}` })
+    if (functionName !== 'approve') {
+      throw new XSwapPlanError(`${tx.kind} is not an ERC-20 approve`)
+    }
+    return { token: tx.to, spender: args[0], amount: args[1].toString() }
+  }
+  return undefined
 }
 
 /**
@@ -311,6 +330,8 @@ type XSwapExecutionOptions = {
   onStep?: (index: number, patch: Partial<XSwapStep>) => void
   /** A refresh or a signed permit replaced the quote: its `quoteId`, amounts and expiry changed. */
   onQuote?: (quote: XSwapQuote) => void
+  /** The wallet sent `tx` as `hash`; `quote` is the quote it belongs to (a deposit registers under its `quoteId`). */
+  onTxSent?: (tx: XSwapTx, hash: string, quote: XSwapQuote) => void
   onRegistering?: () => void
 }
 
@@ -373,6 +394,20 @@ async function ensureFreshXSwapQuote(
   return orQuoteExpired(() => deps.refreshQuote(quote.quoteId))
 }
 
+/**
+ * Whether a failed `POST /v1/orders` is a definite answer (e.g. quote_not_found, tx_sender_mismatch) that does not
+ * change on retry. `tx_not_found` does once the deposit reaches the API's RPC; 429, 5xx and network failures may too.
+ */
+export function isDefiniteXSwapRegisterError(error: unknown): boolean {
+  return (
+    error instanceof XSwapApiError &&
+    error.status >= 400 &&
+    error.status < 500 &&
+    error.status !== 429 &&
+    error.code !== 'tx_not_found'
+  )
+}
+
 async function registerWithRetry(
   params: { quoteId: string; txHash: string },
   deps: Pick<XSwapExecutionDeps, 'registerOrder' | 'sleep'>,
@@ -386,15 +421,7 @@ async function registerWithRetry(
       return await deps.registerOrder(params)
     } catch (error) {
       lastError = error
-      // A definite answer (e.g. quote_not_found, tx_sender_mismatch) does not change on retry; `tx_not_found` does once
-      // the just-sent deposit reaches the API's RPC.
-      if (
-        error instanceof XSwapApiError &&
-        error.status >= 400 &&
-        error.status < 500 &&
-        error.status !== 429 &&
-        error.code !== 'tx_not_found'
-      ) {
+      if (isDefiniteXSwapRegisterError(error)) {
         break
       }
     }
@@ -511,6 +538,7 @@ export async function executeXSwapQuote(
     callbacks.onStep?.(index, { status: 'active' })
     const hash = await deps.sendTx(tx)
     callbacks.onStep?.(index, { status: 'submitted', hash })
+    callbacks.onTxSent?.(tx, hash, quote)
 
     if (tx.kind === 'deposit') {
       callbacks.onRegistering?.()

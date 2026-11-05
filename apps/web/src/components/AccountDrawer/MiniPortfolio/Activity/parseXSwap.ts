@@ -42,7 +42,7 @@ function orderTitle(order: XSwapOrder): string {
 
 /**
  * The wallet's x-swap orders (`GET /v1/orders?wallet=`), cross-chain and same-chain, as activities, keyed by their
- * origin (deposit) tx hash so they replace the plain tx row of the same deposit.
+ * origin (deposit) tx hash so they replace the row of the same deposit, local (`XSWAP_DEPOSIT`) or remote.
  */
 export function useXSwapActivities(account: string): { activities: ActivityMap; loading: boolean } {
   const history = useXSwapOrderHistory(account)
@@ -71,8 +71,10 @@ export function useXSwapActivities(account: string): { activities: ActivityMap; 
         outAddress,
         order.actualOutputAmount ?? order.outputAmount,
       )
-      map[order.originTxHash] = {
-        hash: order.originTxHash,
+      // Lowercased like the wallet's hash of the deposit kept in the local store, so the order replaces that row.
+      const hash = order.originTxHash.toLowerCase()
+      map[hash] = {
+        hash,
         chainId: tokenIn.chainId as InterfaceChainId,
         status: orderStatus(order),
         timestamp: Math.floor(Date.parse(order.createdAt) / 1000),

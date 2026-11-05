@@ -24,6 +24,7 @@ import {
   executeXSwapQuote,
 } from 'state/xswap/execute'
 import { useXSwapRequote } from 'state/xswap/hooks'
+import { useAddXSwapOrderToHistory, useXSwapTxAdder } from 'state/xswap/transactions'
 import { XSwapOrder, XSwapPermitTypedData, XSwapQuote, XSwapTx } from 'state/xswap/types'
 import { getXSwapFlow } from 'state/xswap/utils'
 import styled from 'styled-components'
@@ -192,6 +193,8 @@ export function XSwapExecutePanel({
 }: Props) {
   const deps = useXSwapExecutionDeps()
   const requote = useXSwapRequote()
+  const addTx = useXSwapTxAdder()
+  const addOrderToHistory = useAddXSwapOrderToHistory()
 
   // While executing, the quote being sent is pinned (it may be refreshed).
   const [executing, setExecuting] = useState<XSwapQuote>()
@@ -234,9 +237,16 @@ export function XSwapExecutePanel({
         onPlan: setSteps,
         onStep: (index, patch) =>
           setSteps((current) => current?.map((step, i) => (i === index ? { ...step, ...patch } : step))),
+        onTxSent: (tx, hash, sentQuote) => {
+          const from = getAccount(wagmiConfig).address
+          if (from) {
+            addTx(tx, hash, sentQuote, from)
+          }
+        },
         onRegistering: () => setRegistering(true),
       })
       setSteps(undefined)
+      addOrderToHistory(order)
       onOrder(order)
     } catch (e) {
       logger.warn('XSwapExecutePanel', 'execute', 'x-swap order failed', e)
@@ -249,7 +259,7 @@ export function XSwapExecutePanel({
       setExecuting(undefined)
       setRegistering(false)
     }
-  }, [deps, onOrder, requote, selected])
+  }, [addOrderToHistory, addTx, deps, onOrder, requote, selected])
 
   const busy = Boolean(executing)
 

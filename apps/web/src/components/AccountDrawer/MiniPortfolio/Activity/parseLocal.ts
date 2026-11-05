@@ -30,6 +30,7 @@ import {
   TransactionDetails,
   TransactionType,
   WrapTransactionInfo,
+  XSwapDepositTransactionInfo,
 } from 'state/transactions/types'
 import { TransactionStatus } from 'uniswap/src/data/graphql/uniswap-data-api/__generated__/types-and-hooks'
 import { InterfaceChainId } from 'uniswap/src/types/chains'
@@ -207,6 +208,34 @@ async function parseSend(
   }
 }
 
+/** An x-swap deposit until the API lists its order, which then replaces this row (same hash). */
+async function parseXSwapDeposit(
+  deposit: XSwapDepositTransactionInfo,
+  status: TransactionStatus,
+  formatNumber: FormatNumberFunctionType,
+): Promise<Partial<Activity>> {
+  // The output may be on a chain the data API does not serve; an unknown token must not drop the row.
+  const [tokenIn, tokenOut] = await Promise.all([
+    getCurrency(deposit.inputCurrencyId, deposit.inputChainId as SupportedInterfaceChainId).catch(() => undefined),
+    getCurrency(deposit.outputCurrencyId, deposit.outputChainId as SupportedInterfaceChainId).catch(() => undefined),
+  ])
+  return {
+    // A same-chain (`local`) deposit is the swap itself.
+    title: getActivityTitle(
+      deposit.routeClass === 'local' ? TransactionType.SWAP : TransactionType.XSWAP_DEPOSIT,
+      status,
+    ),
+    descriptor: buildCurrencyDescriptor(
+      tokenIn,
+      deposit.inputCurrencyAmountRaw,
+      tokenOut,
+      deposit.expectedOutputCurrencyAmountRaw,
+      formatNumber,
+    ),
+    currencies: [tokenIn, tokenOut],
+  }
+}
+
 export async function transactionToActivity(
   details: TransactionDetails | undefined,
   chainId: SupportedInterfaceChainId,
@@ -247,6 +276,8 @@ export async function transactionToActivity(
       additionalFields = await parseMigrateCreateV3(info, chainId)
     } else if (info.type === TransactionType.SEND) {
       additionalFields = await parseSend(info, chainId, formatNumber)
+    } else if (info.type === TransactionType.XSWAP_DEPOSIT) {
+      additionalFields = await parseXSwapDeposit(info, details.status, formatNumber)
     }
 
     const activity = { ...defaultFields, ...additionalFields }

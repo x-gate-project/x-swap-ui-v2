@@ -430,5 +430,8 @@ export function TransactionSummary({ info }: { info: TransactionInfo }) {
 
     case TransactionType.SEND:
       return <SendSummary info={info} />
+
+    case TransactionType.XSWAP_DEPOSIT:
+      return <Trans i18nKey="xswap.execute.step.deposit" />
   }
 }
