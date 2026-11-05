@@ -130,9 +130,13 @@ export function formatXSwapTokenAmount(
   return `${amount} (${shortenXSwapHash(address)})`
 }
 
+/** Tx link on the chain's explorer from `GET /v1/chains`, then the app's chain list; plain text when neither has one. */
 export function TxLink({ chainId, hash }: { chainId: number; hash: string }) {
-  const explorer = UNIVERSE_CHAIN_INFO[chainId as InterfaceChainId]?.explorer.url
-  const href = xswapExplorerTxUrl(chainId, hash, explorer)
+  const { chains } = useXSwapChains()
+  const explorer =
+    chains.find((c) => c.chainId === chainId)?.explorerUrl ??
+    UNIVERSE_CHAIN_INFO[chainId as InterfaceChainId]?.explorer.url
+  const href = xswapExplorerTxUrl(hash, explorer)
   const label = shortenXSwapHash(hash, 6)
   return href ? <ExternalLink href={href}>{label}</ExternalLink> : <span>{label}</span>
 }

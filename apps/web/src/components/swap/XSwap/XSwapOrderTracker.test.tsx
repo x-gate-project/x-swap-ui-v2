@@ -11,12 +11,14 @@ const CHAINS = [
     name: 'JOC Testnet',
     nativeSymbol: 'JOC',
     wrappedNative: '0x8B85219c0767Ce4FA5ae5944d71aB4a3De27090d',
+    explorerUrl: 'https://explorer.testnet.japanopenchain.org',
   },
   {
     chainId: 421614,
     name: 'Arbitrum Sepolia',
     nativeSymbol: 'ETH',
     wrappedNative: '0x980B62Da83eFf3D4576C647993b0c1D7faf17c73',
+    explorerUrl: 'https://sepolia.arbiscan.io',
   },
 ]
 

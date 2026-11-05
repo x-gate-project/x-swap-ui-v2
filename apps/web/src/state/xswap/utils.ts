@@ -225,19 +225,9 @@ export function getXSwapChainMode({
   return chainIds?.includes(chainId) ? 'api' : 'legacy'
 }
 
-// Explorers of chains the API serves that the app itself does not list.
-const XSWAP_EXPLORERS: Record<number, string> = {
-  11155111: 'https://sepolia.etherscan.io',
-  421614: 'https://sepolia.arbiscan.io',
-  84532: 'https://sepolia.basescan.org',
-  11155420: 'https://sepolia-optimism.etherscan.io',
-  10081: 'https://explorer.testnet.japanopenchain.org',
-  81: 'https://explorer.japanopenchain.org',
-}
-
-/** Explorer link of a tx on any chain the API serves; undefined when the chain's explorer is unknown. */
-export function xswapExplorerTxUrl(chainId: number, hash: string, fallbackExplorer?: string): string | undefined {
-  const base = (XSWAP_EXPLORERS[chainId] ?? fallbackExplorer)?.replace(/\/+$/, '')
+/** Explorer link of a tx; undefined when the chain's explorer is unknown. */
+export function xswapExplorerTxUrl(hash: string, explorer?: string): string | undefined {
+  const base = explorer?.replace(/\/+$/, '')
   return base ? `${base}/tx/${hash}` : undefined
 }
 
