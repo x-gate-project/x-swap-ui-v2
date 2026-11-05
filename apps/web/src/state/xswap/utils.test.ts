@@ -223,13 +223,13 @@ describe('formatXSwapEta', () => {
 })
 
 describe('xswapExplorerTxUrl', () => {
-  it('links chains the app does not list', () => {
-    expect(xswapExplorerTxUrl(421614, '0xabc')).toBe('https://sepolia.arbiscan.io/tx/0xabc')
+  it('links the tx on the given explorer', () => {
+    expect(xswapExplorerTxUrl('0xabc', 'https://sepolia.arbiscan.io')).toBe('https://sepolia.arbiscan.io/tx/0xabc')
+    expect(xswapExplorerTxUrl('0xabc', 'https://etherscan.io/')).toBe('https://etherscan.io/tx/0xabc')
   })
 
-  it('falls back to the given explorer, else none', () => {
-    expect(xswapExplorerTxUrl(1, '0xabc', 'https://etherscan.io/')).toBe('https://etherscan.io/tx/0xabc')
-    expect(xswapExplorerTxUrl(999, '0xabc')).toBeUndefined()
+  it('returns undefined without an explorer', () => {
+    expect(xswapExplorerTxUrl('0xabc')).toBeUndefined()
   })
 })
 

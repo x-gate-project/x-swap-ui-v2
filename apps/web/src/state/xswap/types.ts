@@ -10,6 +10,8 @@ export type XSwapChain = {
   name: string
   nativeSymbol: string
   wrappedNative: string
+  /** Block explorer base URL (e.g. `https://sepolia.etherscan.io`). Optional: older API versions omit it. */
+  explorerUrl?: string
 }
 
 /** `GET /v1/tokens?chainId=`. `available` is per token, not per pair: two available tokens can still be `no_route`. */
