@@ -394,6 +394,20 @@ async function ensureFreshXSwapQuote(
   return orQuoteExpired(() => deps.refreshQuote(quote.quoteId))
 }
 
+/**
+ * Whether a failed `POST /v1/orders` is a definite answer (e.g. quote_not_found, tx_sender_mismatch) that does not
+ * change on retry. `tx_not_found` does once the deposit reaches the API's RPC; 429, 5xx and network failures may too.
+ */
+export function isDefiniteXSwapRegisterError(error: unknown): boolean {
+  return (
+    error instanceof XSwapApiError &&
+    error.status >= 400 &&
+    error.status < 500 &&
+    error.status !== 429 &&
+    error.code !== 'tx_not_found'
+  )
+}
+
 async function registerWithRetry(
   params: { quoteId: string; txHash: string },
   deps: Pick<XSwapExecutionDeps, 'registerOrder' | 'sleep'>,
@@ -407,15 +421,7 @@ async function registerWithRetry(
       return await deps.registerOrder(params)
     } catch (error) {
       lastError = error
-      // A definite answer (e.g. quote_not_found, tx_sender_mismatch) does not change on retry; `tx_not_found` does once
-      // the just-sent deposit reaches the API's RPC.
-      if (
-        error instanceof XSwapApiError &&
-        error.status >= 400 &&
-        error.status < 500 &&
-        error.status !== 429 &&
-        error.code !== 'tx_not_found'
-      ) {
+      if (isDefiniteXSwapRegisterError(error)) {
         break
       }
     }

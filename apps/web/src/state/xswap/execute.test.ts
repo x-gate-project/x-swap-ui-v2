@@ -8,6 +8,7 @@ import {
   XSwapRegisterError,
   XSwapTxRevertedError,
   decodeXSwapApproval,
+  isDefiniteXSwapRegisterError,
   executeXSwapQuote,
   planXSwapSteps,
   planXSwapTxs,
@@ -536,5 +537,18 @@ describe('decodeXSwapApproval', () => {
 
   it('has nothing for a deposit', () => {
     expect(decodeXSwapApproval(deposit())).toBeUndefined()
+  })
+})
+
+describe('isDefiniteXSwapRegisterError', () => {
+  it.each([
+    [new XSwapApiError('quote_not_found', 404), true],
+    [new XSwapApiError('tx_sender_mismatch', 400), true],
+    [new XSwapApiError('tx_not_found', 404), false],
+    [new XSwapApiError('rate_limited', 429), false],
+    [new XSwapApiError('internal', 500), false],
+    [new Error('network'), false],
+  ])('%s → %s', (error, definite) => {
+    expect(isDefiniteXSwapRegisterError(error)).toBe(definite)
   })
 })
