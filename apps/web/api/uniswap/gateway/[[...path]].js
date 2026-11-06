@@ -8,7 +8,7 @@ export default async function handler(req, res) {
       "Access-Control-Allow-Headers",
       req.headers["access-control-request-headers"] || "Content-Type,Authorization"
     );
-    if (req.method === "OPTIONS") return res.status(204).end();
+    if (req.method === "OPTIONS") { return res.status(204).end(); }
 
     const url = req.url || "";
     const [pathPart, queryPart] = url.split("?");
@@ -20,7 +20,7 @@ export default async function handler(req, res) {
 
     try {
       const headers = { origin: "https://app.uniswap.org" };
-      if (req.method === "POST") headers["content-type"] = "application/json";
+      if (req.method === "POST") { headers["content-type"] = "application/json"; }
 
       let body = undefined;
       if (req.method === "POST") {
@@ -28,7 +28,9 @@ export default async function handler(req, res) {
         if (typeof bodyData === "string") {
           try {
             bodyData = JSON.parse(bodyData);
-          } catch (e) {}
+          } catch (e) {
+            // Not JSON: forward the raw body as-is.
+          }
         }
 
         if (!bodyData || typeof bodyData !== "object") {

@@ -1,15 +1,13 @@
 import Column from 'components/Column'
 import { MenuItem, MenuSection, useMenuContent } from 'components/NavBar/CompanyMenu/Content'
-import { DownloadApp } from 'components/NavBar/CompanyMenu/DownloadAppCTA'
 import { NavDropdown } from 'components/NavBar/NavDropdown'
 import { useTabsVisible } from 'components/NavBar/ScreenSizes'
 import { useTabsContent } from 'components/NavBar/Tabs/TabsContent'
 import { t } from 'i18next'
-import { Socials } from 'pages/Landing/sections/Footer'
 import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import styled, { css } from 'styled-components'
-import { ExternalLink, Separator, ThemedText } from 'theme/components'
+import { ExternalLink, ThemedText } from 'theme/components'
 
 const Container = styled.div`
   width: 295px;

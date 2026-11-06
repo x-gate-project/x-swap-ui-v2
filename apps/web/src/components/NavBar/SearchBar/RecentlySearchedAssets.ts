@@ -12,7 +12,7 @@ import {
 } from 'uniswap/src/data/graphql/uniswap-data-api/__generated__/types-and-hooks'
 import { logger } from 'utilities/src/logger/logger'
 import { getNativeTokenDBAddress } from 'utils/nativeTokens'
-import { useJocTokensToSearchTokens } from '../../../hooks/useJocTokensToSearchTokens'
+import { useJocTokensToSearchTokens } from 'hooks/useJocTokensToSearchTokens'
 
 type RecentlySearchedAsset = {
   isNft?: boolean

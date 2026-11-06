@@ -37,6 +37,8 @@ export function useConnectorWithId(id: ConnectorID, options?: { shouldThrow: tru
   )
 }
 
+// `excludeUniswapConnections` is read by the Uniswap Extension special case, currently commented out.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function getInjectedConnectors(connectors: readonly Connector[], excludeUniswapConnections?: boolean) {
   let isCoinbaseWalletBrowser = false
   const injectedConnectors = connectors.filter((c) => {
@@ -107,6 +109,8 @@ export function useOrderedConnections(excludeUniswapConnections?: boolean) {
     }
 
     const orderedConnectors: Connector[] = []
+    // Kept for the Uniswap Wallet entry below, currently commented out.
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const shouldDisplayUniswapWallet = !excludeUniswapConnections && (isWebIOS || isWebAndroid || !isTouchable)
 
     // Place the Uniswap Wallet at the top of the list by default.

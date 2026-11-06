@@ -9,8 +9,8 @@ import { UniverseChainId } from 'uniswap/src/types/chains'
 import { useMemo } from 'react'
 
 export function useJocTokensToSearchTokens(inputs: { address: string; chain: UniverseChainId.JocMainnet | UniverseChainId.JocTestnet | 'JOC' | 'JOCT' }[]): { data: SearchToken[]; isLoading: boolean } {
-  let chainId = useMemo(() => {
-    if (inputs.length === 0) return undefined
+  const chainId = useMemo(() => {
+    if (inputs.length === 0) { return undefined }
     const firstInput = inputs[0]
     if(typeof firstInput.chain === 'string') {
       return firstInput.chain === 'JOC' ? UniverseChainId.JocMainnet : firstInput.chain === 'JOCT' ? UniverseChainId.JocTestnet : undefined
@@ -112,10 +112,10 @@ export function useJocTokensToSearchTokens(inputs: { address: string; chain: Uni
           __typename: 'Token' as const,
           id: `${validChainId}-${address ?? NATIVE_CHAIN_ID}`,
           chain: chain as any,
-          address: address,
-          symbol: symbol,
-          decimals: decimals,
-          name: name,
+          address,
+          symbol,
+          decimals,
+          name,
           standard: isNative ? TokenStandard.Native : TokenStandard.Erc20,
           market: price > 0
             ? {

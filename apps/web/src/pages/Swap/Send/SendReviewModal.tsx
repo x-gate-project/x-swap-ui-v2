@@ -1,6 +1,5 @@
 import { PortfolioLogo } from 'components/AccountDrawer/MiniPortfolio/PortfolioLogo'
 import { ButtonPrimary } from 'components/Button'
-import GetHelp from 'components/Button/GetHelp'
 import Column, { ColumnCenter } from 'components/Column'
 import Identicon from 'components/Identicon'
 import { ChainLogo } from 'components/Logo/ChainLogo'

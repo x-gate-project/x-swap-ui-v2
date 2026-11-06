@@ -1,6 +1,4 @@
 import Navbar from 'components/NavBar/index'
-import { MobileAppPromoBanner, useMobileAppPromoBannerEligible } from 'components/TopLevelBanners/MobileAppPromoBanner'
-import { UkBanner, useRenderUkBanner } from 'components/TopLevelBanners/UkBanner'
 import { ScrollDirection, useScroll } from 'hooks/useScroll'
 import { useBag } from 'nft/hooks'
 import { GRID_AREAS } from 'pages/App/utils/shared'
@@ -17,10 +15,6 @@ const AppHeader = styled.div`
   position: -webkit-sticky;
   position: sticky;
   top: 0px;
-  z-index: ${Z_INDEX.sticky};
-`
-const Banners = styled.div`
-  position: relative;
   z-index: ${Z_INDEX.sticky};
 `
 const NavOnScroll = styled.div<{ $hide: boolean; $transparent?: boolean }>`

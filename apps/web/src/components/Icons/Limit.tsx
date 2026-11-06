@@ -1,5 +1,7 @@
 import { ComponentProps } from 'react'
 
+// Unused in x-swap; kept for parity with upstream Uniswap.
+// eslint-disable-next-line import/no-unused-modules
 export function Limit(props: ComponentProps<'svg'>) {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" {...props}>

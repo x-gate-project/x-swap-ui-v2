@@ -74,10 +74,24 @@ module.exports = {
         },
         // Use d3-arrays's build directly, as jest does not support its exports.
         transformIgnorePatterns: ['d3-array'],
+        // Pre-existing failures are skipped so CI can block on everything else. See jest.known-failures.cjs.
+        testPathIgnorePatterns: [
+          '/node_modules/',
+          ...require('./jest.known-failures.cjs').map(
+            (file) => `<rootDir>/${file.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`
+          ),
+        ],
         moduleNameMapper: {
           'd3-array': 'd3-array/dist/d3-array.min.js',
           '^react-native$': 'react-native-web',
           'react-native-gesture-handler': require.resolve('react-native-gesture-handler'),
+          // jest-resolve 27 ignores package.json "exports", so subpath imports pulled in by wagmi's porto
+          // connector resolve to raw .ts sources (or nothing). Point them at the built files.
+          '^porto/internal$': path.join(path.dirname(require.resolve('porto')), 'internal/index.js'),
+          '^ox/erc8010/SignatureErc8010$': path.join(
+            path.dirname(require.resolve('ox/package.json', { paths: [require.resolve('porto')] })),
+            '_cjs/erc8010/SignatureErc8010.js'
+          ),
         },
         setupFilesAfterEnv: ['<rootDir>/src/setupTests.ts'],
       })

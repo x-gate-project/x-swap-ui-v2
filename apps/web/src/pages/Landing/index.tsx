@@ -13,6 +13,8 @@ import { FeatureFlags } from 'uniswap/src/features/gating/flags'
 import { useFeatureFlag } from 'uniswap/src/features/gating/hooks'
 import Trace from 'uniswap/src/features/telemetry/Trace'
 
+// Not routed in x-swap; kept so the landing page can be re-enabled.
+// eslint-disable-next-line import/no-unused-modules
 export default function Landing() {
   const account = useAccount()
   const { connector } = useWeb3React()

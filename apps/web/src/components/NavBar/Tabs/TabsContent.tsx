@@ -2,7 +2,6 @@ import { MenuItem } from 'components/NavBar/CompanyMenu/Content'
 import { useTabsVisible } from 'components/NavBar/ScreenSizes'
 import { useTranslation } from 'react-i18next'
 import { useLocation } from 'react-router-dom'
-import { useTheme } from 'styled-components'
 import { FeatureFlags } from 'uniswap/src/features/gating/flags'
 import { useFeatureFlag } from 'uniswap/src/features/gating/hooks'
 
@@ -24,9 +23,7 @@ export type TabsItem = MenuItem & {
 export const useTabsContent = (): TabsSection[] => {
   const { t } = useTranslation()
   const isLegacyNav = !useFeatureFlag(FeatureFlags.NavRefresh)
-  const forAggregatorEnabled = useFeatureFlag(FeatureFlags.ForAggregatorWeb)
   const { pathname } = useLocation()
-  const theme = useTheme()
   const areTabsVisible = useTabsVisible()
 
   return isLegacyNav

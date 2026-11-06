@@ -34,6 +34,8 @@ const DownloadCTA = styled(Row)<{ isMobile: boolean }>`
     box-sizing: border-box;
   }
 `
+// Unused in x-swap; kept for parity with upstream Uniswap.
+// eslint-disable-next-line import/no-unused-modules
 export function DownloadApp({ onClick }: { onClick?: () => void }) {
   const openGetTheAppModal = useOpenModal(ApplicationModal.GET_THE_APP)
   const isTouchDevice = useIsTouchDevice()

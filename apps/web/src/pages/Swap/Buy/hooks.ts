@@ -6,7 +6,6 @@ import { useTranslation } from 'react-i18next'
 import { useGetAlchemyPayCryptoListQuery } from 'state/routing/slice'
 import {
   useFiatOnRampAggregatorSupportedFiatCurrenciesQuery,
-  useFiatOnRampAggregatorSupportedTokensQuery,
 } from 'uniswap/src/features/fiatOnRamp/api'
 import { FORCountry, FORSupportedToken, FiatCurrencyInfo, FiatOnRampCurrency } from 'uniswap/src/features/fiatOnRamp/types'
 import { getFiatCurrencyComponents } from 'utilities/src/format/localeBased'
@@ -86,24 +85,4 @@ export function useAlchemyPaySupportedTokens(): FiatOnRampCurrency[] {
       })
       .filter((item) => item.currencyInfo !== undefined) as FiatOnRampCurrency[]
   }, [supportedTokens])
-}
-
-export function useFiatOnRampSupportedTokens(
-  fiatCurrency: FiatCurrencyInfo,
-  countryCode?: string,
-): FiatOnRampCurrency[] {
-  const { data: quoteCurrencyOptions } = useFiatOnRampAggregatorSupportedTokensQuery({
-    fiatCurrency: fiatCurrency.code,
-    countryCode: countryCode ?? 'US',
-  })
-
-  return useMemo(() => {
-    return (
-      quoteCurrencyOptions?.supportedTokens?.map((currency) => {
-        const meldCurrencyCode = currency.cryptoCurrencyCode
-        const currencyInfo = meldSupportedCurrencyToCurrencyInfo(currency)
-        return { currencyInfo, meldCurrencyCode }
-      }) ?? []
-    )
-  }, [quoteCurrencyOptions?.supportedTokens])
 }

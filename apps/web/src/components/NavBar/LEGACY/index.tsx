@@ -1,11 +1,8 @@
 import { Bag } from 'components/NavBar/Bag'
 import { ChainSelector } from 'components/NavBar/ChainSelector'
-import { GetTheAppButton } from 'components/NavBar/DownloadApp/GetTheAppButton'
 import Blur from 'components/NavBar/LEGACY/Blur'
-import { SearchBar } from 'components/NavBar/LEGACY/SearchBar/SearchBar'
 import * as styles from 'components/NavBar/LEGACY/style.css'
 import Web3Status from 'components/Web3Status'
-import { useIsLandingPage } from 'hooks/useIsLandingPage'
 import { useIsLimitPage } from 'hooks/useIsLimitPage'
 import { useIsNftPage } from 'hooks/useIsNftPage'
 import { useIsPoolsPage } from 'hooks/useIsPoolsPage'
@@ -15,7 +12,6 @@ import { Trans } from 'i18n'
 import { Box } from 'nft/components/Box'
 import { Row } from 'nft/components/Flex'
 import { useProfilePageState } from 'nft/hooks'
-import { useIsNavSearchInputVisible } from 'nft/hooks/useIsNavSearchInputVisible'
 import { ProfilePageStateType } from 'nft/types'
 import { ReactNode } from 'react'
 import { NavLink, NavLinkProps, useLocation } from 'react-router-dom'
@@ -103,9 +99,7 @@ const LegacyNavbar = ({ blur }: { blur: boolean }) => {
   const isSwapPage = useIsSwapPage()
   const isSendPage = useIsSendPage()
   const isLimitPage = useIsLimitPage()
-  const isLandingPage = useIsLandingPage()
   const sellPageState = useProfilePageState((state) => state.state)
-  const isNavSearchInputVisible = useIsNavSearchInputVisible()
   const multichainUXEnabled = useFeatureFlag(FeatureFlags.MultichainUX)
 
   const hideChainSelector = multichainUXEnabled ? isSendPage || isSwapPage || isLimitPage || isNftPage : isNftPage

@@ -43,6 +43,8 @@ const KeyShortcut = styled.div`
   backdrop-filter: blur(60px);
 `
 
+// Unused in x-swap; kept for parity with upstream Uniswap.
+// eslint-disable-next-line import/no-unused-modules
 export function SearchBar() {
   const [isOpen, toggleOpen] = useReducer((state: boolean) => !state, false)
   const [searchValue, setSearchValue] = useState<string>('')

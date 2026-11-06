@@ -70,6 +70,8 @@ type NavIconProps = SVGProps & {
   onClick?: () => void
 }
 
+// Unused in x-swap; kept for parity with upstream Uniswap.
+// eslint-disable-next-line import/no-unused-modules
 export const NavIcon = ({ clickable, onClick, ...props }: NavIconProps) => (
   <Container clickable={clickable}>
     {HolidayUniIcon(props) !== null ? <HolidayUniIcon {...props} /> : <Logo onClick={onClick} />}

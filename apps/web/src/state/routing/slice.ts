@@ -12,7 +12,6 @@ import {
   RouterPreference,
   RoutingConfig,
   TradeResult,
-  URAQuoteResponse,
   URAQuoteType,
   UniswapXConfig,
   UniswapXv2Config,
@@ -20,8 +19,6 @@ import {
 import { isExactInput, transformQuoteToTrade } from 'state/routing/utils'
 import { logSwapQuoteRequest } from 'tracing/swapFlowLoggers'
 import { trace } from 'tracing/trace'
-import { InterfaceEventNameLocal } from 'uniswap/src/features/telemetry/constants'
-import { sendAnalyticsEvent } from 'uniswap/src/features/telemetry/send'
 import { logger } from 'utilities/src/logger/logger'
 
 const UNISWAP_GATEWAY_DNS_URL = process.env.REACT_APP_UNISWAP_GATEWAY_DNS
@@ -99,6 +96,8 @@ export const routingApi = createApi({
   baseQuery: fetchBaseQuery(),
   endpoints: (build) => ({
     getQuote: build.query<TradeResult, GetQuoteArgs>({
+      // `fetch` and `requestBody` are kept for the disabled server-side routing call below.
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       queryFn(args, _api, _extraOptions, fetch) {
         return trace({ name: 'Quote', op: 'quote', data: { ...args } }, async (trace) => {
           logSwapQuoteRequest(args.tokenInChainId, args.routerPreference, false)
@@ -112,6 +111,7 @@ export const routingApi = createApi({
             sendPortionEnabled,
           } = args
 
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
           const requestBody = {
             tokenInChainId,
             tokenIn,
@@ -236,7 +236,7 @@ export const jocPriceAPi = createApi({
 export const { useGetJocPriceQuery } = jocPriceAPi
 export const useGetJocPriceQueryState = jocPriceAPi.endpoints.getJocPrice.useQueryState
 
-export type AlchemyPayCryptoListResponse = {
+type AlchemyPayCryptoListResponse = {
   symbol: string
   chainId: string
   type: string
@@ -253,7 +253,7 @@ export type AlchemyPayCryptoListResponse = {
   timestamp: string
 }
 
-export type GetAlchemyPayBuyUrlParams = {
+type GetAlchemyPayBuyUrlParams = {
   tokenAddress?: string;
   chainId?: string;
   network?: string | number;
@@ -315,7 +315,7 @@ export const alchemyPayAggregatorApi = createApi({
               const response = await fetch({
                 method: 'GET',
                 url: `${baseUrl}/payment-providers/alchemy-pay/crypto/buy`,
-                params: params,
+                params,
               })
 
               if (response.error) {
@@ -340,6 +340,4 @@ export const alchemyPayAggregatorApi = createApi({
 })
 
 export const { useGetAlchemyPayCryptoListQuery } = alchemyPayAggregatorApi
-export const useGetAlchemyPayCryptoListQueryState = alchemyPayAggregatorApi.endpoints.getAlchemyPayCryptoList.useQueryState
 export const { useGetAlchemyPayBuyUrlQuery } = alchemyPayAggregatorApi
-export const useGetAlchemyPayBuyUrlQueryState = alchemyPayAggregatorApi.endpoints.getAlchemyPayBuyUrl.useQueryState

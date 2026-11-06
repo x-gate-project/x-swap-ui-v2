@@ -48,6 +48,8 @@ const StyledButton = styled.a`
  * - The user is not using Safari (since we don't want to conflict with the Safari-native Smart App Banner)
  * - The user has not dismissed the banner during this session
  */
+// Unused in x-swap; kept for parity with upstream Uniswap.
+// eslint-disable-next-line import/no-unused-modules
 export function useMobileAppPromoBannerEligible() {
   const hideMobileAppPromoBanner = useAtomValue(hideMobileAppPromoBannerAtom)
   return (isWebIOS || isWebAndroid) && !hideMobileAppPromoBanner
@@ -83,6 +85,8 @@ function getDownloadLink(userAgent: string, peerWalletAgent?: string): string {
   return UNIVERSAL_DOWNLOAD_LINK
 }
 
+// Unused in x-swap; kept for parity with upstream Uniswap.
+// eslint-disable-next-line import/no-unused-modules
 export function MobileAppPromoBanner() {
   const [isVisible, setIsVisible] = useState(true)
   const theme = useTheme()

@@ -7,6 +7,8 @@ const StyledLink = styled(ExternalLink)`
   color: ${({ theme }) => theme.neutral2};
 `
 
+// Unused in x-swap; kept for parity with upstream Uniswap.
+// eslint-disable-next-line import/no-unused-modules
 export default function PrivacyPolicyNotice() {
   return (
     <ThemedText.BodySmall color="neutral2">

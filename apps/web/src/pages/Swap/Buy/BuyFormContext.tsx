@@ -129,7 +129,7 @@ function useDerivedBuyFormInfo(state: BuyFormState): BuyInfo {
       meldSupportedFiatCurrency,
       supportedTokens,
       countryOptionsResult,
-      quotes: quotes,
+      quotes,
       fetchingQuotes: false,
       error: undefined,
     }),

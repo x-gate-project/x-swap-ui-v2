@@ -24,7 +24,7 @@ import { Text } from 'rebass'
 import { useStakingInfo } from 'state/stake/hooks'
 import { toV2LiquidityToken, useTrackedTokenPairs } from 'state/user/hooks'
 import styled, { useTheme } from 'styled-components'
-import { ExternalLink, HideSmall, ThemedText } from 'theme/components'
+import { HideSmall, ThemedText } from 'theme/components'
 import { ProtocolVersion } from 'uniswap/src/data/graphql/uniswap-data-api/__generated__/types-and-hooks'
 import Trace from 'uniswap/src/features/telemetry/Trace'
 

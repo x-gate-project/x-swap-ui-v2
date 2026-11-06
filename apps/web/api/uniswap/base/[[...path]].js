@@ -8,7 +8,7 @@ export default async function handler(req, res) {
       "Access-Control-Allow-Headers",
       req.headers["access-control-request-headers"] || "Content-Type,Authorization"
     );
-    if (req.method === "OPTIONS") return res.status(204).end();
+    if (req.method === "OPTIONS") { return res.status(204).end(); }
 
     const url = req.url || "";
     const match = url.match(/^\/api\/uniswap\/base(\/[^?]*)?(\?.*)?$/);
@@ -21,7 +21,7 @@ export default async function handler(req, res) {
 
     try {
       const headers = { origin: "https://app.uniswap.org" };
-      if (req.method === "POST") headers["content-type"] = "application/json";
+      if (req.method === "POST") { headers["content-type"] = "application/json"; }
 
       const upstreamResp = await fetch(upstream, {
         method: req.method,

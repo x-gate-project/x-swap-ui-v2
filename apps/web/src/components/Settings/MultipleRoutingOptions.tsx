@@ -10,8 +10,7 @@ import { atom, useAtom } from 'jotai'
 import { ReactNode, useCallback } from 'react'
 import { RouterPreference } from 'state/routing/types'
 import styled from 'styled-components'
-import { ExternalLink, ThemedText } from 'theme/components'
-import { uniswapUrls } from 'uniswap/src/constants/urls'
+import { ThemedText } from 'theme/components'
 
 const LabelWrapper = styled(Column)`
   height: 100%;

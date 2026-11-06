@@ -1,11 +1,9 @@
-import { useIsTouchDevice } from '@tamagui/core'
 import { ArrowChangeDown } from 'components/Icons/ArrowChangeDown'
 import { MenuDropdown } from 'components/NavBar/CompanyMenu/MenuDropdown'
 import { MobileMenuDrawer } from 'components/NavBar/CompanyMenu/MobileMenuDrawer'
 import { useIsMobileDrawer, useTabsVisible } from 'components/NavBar/ScreenSizes'
-import { useScreenSize } from 'hooks/screenSize'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { useLocation } from 'react-router-dom'
 import styled from 'styled-components'
 import { Popover } from 'ui/src'
 import { Hamburger } from 'ui/src/components/icons'
@@ -27,19 +25,11 @@ const Trigger = styled.div`
     }
   }
 `
-const UniIcon = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 4px;
-`
 
 export function CompanyMenu() {
   const popoverRef = useRef<Popover>(null)
-  const isSmallScreen = !useScreenSize()['sm']
   const isMobileDrawer = useIsMobileDrawer()
-  const isLargeScreen = useScreenSize()['xl']
   const location = useLocation()
-  const navigate = useNavigate()
   const [isOpen, setIsOpen] = useState(false)
   const areTabsVisible = useTabsVisible()
 
@@ -47,14 +37,6 @@ export function CompanyMenu() {
     popoverRef.current?.close()
   }, [popoverRef])
   useEffect(() => closeMenu(), [location, closeMenu])
-
-  const handleLogoClick = useCallback(() => {
-    navigate({
-      pathname: '/',
-      search: '?intro=true',
-    })
-  }, [navigate])
-  const isTouchDevice = useIsTouchDevice()
 
   return (
     <>

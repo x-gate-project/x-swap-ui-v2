@@ -30,31 +30,6 @@ export const useMenuContent = (): MenuSection[] => {
       { label: t('common.analytics'), href: '/explore', internal: true },
     ],
   }
-  const companyLinks = {
-    title: t('common.company'),
-    key: 'Company',
-    items: [
-      { label: t('common.careers'), href: 'https://boards.greenhouse.io/uniswaplabs' },
-      { label: t('common.blog'), href: 'https://blog.uniswap.org/' },
-    ],
-  }
-  const protocolLinks = {
-    title: t('common.protocol'),
-    key: 'Protocol',
-    items: [
-      ...(!isLegacyNav ? [{ label: t('common.vote'), href: 'https://vote.uniswapfoundation.org/' }] : []),
-      { label: t('common.governance'), href: 'https://uniswap.org/governance' },
-      { label: t('common.developers'), href: 'https://uniswap.org/developers' },
-    ],
-  }
-  const helpLinks = {
-    title: t('common.needHelp'),
-    key: 'Help',
-    items: [
-      { label: t('common.helpCenter'), href: 'https://support.uniswap.org/hc/en-us' },
-      { label: t('common.contactUs.button'), href: 'https://support.uniswap.org/hc/en-us/requests/new' },
-    ],
-  }
 
   return [...(isLegacyNav ? [legacyAppLinks] : [])]
 }

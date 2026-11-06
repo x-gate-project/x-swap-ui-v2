@@ -19,7 +19,7 @@ import { isLimitTrade, isPreviewTrade, isUniswapXTrade, isUniswapXTradeType } fr
 import { useUserSlippageTolerance } from 'state/user/hooks'
 import { SlippageTolerance } from 'state/user/types'
 import styled, { DefaultTheme } from 'styled-components'
-import { ExternalLink, ThemedText } from 'theme/components'
+import { ThemedText } from 'theme/components'
 import { NumberType, useFormatter } from 'utils/formatNumbers'
 import { getPriceImpactColor } from 'utils/prices'
 
@@ -55,7 +55,7 @@ const AutoBadge = styled(ThemedText.LabelMicro).attrs({ fontWeight: 535 })`
   }
 `
 
-function BaseTooltipContent({ children, url }: { children: ReactNode; url: string }) {
+function BaseTooltipContent({ children }: { children: ReactNode; url: string }) {
   return (
     <>
       {children}

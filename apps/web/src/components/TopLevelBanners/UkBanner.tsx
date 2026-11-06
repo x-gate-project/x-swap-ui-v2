@@ -64,6 +64,8 @@ const ReadMoreWrapper = styled(ButtonText)`
   }
 `
 
+// Unused in x-swap; kept for parity with upstream Uniswap.
+// eslint-disable-next-line import/no-unused-modules
 export const useRenderUkBanner = () => {
   const originCountry = useAppSelector((state: AppState) => state.user.originCountry)
   return Boolean(originCountry) && originCountry === 'GB'
@@ -71,6 +73,8 @@ export const useRenderUkBanner = () => {
 
 export const bannerText = t('notice.uk')
 
+// Unused in x-swap; kept for parity with upstream Uniswap.
+// eslint-disable-next-line import/no-unused-modules
 export function UkBanner() {
   const openDisclaimer = useOpenModal(ApplicationModal.UK_DISCLAIMER)
 

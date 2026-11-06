@@ -1,4 +1,3 @@
-import GetHelpButton from 'components/Button/GetHelp'
 import { AutoColumn } from 'components/Column'
 import Modal from 'components/Modal'
 import Row, { RowBetween } from 'components/Row'
@@ -13,7 +12,6 @@ import { Trans } from 'react-i18next'
 import styled from 'styled-components'
 import { CloseIcon } from 'theme/components'
 import { Text } from 'ui/src'
-import { uniswapUrls } from 'uniswap/src/constants/urls'
 import { FORQuote, FORServiceProvider } from 'uniswap/src/features/fiatOnRamp/types'
 import { logger } from 'utilities/src/logger/logger'
 

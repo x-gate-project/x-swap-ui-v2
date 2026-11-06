@@ -1,13 +1,6 @@
 import { useAccount } from 'hooks/useAccount'
-import { useCallback, useMemo } from 'react'
-import { useDispatch } from 'react-redux'
-import { FiatOnRampTransactionDetails, addFiatOnRampTransaction } from 'state/fiatOnRampTransactions/reducer'
+import { useMemo } from 'react'
 import { useAppSelector } from 'state/hooks'
-
-export function useAddFiatOnRampTransaction() {
-  const dispatch = useDispatch()
-  return useCallback((payload: FiatOnRampTransactionDetails) => dispatch(addFiatOnRampTransaction(payload)), [dispatch])
-}
 
 export function useFiatOnRampTransactions() {
   const account = useAccount()

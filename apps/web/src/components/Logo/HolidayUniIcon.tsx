@@ -8,6 +8,8 @@ const MONTH_TO_HOLIDAY_UNI: { [date: string]: (props: SVGProps) => ReactElement 
   '1': (props) => <WinterUni {...props} />,
 }
 
+// Unused in x-swap; kept for parity with upstream Uniswap.
+// eslint-disable-next-line import/no-unused-modules
 export default function HolidayUniIcon(props: SVGProps): ReactElement | null {
   // months in javascript are 0 indexed...
   const currentMonth = `${new Date().getMonth() + 1}`

@@ -5,17 +5,7 @@ import Toggle from 'components/Toggle'
 import { Trans } from 'i18n'
 import { RouterPreference } from 'state/routing/types'
 import { useRouterPreference } from 'state/user/hooks'
-import styled from 'styled-components'
-import { ExternalLink, ThemedText } from 'theme/components'
-
-const InlineLink = styled(ThemedText.BodySmall)`
-  color: ${({ theme }) => theme.accent1};
-  display: inline;
-  cursor: pointer;
-  &:hover {
-    opacity: 0.8;
-  }
-`
+import { ThemedText } from 'theme/components'
 
 export default function RouterPreferenceSettings() {
   const [routerPreference, setRouterPreference] = useRouterPreference()

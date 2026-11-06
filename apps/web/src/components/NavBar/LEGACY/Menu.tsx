@@ -34,6 +34,8 @@ const ChevronIcon = styled(ChevronDown)<{ $rotated: boolean }>`
   transition: transform 0.3s ease;
   transform: ${({ $rotated }) => ($rotated ? 'rotate(180deg)' : 'none')};
 `
+// Unused in x-swap; kept for parity with upstream Uniswap.
+// eslint-disable-next-line import/no-unused-modules
 export function More() {
   const [isOpen, setIsOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)

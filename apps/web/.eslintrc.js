@@ -46,7 +46,8 @@ module.exports = {
     {
       // Configuration/typings typically export objects/definitions that are used outside of the transpiled package
       // (eg not captured by the tsconfig). Because it's typical and not exceptional, this is turned off entirely.
-      files: ['**/*.config.*', '**/*.d.ts'],
+      // Vercel serverless functions are entry points loaded by the platform, not imported by the app.
+      files: ['**/*.config.*', '**/*.d.ts', 'api/**/*.js'],
       rules: {
         'import/no-unused-modules': 'off',
       },

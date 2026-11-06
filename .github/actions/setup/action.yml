@@ -1,0 +1,17 @@
+name: Setup
+description: Set up Node and install dependencies (postinstall also generates GraphQL, ABI, i18n and ajv code)
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@v4
+      with:
+        node-version-file: .nvmrc
+        cache: yarn
+
+    - name: Install dependencies
+      shell: bash
+      run: yarn install --immutable
+      env:
+        # Skip git hooks in CI.
+        HUSKY: '0'
