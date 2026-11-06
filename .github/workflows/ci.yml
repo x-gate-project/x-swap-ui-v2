@@ -26,7 +26,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup
-      - run: yarn workspace @uniswap/interface typecheck
+      # turbo typechecks the workspace packages first; apps/web reads their emitted declarations.
+      - run: yarn turbo run typecheck --filter=@uniswap/interface
 
   lint:
     runs-on: ubuntu-latest
