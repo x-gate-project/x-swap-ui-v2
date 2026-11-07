@@ -40,6 +40,16 @@ order (`POST /v1/orders`) so it shows in the Activity tab. When a quote offers a
 wallet signs it instead of sending the `permit2-approve` tx, and `POST /v1/quote/:quoteId/permit` returns the deposit
 built from the signature. Native input needs no approval.
 
+### End-to-end tests
+
+The x-swap flows are covered by a Playwright suite in [`e2e/`](./e2e/README.md). It runs against a stubbed API, a mock
+wallet and stubbed chain RPCs, so it needs no network or funds:
+
+```bash
+yarn web e2e:install # once
+yarn web e2e
+```
+
 ## Translations
 
 To get translations to work you'll need to set up 1Password, and then:
