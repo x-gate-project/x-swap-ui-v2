@@ -44,24 +44,13 @@ By default, this runs only unit tests that have been affected since the last com
 yarn web test --watchAll
 ```
 
-## Running integration tests (cypress)
+## Running end-to-end tests (Playwright)
 
-Integration tests require a server to be running. In order to see your changes quickly, run `start` in its own tab/window:
-
-```
-yarn web start
-```
-
-Integration tests are run using `cypress`. When developing locally, use `cypress:open` for an interactive UI, and to inspect the rendered page:
+The x-swap flows are covered by a Playwright suite in `e2e/` that runs against a stubbed x-swap API, a mock wallet and stubbed chain RPCs. See [e2e/README.md](./e2e/README.md).
 
 ```
-yarn web cypress:open
-```
-
-To run _all_ cypress integration tests _from the command line_:
-
-```
-yarn web cypress:run
+yarn web e2e:install # once, downloads Chromium
+yarn web e2e
 ```
 
 ## Adding a new dependency

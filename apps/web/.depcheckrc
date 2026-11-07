@@ -22,8 +22,6 @@ ignores: [
     "react-dev-utils",
     "workbox-expiration",
     "workbox-strategies",
-    ## Packages used in github actions
-    "start-server-and-test",
     ## Polyfills
     "resize-observer-polyfill",
     ## Linting and Babel
@@ -31,7 +29,6 @@ ignores: [
     "eslint-plugin-import",
     "terser-webpack-plugin",
     ## Testing
-    "@types/testing-library__cypress",
     ## i18n
     "dotenv-cli",
     "@crowdin/cli",

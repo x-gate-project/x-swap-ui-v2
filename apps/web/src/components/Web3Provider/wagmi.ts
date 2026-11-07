@@ -44,7 +44,7 @@ export const wagmiConfig = createConfig({
 
 export const queryClient = new QueryClient()
 
-// Automatically connect if running in Cypress environment
-if ((window as any).Cypress?.eagerlyConnect) {
+// The Playwright e2e mock wallet (apps/web/e2e) sets this flag so the app connects to it on load.
+if ((window as any).__XSWAP_E2E__?.eagerlyConnect) {
   connect(wagmiConfig, { connector: injected() })
 }
