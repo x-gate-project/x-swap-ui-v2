@@ -49,3 +49,7 @@ package-lock.json
 .vercel
 
 .wrangler
+
+# Playwright e2e output
+e2e/.results
+e2e/.report
