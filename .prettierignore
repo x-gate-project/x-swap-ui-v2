@@ -19,7 +19,6 @@ __mocks__
 babel.config.js
 build
 craco.config.cjs
-cypress
 dist
 jest-setup.js
 jest.config.js
