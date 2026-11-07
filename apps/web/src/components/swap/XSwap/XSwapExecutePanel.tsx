@@ -32,7 +32,7 @@ import { ThemedText } from 'theme/components'
 import { InterfaceChainId } from 'uniswap/src/types/chains'
 import { logger } from 'utilities/src/logger/logger'
 import { didUserReject } from 'utils/swapErrorToUserReadableMessage'
-import { getAccount, sendTransaction, signTypedData, waitForTransactionReceipt } from 'wagmi/actions'
+import { getAccount, getPublicClient, sendTransaction, signTypedData } from 'wagmi/actions'
 
 type WagmiChainId = (typeof wagmiConfig)['chains'][number]['id']
 
@@ -119,10 +119,13 @@ function useXSwapExecutionDeps(): XSwapExecutionDeps {
         })
       },
       waitForTx: async (chainId, hash) => {
-        const receipt = await waitForTransactionReceipt(wagmiConfig, {
-          chainId: chainId as WagmiChainId,
-          hash: hash as `0x${string}`,
-        })
+        // wagmi's waitForTransactionReceipt throws on a reverted receipt; viem's returns it, so a revert is reported as
+        // one (`XSwapTxRevertedError`) and not as a generic failure. No timeout, as wagmi's.
+        const client = getPublicClient(wagmiConfig, { chainId: chainId as WagmiChainId })
+        if (!client) {
+          throw new Error(`no client for chain ${chainId}`)
+        }
+        const receipt = await client.waitForTransactionReceipt({ hash: hash as `0x${string}`, timeout: 0 })
         return receipt.status === 'success'
       },
     } satisfies XSwapExecutionDeps

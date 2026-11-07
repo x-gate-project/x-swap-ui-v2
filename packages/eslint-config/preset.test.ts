@@ -28,14 +28,3 @@ it('should have a correct configuration for a Jest file', async () => {
     parser: expect.any(String),
   })
 })
-
-it('should have a correct configuration for a Cypress e2e file', async () => {
-  const linter = new ESLint({
-    overrideConfig: {
-      extends: ['./base.js'],
-    },
-  })
-  expect(await linter.calculateConfigForFile('cypress/e2e/file.ts')).toMatchSnapshot({
-    parser: expect.any(String),
-  })
-})

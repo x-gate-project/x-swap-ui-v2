@@ -1,0 +1,12 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "composite": false,
+    "incremental": true,
+    "isolatedModules": false,
+    "tsBuildInfoFile": "../node_modules/.cache/tsbuildinfo/e2e", // avoid clobbering the build tsbuildinfo
+    "types": ["node"]
+  },
+  "include": ["**/*.ts", "../playwright.config.ts"]
+}

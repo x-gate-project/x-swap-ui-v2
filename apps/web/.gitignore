@@ -45,10 +45,11 @@ notes.txt
 
 package-lock.json
 
-cypress/downloads
-cypress/videos
-cypress/screenshots
 
 .vercel
 
 .wrangler
+
+# Playwright e2e output
+e2e/.results
+e2e/.report
