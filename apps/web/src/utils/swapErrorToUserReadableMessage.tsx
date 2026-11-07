@@ -5,7 +5,8 @@ import { UserRejectedRequestError } from 'utils/errors'
 function getReason(error: any): string | undefined {
   let reason: string | undefined
   while (error) {
-    reason = error.reason ?? error.message ?? reason
+    // Only text: some errors keep a non-string `reason` (e.g. XSwapRegisterError's underlying API error).
+    reason = [error.reason, error.message].find((r): r is string => typeof r === 'string') ?? reason
     error = error.error ?? error.data?.originalError
   }
   return reason
