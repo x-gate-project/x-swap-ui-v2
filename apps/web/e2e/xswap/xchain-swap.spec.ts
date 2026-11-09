@@ -50,9 +50,9 @@ test.describe('cross-chain swap', () => {
     const approve = await chain.waitForSend('approve')
     await expect(swap.step(0)).toContainText('Approve the input amount')
     await expect(swap.step(1)).toContainText('Send the order')
-    // The app polls the receipt and gets none while the approval is pending.
-    const polled = chain.calls('eth_getTransactionReceipt')
-    await expect.poll(() => chain.calls('eth_getTransactionReceipt')).toBeGreaterThan(polled)
+    // The app asks for the receipt and gets none while the approval is pending. viem polls it again only on a new block,
+    // and none is mined while the approval is held, so the first ask may come before or after the send resolves here.
+    await expect.poll(() => chain.calls('eth_getTransactionReceipt')).toBeGreaterThan(0)
     expect(chain.sent('deposit')).toHaveLength(0)
     await expect(swap.executeButton).toHaveText('Confirm in your wallet…')
 

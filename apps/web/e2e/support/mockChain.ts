@@ -50,6 +50,8 @@ export class MockChain {
   readonly signatures: { method: string; params: unknown }[] = []
   /** JSON-RPC methods nothing answered; the test fixture fails on the ones the x-swap path uses. */
   readonly unhandled = new Set<string>()
+  /** Hosts a JSON-RPC request was aborted to because `RPC_HOSTS` does not list them; the test fixture fails on any. */
+  readonly unroutedRpcHosts = new Set<string>()
 
   private readonly rpcCalls = new Map<string, number>()
   private readonly balances = new Map<string, bigint>()

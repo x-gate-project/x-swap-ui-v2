@@ -7,7 +7,10 @@ import { SwapPage } from './swapPage'
 import { installWallet } from './wallet'
 import { XSwapApiStub } from './xswapApi'
 
-/** Methods the x-swap execute path relies on; nothing may leave them unanswered. */
+/**
+ * Methods the x-swap execute path relies on; the stub must implement each. This checks methods only: an `eth_call` to a
+ * contract the stub does not model is answered with a revert, as a call to an address without code would be.
+ */
 const REQUIRED_RPC = ['eth_getTransactionReceipt', 'eth_getTransactionByHash', 'eth_blockNumber', 'eth_call']
 
 type Fixtures = {
@@ -35,6 +38,7 @@ export const test = base.extend<Fixtures>({
     await use(chain)
     const missing = REQUIRED_RPC.filter((m) => chain.unhandled.has(m))
     expect(missing, 'RPC methods the stub left unanswered').toEqual([])
+    expect([...chain.unroutedRpcHosts], 'JSON-RPC hosts missing from RPC_HOSTS').toEqual([])
   },
   // eslint-disable-next-line no-empty-pattern -- as above
   api: async ({}, use) => {

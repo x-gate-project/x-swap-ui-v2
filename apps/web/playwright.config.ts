@@ -27,7 +27,9 @@ export default defineConfig({
   webServer: {
     command: 'yarn start',
     url: `http://localhost:${PORT}/swap`,
-    reuseExistingServer: true,
+    // Locally a running server is reused (start it with the env below, see e2e/README.md); CI always starts its own so a
+    // server without the x-swap env can never be picked up.
+    reuseExistingServer: !process.env.CI,
     timeout: 300_000,
     env: {
       PORT: String(PORT),
