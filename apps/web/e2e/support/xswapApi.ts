@@ -37,6 +37,18 @@ type ApiScenario = {
   orders: (wallet: string) => Answer<XSwapOrdersPage>
 }
 
+/** The request body as JSON; a body that is not JSON is kept as text, so a bad request fails its assertion, not the route. */
+function parseBody(raw: string | null): unknown {
+  if (!raw) {
+    return undefined
+  }
+  try {
+    return JSON.parse(raw)
+  } catch {
+    return raw
+  }
+}
+
 const notStubbed = (what: string) => () => new ApiError(501, 'not_stubbed', `e2e: ${what} is not stubbed`)
 
 /** Serves `/api/xswap/v1/*` from a scenario and records every request for assertions. */
@@ -112,12 +124,11 @@ export class XSwapApiStub {
 
   async handle(route: Route, url: URL) {
     const request = route.request()
-    const raw = request.postData()
     this.requests.push({
       method: request.method(),
       path: url.pathname.replace(/^\/api\/xswap\/v1/, ''),
       query: url.searchParams,
-      body: raw ? JSON.parse(raw) : undefined,
+      body: parseBody(request.postData()),
     })
     const answer = this.answer()
     if (answer === undefined) {

@@ -23,6 +23,8 @@ export function serveQuote(
 ) {
   const quotes = new Map<string, XSwapQuote>([best, ...candidates].map((q) => [q.quoteId, q]))
   let registered: XSwapOrder | undefined
+  // Polls of the registered order: `statuses` advances on these, not on 404s before registration.
+  let polls = 0
   api.set({
     quote: () => quoteResponse(best, candidates),
     permit: (quoteId) => {
@@ -38,10 +40,14 @@ export function serveQuote(
       registered = order(quotes.get(quoteId) ?? best, txHash, 'SUBMITTED')
       return registered
     },
-    order: (_, attempt) => {
-      const current = registered as XSwapOrder
-      const status = statuses[Math.min(attempt, statuses.length - 1)]
-      return { ...order(best, current.originTxHash, status), id: current.id, quoteId: current.quoteId }
+    order: (id) => {
+      // A poll before the deposit is registered (e.g. an order restored from storage) gets a 404, like the real API.
+      if (!registered || registered.id !== id) {
+        return new ApiError(404, 'not_found', `e2e: order ${id} is not registered`)
+      }
+      const status = statuses[Math.min(polls, statuses.length - 1)]
+      polls += 1
+      return { ...order(best, registered.originTxHash, status), id: registered.id, quoteId: registered.quoteId }
     },
   })
 }

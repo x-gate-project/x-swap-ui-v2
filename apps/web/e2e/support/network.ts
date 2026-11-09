@@ -6,6 +6,20 @@ import { XSwapApiStub } from './xswapApi'
 
 const XSWAP_API_PATH = '/api/xswap/v1/'
 
+/** Whether a request is a JSON-RPC call (single or batch), whatever host it goes to. */
+function isJsonRpc(route: Route): boolean {
+  if (route.request().method() !== 'POST') {
+    return false
+  }
+  try {
+    const body = route.request().postDataJSON() as unknown
+    const first = Array.isArray(body) ? body[0] : body
+    return typeof first === 'object' && first !== null && 'jsonrpc' in first && 'method' in first
+  } catch {
+    return false
+  }
+}
+
 async function fulfillRpc(route: Route, chain: MockChain, chainId: number) {
   const body = route.request().postDataJSON() as JsonRpcRequest | JsonRpcRequest[]
   const json = Array.isArray(body) ? body.map((r) => respond(chain, chainId, r)) : respond(chain, chainId, body)
@@ -35,6 +49,10 @@ export async function installNetwork(
     }
     if (url.protocol === 'data:' || url.protocol === 'blob:') {
       return route.fallback()
+    }
+    if (isJsonRpc(route)) {
+      // A chain RPC the stub does not know (a new transport or chain): the test fixture fails on it.
+      chain.unroutedRpcHosts.add(url.hostname)
     }
     return route.abort('blockedbyclient')
   })
