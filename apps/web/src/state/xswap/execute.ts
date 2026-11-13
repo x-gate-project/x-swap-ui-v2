@@ -11,6 +11,8 @@ const REGISTER_RETRY_DELAY_MS = 2_000
 
 /** How often the API is asked whether a sent approval took effect. Refreshes count against `rateLimits.quotesPerMin`. */
 const APPROVAL_POLL_MS = 4_000
+/** Longest wait for a sent approval. Each refresh renews the quote, so without it the wait would have no end. */
+const APPROVAL_WAIT_MAX_MS = 5 * 60_000
 
 const permit2ApproveAbi = parseAbi([
   'function approve(address token, address spender, uint160 amount, uint48 expiration)',
@@ -436,6 +438,18 @@ async function registerWithRetry(
   throw new XSwapRegisterError(params.txHash, lastError)
 }
 
+/** A sent approval neither took effect nor reverted within `APPROVAL_WAIT_MAX_MS`: it may still be pending. */
+export class XSwapApprovalTimeoutError extends Error {
+  constructor(
+    readonly kind: string,
+    readonly txHash: string,
+  ) {
+    super(`${kind} ${txHash} not confirmed in time`)
+    this.name = 'XSwapApprovalTimeoutError'
+    Object.setPrototypeOf(this, XSwapApprovalTimeoutError.prototype)
+  }
+}
+
 /**
  * Whether `fresh`, a refresh of the quote `tx` belongs to, no longer asks for that approval. The API reads the
  * allowances on its own RPC for every quote and lists an approval only while the allowance is short, so a sendable plan
@@ -457,16 +471,18 @@ function isApprovalCovered(fresh: XSwapQuote, tx: XSwapTx): boolean {
  *   approval (`isApprovalCovered`). Each refresh is of the previous one, so the quote does not expire meanwhile; the
  *   refreshed quotes are only read, the caller keeps its own.
  *
- * A reverted approval is therefore only reported while the UI's RPC answers; without it the wait goes on until the API
- * no longer holds the quote (`XSwapQuoteExpiredError`).
+ * A reverted approval is therefore only reported while the UI's RPC answers. Without it, or for an approval the wallet
+ * replaced (its hash never gets a receipt), the API keeps listing the approval and each refresh renews the quote, so
+ * the wait stops after `APPROVAL_WAIT_MAX_MS` with `XSwapApprovalTimeoutError`.
  */
 async function waitForApproval(
   tx: XSwapTx,
   hash: string,
   quoteId: string,
-  deps: Pick<XSwapExecutionDeps, 'waitForTx' | 'refreshQuote' | 'sleep'>,
+  deps: Pick<XSwapExecutionDeps, 'waitForTx' | 'refreshQuote' | 'sleep' | 'now'>,
 ): Promise<boolean> {
   const controller = new AbortController()
+  const deadline = deps.now() + APPROVAL_WAIT_MAX_MS
   const viaRpc = new Promise<boolean>((resolve) => {
     deps.waitForTx(tx.chainId, hash, controller.signal).then(
       (ok) => {
@@ -485,6 +501,9 @@ async function waitForApproval(
       await deps.sleep(APPROVAL_POLL_MS)
       if (controller.signal.aborted) {
         return true
+      }
+      if (deps.now() >= deadline) {
+        throw new XSwapApprovalTimeoutError(tx.kind, hash)
       }
       try {
         const fresh = await orQuoteExpired(() => deps.refreshQuote(id))

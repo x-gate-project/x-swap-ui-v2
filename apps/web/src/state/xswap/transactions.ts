@@ -115,8 +115,9 @@ type XSwapDeposit = TransactionDetails & { info: XSwapDepositTransactionInfo }
 
 /**
  * Deposits of `account` that should have an order by now and have none in `registered` (lowercased origin tx hashes):
- * mined (a pending deposit is `tx_not_found` to the API), sent at least `REGISTER_GRACE_MS` ago and less than
- * `REGISTER_MAX_AGE_MS` ago, and not cancelled. `listedSince` is the time (ms) of the oldest order loaded when the
+ * not reverted, sent at least `REGISTER_GRACE_MS` ago and less than `REGISTER_MAX_AGE_MS` ago, and not cancelled. A
+ * deposit still pending in the local store counts: the API takes a pending tx, and that status only says the app has
+ * not read the receipt, which it may never do (failing RPC, wallet on another chain). `listedSince` is the time (ms) of the oldest order loaded when the
  * history has more pages: an older deposit may be registered on a page not loaded, so it is left alone.
  */
 export function findUnregisteredXSwapDeposits(
@@ -130,7 +131,7 @@ export function findUnregisteredXSwapDeposits(
     (tx): tx is XSwapDeposit =>
       tx.info.type === TransactionType.XSWAP_DEPOSIT &&
       sameHash(tx.from, account) &&
-      tx.status === TransactionStatus.Confirmed &&
+      tx.status !== TransactionStatus.Failed &&
       !tx.cancelled &&
       now - tx.addedTime >= REGISTER_GRACE_MS &&
       now - tx.addedTime < REGISTER_MAX_AGE_MS &&

@@ -12,6 +12,7 @@ import { Text } from 'rebass'
 import { XSwapApiError, permitXSwapQuote, refreshXSwapQuote, registerXSwapOrder } from 'state/xswap/client'
 import { getXSwapErrorMessage, toXSwapError } from 'state/xswap/errors'
 import {
+  XSwapApprovalTimeoutError,
   XSwapExecutionDeps,
   XSwapPermitRejectedError,
   XSwapPlanError,
@@ -157,6 +158,9 @@ function toExecutionError(error: unknown, chainId: number): ExecutionError {
   if (error instanceof XSwapTxRevertedError) {
     return { message: t('xswap.execute.error.reverted') }
   }
+  if (error instanceof XSwapApprovalTimeoutError) {
+    return { message: t('xswap.execute.error.approvalTimeout') }
+  }
   if (error instanceof XSwapPlanError) {
     return { message: t('xswap.execute.error.invalidPlan') }
   }
@@ -265,7 +269,12 @@ export function XSwapExecutePanel({
       logger.warn('XSwapExecutePanel', 'execute', 'x-swap order failed', e)
       setSteps((current) => current?.map((step) => (step.status === 'active' ? { ...step, status: 'error' } : step)))
       setError(toExecutionError(e, selected.tokenIn.chainId))
-      if (e instanceof XSwapQuoteExpiredError || e instanceof XSwapQuoteChangedError) {
+      // After a timeout the next quote tells whether the approval took effect meanwhile.
+      if (
+        e instanceof XSwapQuoteExpiredError ||
+        e instanceof XSwapQuoteChangedError ||
+        e instanceof XSwapApprovalTimeoutError
+      ) {
         requote()
       }
     } finally {

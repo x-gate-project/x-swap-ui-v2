@@ -1133,6 +1133,7 @@
   "xswap.tokenSelector.quoteOnlyTooltip": "Routes to this token can be priced but not executed yet",
   "xswap.tokenSelector.title": "Tokens",
   "xswap.tokenSelector.unavailable": "Not available for swaps right now",
+  "xswap.execute.error.approvalTimeout": "The approval is not confirmed yet. Check it in your wallet, then try again",
   "xswap.execute.error.generic": "Something went wrong, try again",
   "xswap.execute.error.insufficientFee": "Insufficient {{symbol}} for the bridge fee",
   "xswap.execute.error.invalidPlan": "This route returned transactions that cannot be sent safely. Pick another route or try again.",
