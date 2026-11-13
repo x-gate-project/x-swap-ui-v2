@@ -1,5 +1,6 @@
 import { XSwapApiError } from 'state/xswap/client'
 import {
+  XSwapApprovalTimeoutError,
   XSwapExecutionDeps,
   XSwapPermitRejectedError,
   XSwapPlanError,
@@ -400,6 +401,21 @@ describe('executeXSwapQuote', () => {
       await expect(executeXSwapQuote(quote({ txs: both }), d)).resolves.toBe(order)
       expect(d.sent.map((t) => t.kind)).toEqual(['approve', 'permit2-approve', 'deposit'])
       expect(d.refreshQuote).toHaveBeenCalledTimes(3)
+    })
+
+    it('gives up on an approval the API still lists after the longest wait', async () => {
+      let now = NOW
+      const d = deps({
+        now: () => now,
+        sleep: async (ms) => {
+          now += ms
+        },
+        waitForTx: jest.fn(never),
+        // Each refresh renews the quote, so it never expires.
+        refreshQuote: jest.fn(async (id: string) => quote({ quoteId: `${id}+`, expiresAt: now + 30_000 })),
+      })
+      await expect(executeXSwapQuote(quote(), d)).rejects.toBeInstanceOf(XSwapApprovalTimeoutError)
+      expect(d.sent.map((t) => t.kind)).toEqual(['approve'])
     })
 
     it('stops when the API no longer holds the quote', async () => {

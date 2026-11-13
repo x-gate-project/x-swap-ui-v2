@@ -81,6 +81,10 @@ describe('findUnregisteredXSwapDeposits', () => {
     expect(find([tx()])).toEqual(['0xaaa'])
   })
 
+  it('finds a deposit whose receipt the app has not read', () => {
+    expect(find([tx({ status: TransactionStatus.Pending })])).toEqual(['0xaaa'])
+  })
+
   it('skips a deposit older than the orders loaded when the history has more pages', () => {
     const since = (listedSince: number) =>
       findUnregisteredXSwapDeposits([tx()], ACCOUNT, new Set(), NOW, listedSince).map((t) => t.hash)
@@ -95,7 +99,6 @@ describe('findUnregisteredXSwapDeposits', () => {
   it.each([
     ['sent just now: the panel is still registering it', { addedTime: NOW - 5_000 }],
     ['too old', { addedTime: NOW - 2 * 24 * 60 * 60 * 1000 }],
-    ['still pending: the API cannot see it yet', { status: TransactionStatus.Pending }],
     ['reverted', { status: TransactionStatus.Failed }],
     ['cancelled', { cancelled: true as const }],
     ['from another wallet', { from: OTHER }],
