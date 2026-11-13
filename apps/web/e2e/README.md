@@ -47,7 +47,7 @@ anything else (GraphQL, Statsig, Amplitude, token lists...) ──► aborted
 | `support/scenario.ts` | `serveQuote(api, quote, options)`: the happy path for one quote (quote, permit, register, order polling), with hooks for failures. |
 | `support/swapPage.ts` | Page helpers: pick tokens and chains, type the amount, open the details, execute. |
 
-The wagmi client reads receipts over HTTP every 12 s. A test that holds a receipt and then mines it therefore waits up to that long (`swap.expectTrackerAfterMined()`).
+The execute panel polls an approval's receipt every 4 s, and asks the API (`POST /quote/:id/refresh`) at the same pace whether the approval is still needed. A test that holds a receipt and then mines it therefore waits a few seconds (`swap.expectTrackerAfterMined()`), and its unstubbed refreshes answer 501, which the app takes as transient.
 
 ## Adding a test
 

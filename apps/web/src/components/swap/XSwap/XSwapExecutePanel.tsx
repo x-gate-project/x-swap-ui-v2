@@ -36,6 +36,8 @@ import { getAccount, getPublicClient, sendTransaction, signTypedData } from 'wag
 
 type WagmiChainId = (typeof wagmiConfig)['chains'][number]['id']
 
+const RECEIPT_POLL_MS = 4_000
+
 const Steps = styled.ol`
   display: flex;
   flex-direction: column;
@@ -118,15 +120,23 @@ function useXSwapExecutionDeps(): XSwapExecutionDeps {
           gas: tx.gasLimit ? BigInt(tx.gasLimit) : undefined,
         })
       },
-      waitForTx: async (chainId, hash) => {
-        // wagmi's waitForTransactionReceipt throws on a reverted receipt; viem's returns it, so a revert is reported as
-        // one (`XSwapTxRevertedError`) and not as a generic failure. No timeout, as wagmi's.
+      waitForTx: async (chainId, hash, signal) => {
+        // Polls the receipt itself rather than through viem's waitForTransactionReceipt, which cannot be stopped and
+        // polls forever when the RPC fails. A reverted receipt is returned as one (`XSwapTxRevertedError`), not thrown.
         const client = getPublicClient(wagmiConfig, { chainId: chainId as WagmiChainId })
         if (!client) {
           throw new Error(`no client for chain ${chainId}`)
         }
-        const receipt = await client.waitForTransactionReceipt({ hash: hash as `0x${string}`, timeout: 0 })
-        return receipt.status === 'success'
+        while (!signal.aborted) {
+          try {
+            const receipt = await client.getTransactionReceipt({ hash: hash as `0x${string}` })
+            return receipt.status === 'success'
+          } catch {
+            // Not mined yet, or the RPC is failing: the executor asks the API as well.
+          }
+          await new Promise((resolve) => setTimeout(resolve, RECEIPT_POLL_MS))
+        }
+        throw new Error('aborted')
       },
     } satisfies XSwapExecutionDeps
   }, [selectChain])

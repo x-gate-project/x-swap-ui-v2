@@ -50,8 +50,8 @@ test.describe('cross-chain swap', () => {
     const approve = await chain.waitForSend('approve')
     await expect(swap.step(0)).toContainText('Approve the input amount')
     await expect(swap.step(1)).toContainText('Send the order')
-    // The app asks for the receipt and gets none while the approval is pending. viem polls it again only on a new block,
-    // and none is mined while the approval is held, so the first ask may come before or after the send resolves here.
+    // The app asks for the receipt and gets none while the approval is pending; the first ask may come before or after
+    // the send resolves here.
     await expect.poll(() => chain.calls('eth_getTransactionReceipt')).toBeGreaterThan(0)
     expect(chain.sent('deposit')).toHaveLength(0)
     await expect(swap.executeButton).toHaveText('Confirm in your wallet…')
@@ -59,6 +59,32 @@ test.describe('cross-chain swap', () => {
     chain.mine(approve.hash)
     await swap.expectTrackerAfterMined()
     expect(chain.sent('deposit')).toHaveLength(1)
+  })
+
+  test('goes on when only the API sees the approval mined', async ({ swap, api, chain }) => {
+    const quote = xchainQuote()
+    serveQuote(api, quote)
+    // The app's RPC never returns the approval's receipt, as an RPC that fails would (e.g. no RPC key).
+    chain.hold('approve')
+    // The API reads the allowance on its own RPC: its second refresh no longer lists the approval.
+    api.set({
+      refresh: (quoteId, attempt) => ({
+        ...quote,
+        quoteId: `${quoteId}-r`,
+        txs: attempt === 0 ? quote.txs : quote.txs.filter((tx) => tx.kind === 'deposit'),
+      }),
+    })
+    await swap.goto()
+    await swap.quote('USDC', USDC_TO_ARB, '100')
+    await swap.execute()
+
+    await chain.waitForSend('approve')
+    const deposit = await chain.waitForSend('deposit')
+    await swap.expectTrackerAfterMined()
+    expect(api.calls(`POST /quote/${quote.quoteId}/refresh`)).toHaveLength(1)
+    expect(api.calls(`POST /quote/${quote.quoteId}-r/refresh`)).toHaveLength(1)
+    // The refreshed quotes are only read: the order is the shown quote's.
+    expect(api.calls('POST /orders').map((r) => r.body)).toEqual([{ quoteId: quote.quoteId, txHash: deposit.hash }])
   })
 
   test('signs a Permit2 allowance instead of sending permit2-approve', async ({ swap, api, chain }) => {

@@ -355,6 +355,76 @@ describe('executeXSwapQuote', () => {
     expect(d.refreshQuote).not.toHaveBeenCalled()
   })
 
+  describe('with a UI RPC that never answers', () => {
+    const never = () => new Promise<boolean>(() => undefined)
+
+    it('goes on once a refresh no longer lists the approval', async () => {
+      const pending = quote({ quoteId: 'q2' })
+      const covered = quote({ quoteId: 'q3', txs: [deposit()] })
+      const d = deps({
+        waitForTx: jest.fn(never),
+        refreshQuote: jest.fn().mockResolvedValueOnce(pending).mockResolvedValueOnce(covered),
+      })
+      await expect(executeXSwapQuote(quote(), d)).resolves.toBe(order)
+      // Each refresh is of the previous one.
+      expect((d.refreshQuote as jest.Mock).mock.calls).toEqual([['q1'], ['q2']])
+      // The refreshed quotes are only read: the deposit is the one of the quote shown.
+      expect(d.registerOrder).toHaveBeenCalledWith({ quoteId: 'q1', txHash: '0xhash2' })
+      const signal = (d.waitForTx as jest.Mock).mock.calls[0][2] as AbortSignal
+      expect(signal.aborted).toBe(true)
+    })
+
+    it('keeps asking through transient API errors and priced-only refreshes', async () => {
+      const d = deps({
+        waitForTx: jest.fn(never),
+        refreshQuote: jest
+          .fn()
+          .mockRejectedValueOnce(new XSwapApiError('http_503', 503))
+          .mockResolvedValueOnce(quote({ quoteId: 'q2', executable: false, txs: [] }))
+          .mockResolvedValueOnce(quote({ quoteId: 'q3', txs: [deposit()] })),
+      })
+      await expect(executeXSwapQuote(quote(), d)).resolves.toBe(order)
+      expect((d.refreshQuote as jest.Mock).mock.calls).toEqual([['q1'], ['q1'], ['q2']])
+    })
+
+    it('waits for each approval of the plan in turn', async () => {
+      const both = [approve(PERMIT2), permit2Approve(SENDER), deposit()]
+      const d = deps({
+        waitForTx: jest.fn(never),
+        refreshQuote: jest
+          .fn()
+          .mockResolvedValueOnce(quote({ quoteId: 'q2', txs: [permit2Approve(SENDER), deposit()] }))
+          .mockResolvedValueOnce(quote({ quoteId: 'q3', txs: [permit2Approve(SENDER), deposit()] }))
+          .mockResolvedValueOnce(quote({ quoteId: 'q4', txs: [deposit()] })),
+      })
+      await expect(executeXSwapQuote(quote({ txs: both }), d)).resolves.toBe(order)
+      expect(d.sent.map((t) => t.kind)).toEqual(['approve', 'permit2-approve', 'deposit'])
+      expect(d.refreshQuote).toHaveBeenCalledTimes(3)
+    })
+
+    it('stops when the API no longer holds the quote', async () => {
+      const d = deps({
+        waitForTx: jest.fn(never),
+        refreshQuote: jest.fn(async () => {
+          throw new XSwapApiError('quote_unavailable', 410)
+        }),
+      })
+      await expect(executeXSwapQuote(quote(), d)).rejects.toBeInstanceOf(XSwapQuoteExpiredError)
+      expect(d.sent.map((t) => t.kind)).toEqual(['approve'])
+    })
+  })
+
+  it('lets the API decide when the UI RPC fails', async () => {
+    const d = deps({
+      waitForTx: jest.fn(async () => {
+        throw new Error('no client for chain')
+      }),
+      refreshQuote: jest.fn(async () => quote({ quoteId: 'q2', txs: [deposit()] })),
+    })
+    await expect(executeXSwapQuote(quote(), d)).resolves.toBe(order)
+    expect(d.sent.map((t) => t.kind)).toEqual(['approve', 'deposit'])
+  })
+
   it('reports each sent tx with the quote it belongs to', async () => {
     const refreshed = quote({ quoteId: 'q2', expiresAt: NOW + 120_000, txs: [deposit('0xbeef')] })
     let now = NOW
@@ -463,7 +533,7 @@ describe('executeXSwapQuote', () => {
     const d = deps()
     await executeXSwapQuote(quote(), d)
     expect(d.waitForTx).toHaveBeenCalledTimes(1)
-    expect(d.waitForTx).toHaveBeenCalledWith(d.sent[0].chainId, '0xhash1')
+    expect(d.waitForTx).toHaveBeenCalledWith(d.sent[0].chainId, '0xhash1', expect.any(AbortSignal))
   })
 
   it('retries a deposit the API does not see yet', async () => {
