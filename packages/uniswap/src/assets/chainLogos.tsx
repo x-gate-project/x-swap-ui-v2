@@ -43,6 +43,12 @@ export const UNIVERSE_CHAIN_LOGO = {
       logoDark: ArbiscanLogoDark,
     },
   } as const satisfies UniverseChainLogoInfo,
+  [UniverseChainId.ArbitrumSepolia]: {
+    explorer: {
+      logoLight: ArbiscanLogoLight,
+      logoDark: ArbiscanLogoDark,
+    },
+  } as const satisfies UniverseChainLogoInfo,
   [UniverseChainId.Optimism]: {
     explorer: {
       logoLight: OpEtherscanLogoLight,
@@ -50,6 +56,12 @@ export const UNIVERSE_CHAIN_LOGO = {
     },
   } as const satisfies UniverseChainLogoInfo,
   [UniverseChainId.Base]: {
+    explorer: {
+      logoLight: EtherscanLogoLight,
+      logoDark: EtherscanLogoDark,
+    },
+  } as const satisfies UniverseChainLogoInfo,
+  [UniverseChainId.BaseSepolia]: {
     explorer: {
       logoLight: EtherscanLogoLight,
       logoDark: EtherscanLogoDark,

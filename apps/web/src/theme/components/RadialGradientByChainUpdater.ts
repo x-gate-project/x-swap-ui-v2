@@ -53,7 +53,8 @@ export default function RadialGradientByChainUpdater(): null {
 
     switch (chainId) {
       case UniverseChainId.ArbitrumOne:
-      case UniverseChainId.ArbitrumGoerli: {
+      case UniverseChainId.ArbitrumGoerli:
+      case UniverseChainId.ArbitrumSepolia: {
         setBackground(backgroundResetStyles)
         const arbitrumLightGradient =
           'radial-gradient(100% 100% at 50% 0%, rgba(205, 232, 251, 0) 0%, rgba(252, 243, 249, 0) 49.48%, rgba(255, 255, 255, 0) 100%), #FFFFFF'
@@ -110,7 +111,8 @@ export default function RadialGradientByChainUpdater(): null {
         backgroundRadialGradientElement.style.background = darkMode ? avaxDarkGradient : avaxLightGradient
         break
       }
-      case UniverseChainId.Base: {
+      case UniverseChainId.Base:
+      case UniverseChainId.BaseSepolia: {
         setBackground(backgroundResetStyles)
         const baseLightGradient =
           'radial-gradient(100% 100% at 50% 0%, rgba(0, 82, 255, 0) 0%, rgba(0, 82, 255, 0) 40.0%, rgba(252, 255, 82, 0.00) 100%), rgb(255, 255, 255)'

@@ -131,6 +131,22 @@ export const USDC_ARBITRUM_GOERLI = new Token(
   'USD//C',
 )
 
+export const USDC_ARBITRUM_SEPOLIA = new Token(
+  UniverseChainId.ArbitrumSepolia,
+  '0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d',
+  6,
+  'USDC',
+  'USD//C',
+)
+
+export const USDC_BASE_SEPOLIA = new Token(
+  UniverseChainId.BaseSepolia,
+  '0x036CbD53842c5426634e7929541eC2318f3dCF7e',
+  6,
+  'USDC',
+  'USD Coin',
+)
+
 export const USDC_AVALANCHE = new Token(
   UniverseChainId.Avalanche,
   '0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E',

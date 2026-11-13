@@ -46,7 +46,7 @@ import {
   nativeOnChain,
 } from 'constants/tokens'
 import { getNativeLogoURI, getTokenLogoURI } from 'lib/hooks/useCurrencyLogoURIs'
-import { USDC_ZKSYNC, USDC_ZORA } from 'uniswap/src/constants/tokens'
+import { USDC_ARBITRUM_SEPOLIA, USDC_BASE_SEPOLIA, USDC_ZKSYNC, USDC_ZORA } from 'uniswap/src/constants/tokens'
 import { SafetyLevel } from 'uniswap/src/data/graphql/uniswap-data-api/__generated__/types-and-hooks'
 import { CurrencyInfo } from 'uniswap/src/features/dataApi/types'
 import { UniverseChainId } from 'uniswap/src/types/chains'
@@ -111,6 +111,11 @@ export const COMMON_BASES: ChainCurrencyList = {
     WRAPPED_NATIVE_CURRENCY[UniverseChainId.ArbitrumGoerli] as Token,
     USDC_ARBITRUM_GOERLI,
   ].map(buildCurrencyInfo),
+  [UniverseChainId.ArbitrumSepolia]: [
+    nativeOnChain(UniverseChainId.ArbitrumSepolia),
+    WRAPPED_NATIVE_CURRENCY[UniverseChainId.ArbitrumSepolia] as Token,
+    USDC_ARBITRUM_SEPOLIA,
+  ].map(buildCurrencyInfo),
 
   [UniverseChainId.Optimism]: [
     nativeOnChain(UniverseChainId.Optimism),
@@ -129,6 +134,11 @@ export const COMMON_BASES: ChainCurrencyList = {
     nativeOnChain(UniverseChainId.Base),
     WRAPPED_NATIVE_CURRENCY[UniverseChainId.Base] as Token,
     USDC_BASE,
+  ].map(buildCurrencyInfo),
+  [UniverseChainId.BaseSepolia]: [
+    nativeOnChain(UniverseChainId.BaseSepolia),
+    WRAPPED_NATIVE_CURRENCY[UniverseChainId.BaseSepolia] as Token,
+    USDC_BASE_SEPOLIA,
   ].map(buildCurrencyInfo),
   [UniverseChainId.Blast]: [
     nativeOnChain(UniverseChainId.Blast),
