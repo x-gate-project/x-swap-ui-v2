@@ -50,6 +50,17 @@ yarn web e2e:install # once
 yarn web e2e
 ```
 
+## App RPC
+
+The app reads each chain from the `appOnly` RPCs in `packages/uniswap/src/constants/chains.ts`, most of which need
+`REACT_APP_INFURA_KEY`. To read from another RPC instead, set a URL with a `{chainId}` placeholder at build time:
+
+| Variable | Where | Value |
+|---|---|---|
+| `REACT_APP_RPC_URL_TEMPLATE` | build time | e.g. `https://api.gu.net/v1/json-rpc/evm/{chainId}`. Tried before the chain's own RPCs, which stay as fallbacks. Unset keeps the chain's own RPCs alone. |
+
+The RPC's origin must be allowed by `connect-src` in `public/csp.json`.
+
 ## Translations
 
 To get translations to work you'll need to set up 1Password, and then:
