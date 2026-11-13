@@ -13,6 +13,7 @@ export function toGraphQLChain(chainId: ChainId | number): Chain | undefined {
     case ChainId.ARBITRUM_ONE:
       return Chain.Arbitrum
     case ChainId.ARBITRUM_GOERLI:
+    case ChainId.ARBITRUM_SEPOLIA:
       return Chain.Arbitrum
     case ChainId.GOERLI:
       return Chain.EthereumGoerli
@@ -27,6 +28,7 @@ export function toGraphQLChain(chainId: ChainId | number): Chain | undefined {
     case ChainId.POLYGON_MUMBAI:
       return Chain.Polygon
     case ChainId.BASE:
+    case UniverseChainId.BaseSepolia:
       return Chain.Base
     case ChainId.BNB:
       return Chain.Bnb
