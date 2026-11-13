@@ -9,6 +9,9 @@ const XSWAP_QUOTE_EXPIRY_MARGIN_MS = 15_000
 const REGISTER_ATTEMPTS = 4
 const REGISTER_RETRY_DELAY_MS = 2_000
 
+/** How often the API is asked whether a sent approval took effect. Refreshes count against `rateLimits.quotesPerMin`. */
+const APPROVAL_POLL_MS = 4_000
+
 const permit2ApproveAbi = parseAbi([
   'function approve(address token, address spender, uint160 amount, uint48 expiration)',
 ])
@@ -284,8 +287,12 @@ export type XSwapExecutionDeps = {
   signPermit: (permit: XSwapPermitTypedData) => Promise<string>
   /** Switches the wallet to `tx.chainId` if needed, sends the tx and returns its hash. */
   sendTx: (tx: XSwapTx) => Promise<string>
-  /** Resolves true when the tx succeeded, false when it reverted. Only approvals are waited for. */
-  waitForTx: (chainId: number, hash: string) => Promise<boolean>
+  /**
+   * Resolves true when the tx succeeded, false when it reverted, from the UI's own RPC. Only approvals are waited for,
+   * and the API is asked too (`waitForApproval`): this may never resolve or reject when that RPC fails. Stops once
+   * `signal` aborts.
+   */
+  waitForTx: (chainId: number, hash: string, signal: AbortSignal) => Promise<boolean>
   registerOrder: (params: { quoteId: string; txHash: string }) => Promise<XSwapOrder>
 }
 
@@ -429,6 +436,77 @@ async function registerWithRetry(
   throw new XSwapRegisterError(params.txHash, lastError)
 }
 
+/**
+ * Whether `fresh`, a refresh of the quote `tx` belongs to, no longer asks for that approval. The API reads the
+ * allowances on its own RPC for every quote and lists an approval only while the allowance is short, so a sendable plan
+ * without it means the approval is mined. A priced-only refresh says nothing.
+ */
+function isApprovalCovered(fresh: XSwapQuote, tx: XSwapTx): boolean {
+  return (
+    fresh.executable &&
+    fresh.txs.some((t) => t.kind === 'deposit') &&
+    !fresh.txs.some((t) => t.kind === tx.kind && sameAddress(t.to, tx.to))
+  )
+}
+
+/**
+ * Waits for a sent approval: true once it took effect, false when it reverted. Two sources race, so that a failing RPC
+ * in the browser (e.g. no RPC key) cannot hang the swap:
+ * - the receipt from the UI's RPC (`deps.waitForTx`), the only one that sees a revert;
+ * - the API: `POST /v1/quote/:quoteId/refresh` every `APPROVAL_POLL_MS` until the refreshed quote no longer lists the
+ *   approval (`isApprovalCovered`). Each refresh is of the previous one, so the quote does not expire meanwhile; the
+ *   refreshed quotes are only read, the caller keeps its own.
+ *
+ * A reverted approval is therefore only reported while the UI's RPC answers; without it the wait goes on until the API
+ * no longer holds the quote (`XSwapQuoteExpiredError`).
+ */
+async function waitForApproval(
+  tx: XSwapTx,
+  hash: string,
+  quoteId: string,
+  deps: Pick<XSwapExecutionDeps, 'waitForTx' | 'refreshQuote' | 'sleep'>,
+): Promise<boolean> {
+  const controller = new AbortController()
+  const viaRpc = new Promise<boolean>((resolve) => {
+    deps.waitForTx(tx.chainId, hash, controller.signal).then(
+      (ok) => {
+        // Before the next poll: the receipt is the answer.
+        controller.abort()
+        resolve(ok)
+      },
+      () => {
+        // The UI's RPC cannot tell: the API decides.
+      },
+    )
+  })
+  const viaApi = (async (): Promise<boolean> => {
+    let id = quoteId
+    for (;;) {
+      await deps.sleep(APPROVAL_POLL_MS)
+      if (controller.signal.aborted) {
+        return true
+      }
+      try {
+        const fresh = await orQuoteExpired(() => deps.refreshQuote(id))
+        if (isApprovalCovered(fresh, tx)) {
+          return true
+        }
+        id = fresh.quoteId
+      } catch (error) {
+        if (error instanceof XSwapQuoteExpiredError) {
+          throw error
+        }
+        // Transient (network, 429, 5xx): the next poll asks again.
+      }
+    }
+  })()
+  try {
+    return await Promise.race([viaRpc, viaApi])
+  } finally {
+    controller.abort()
+  }
+}
+
 function depositOf(txs: XSwapTx[]): XSwapTx {
   // planXSwapTxs guarantees one deposit, last.
   return txs[txs.length - 1]
@@ -437,7 +515,8 @@ function depositOf(txs: XSwapTx[]): XSwapTx {
 /**
  * Sends a quote's txs in order, then registers the order (same-chain swaps are tracked as orders too):
  * 1. refresh the quote if it is about to expire (`quote_unavailable` → `XSwapQuoteExpiredError`, re-quote);
- * 2. send each approval and wait for it;
+ * 2. send each approval and wait for it, on the UI's RPC or through the API, whichever answers first
+ *    (`waitForApproval`);
  * 3. with a `permit`: refresh again if needed, sign it, and take the deposit `POST /v1/quote/:quoteId/permit` builds
  *    from the signature; that quote is not refreshed (it would drop the signature), so once expired it fails;
  * 4. else refresh again before the deposit, since approvals take time, and send the refreshed quote's deposit;
@@ -548,7 +627,7 @@ export async function executeXSwapQuote(
     }
 
     // The next tx relies on this approval.
-    const ok = await deps.waitForTx(tx.chainId, hash)
+    const ok = await waitForApproval(tx, hash, quote.quoteId, deps)
     if (!ok) {
       callbacks.onStep?.(index, { status: 'error' })
       throw new XSwapTxRevertedError(tx.kind, hash)
