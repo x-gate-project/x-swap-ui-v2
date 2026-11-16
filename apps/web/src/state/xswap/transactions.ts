@@ -50,6 +50,7 @@ export function xswapTxInfo(
       outputChainId: quote.tokenOut.chainId,
       outputCurrencyId: currencyId(quote.tokenOut.address),
       expectedOutputCurrencyAmountRaw: quote.outputAmount,
+      ...(quote.recipient && { recipient: quote.recipient }),
     }
   }
   // A `permit2-approve` is kept as an APPROVAL of the token to the deposit target, though it is Permit2's allowance,

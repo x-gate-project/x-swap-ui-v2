@@ -15,7 +15,7 @@ import { t } from 'i18n'
 import { X } from 'react-feather'
 import { isXSwapOrderTerminal, useXSwapOrder, useXSwapTokenLookup } from 'state/xswap/hooks'
 import { XSwapOrder, XSwapOrderStatus } from 'state/xswap/types'
-import { isSameXSwapAddress, layerZeroScanUrl, shortenXSwapHash } from 'state/xswap/utils'
+import { layerZeroScanUrl, shortenXSwapHash, xswapQuoteRecipient } from 'state/xswap/utils'
 import styled, { useTheme } from 'styled-components'
 import { ExternalLink } from 'theme/components'
 
@@ -118,6 +118,7 @@ export function XSwapOrderTracker({ order: initial, onClose }: { order: XSwapOrd
   const theme = useTheme()
   const { data } = useXSwapOrder(initial.id, initial)
   const order = data ?? initial
+  const recipient = xswapQuoteRecipient(order.recipient, order.swapper)
   const terminal = isXSwapOrderTerminal(order)
   const lookup = useXSwapTokenLookup([order.tokenIn.chainId, order.tokenOut.chainId])
   const chainName = useXSwapChainName()
@@ -178,11 +179,11 @@ export function XSwapOrderTracker({ order: initial, onClose }: { order: XSwapOrd
       </Timeline>
 
       <Details>
-        {order.recipient && !isSameXSwapAddress(order.recipient, order.swapper) && (
+        {recipient && (
           <>
             <dt>{t('xswap.recipient.label')}</dt>
             <dd data-testid="xswap-order-recipient">
-              <AddressLink chainId={order.tokenOut.chainId} address={order.recipient} />
+              <AddressLink chainId={order.tokenOut.chainId} address={recipient} />
             </dd>
           </>
         )}

@@ -199,6 +199,8 @@ export interface XSwapDepositTransactionInfo {
   outputChainId: number
   outputCurrencyId: string
   expectedOutputCurrencyAmountRaw: string
+  /** The quote's `recipient`, who the output goes to; the swapper (the tx's `from`) when unset or equal. */
+  recipient?: string
 }
 
 export type TransactionInfo =

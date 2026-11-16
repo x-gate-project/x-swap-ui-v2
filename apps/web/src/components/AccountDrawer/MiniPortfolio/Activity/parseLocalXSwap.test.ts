@@ -10,7 +10,7 @@ const formatNumber = (({ input }: { input: number }) => input.toFixed(2)) as Par
   typeof transactionToActivity
 >[2]
 
-const deposit = (routeClass: string, status: TransactionStatus): TransactionDetails =>
+const deposit = (routeClass: string, status: TransactionStatus, recipient?: string): TransactionDetails =>
   ({
     hash: '0xdeposit',
     from: '0x0000000000000000000000000000000000000001',
@@ -27,6 +27,7 @@ const deposit = (routeClass: string, status: TransactionStatus): TransactionDeta
       outputChainId: UniverseChainId.Mainnet,
       outputCurrencyId: DAI.address,
       expectedOutputCurrencyAmountRaw: '1000000000000000000',
+      recipient,
     },
   }) as TransactionDetails
 
@@ -47,5 +48,24 @@ describe('transactionToActivity: x-swap deposit', () => {
         descriptor: `1.00 ${USDC_MAINNET.symbol} for 1.00 ${DAI.symbol}`,
       },
     )
+  })
+
+  it('names the recipient of a deposit paying another address', async () => {
+    const recipient = '0x00000000000000000000000000000000000000Aa'
+    const activity = await transactionToActivity(
+      deposit('evm-native', TransactionStatus.Pending, recipient),
+      UniverseChainId.Mainnet,
+      formatNumber,
+    )
+    expect(activity?.descriptor).toBe(`1.00 ${USDC_MAINNET.symbol} for 1.00 ${DAI.symbol} to 0x0000…00Aa`)
+  })
+
+  it('names no recipient when the deposit pays the sender', async () => {
+    const activity = await transactionToActivity(
+      deposit('evm-native', TransactionStatus.Pending, '0x0000000000000000000000000000000000000001'),
+      UniverseChainId.Mainnet,
+      formatNumber,
+    )
+    expect(activity?.descriptor).toBe(`1.00 ${USDC_MAINNET.symbol} for 1.00 ${DAI.symbol}`)
   })
 })

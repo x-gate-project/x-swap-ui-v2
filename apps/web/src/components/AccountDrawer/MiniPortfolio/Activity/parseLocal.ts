@@ -32,6 +32,7 @@ import {
   WrapTransactionInfo,
   XSwapDepositTransactionInfo,
 } from 'state/transactions/types'
+import { shortenXSwapHash, xswapQuoteRecipient } from 'state/xswap/utils'
 import { TransactionStatus } from 'uniswap/src/data/graphql/uniswap-data-api/__generated__/types-and-hooks'
 import { InterfaceChainId } from 'uniswap/src/types/chains'
 import { isAddress } from 'utilities/src/addresses'
@@ -208,10 +209,16 @@ async function parseSend(
   }
 }
 
+/** "X for Y to 0x…" when the deposit pays another address than the sender, like the order row that replaces it. */
+function withXSwapRecipient(descriptor: string, recipient?: string): string {
+  return recipient ? `${descriptor} ${t('common.to')} ${shortenXSwapHash(recipient)}` : descriptor
+}
+
 /** An x-swap deposit until the API lists its order, which then replaces this row (same hash). */
 async function parseXSwapDeposit(
   deposit: XSwapDepositTransactionInfo,
   status: TransactionStatus,
+  from: string,
   formatNumber: FormatNumberFunctionType,
 ): Promise<Partial<Activity>> {
   // The output may be on a chain the data API does not serve; an unknown token must not drop the row.
@@ -225,12 +232,15 @@ async function parseXSwapDeposit(
       deposit.routeClass === 'local' ? TransactionType.SWAP : TransactionType.XSWAP_DEPOSIT,
       status,
     ),
-    descriptor: buildCurrencyDescriptor(
-      tokenIn,
-      deposit.inputCurrencyAmountRaw,
-      tokenOut,
-      deposit.expectedOutputCurrencyAmountRaw,
-      formatNumber,
+    descriptor: withXSwapRecipient(
+      buildCurrencyDescriptor(
+        tokenIn,
+        deposit.inputCurrencyAmountRaw,
+        tokenOut,
+        deposit.expectedOutputCurrencyAmountRaw,
+        formatNumber,
+      ),
+      xswapQuoteRecipient(deposit.recipient, from),
     ),
     currencies: [tokenIn, tokenOut],
   }
@@ -277,7 +287,7 @@ export async function transactionToActivity(
     } else if (info.type === TransactionType.SEND) {
       additionalFields = await parseSend(info, chainId, formatNumber)
     } else if (info.type === TransactionType.XSWAP_DEPOSIT) {
-      additionalFields = await parseXSwapDeposit(info, details.status, formatNumber)
+      additionalFields = await parseXSwapDeposit(info, details.status, details.from, formatNumber)
     }
 
     const activity = { ...defaultFields, ...additionalFields }

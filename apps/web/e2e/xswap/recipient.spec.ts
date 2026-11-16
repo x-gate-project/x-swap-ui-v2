@@ -53,17 +53,33 @@ test.describe('send to another address', () => {
     expect(api.calls('POST /quote').every((call) => !(call.body as { recipient?: string }).recipient)).toBe(true)
   })
 
-  test('sends nothing when the quote pays another address', async ({ swap, api, chain }) => {
+  test('blocks the swap when the quote pays another address', async ({ swap, api, chain }) => {
     // The API answers for the swapper although the user asked for a recipient.
     serveQuote(api, xchainQuote({ recipient: ACCOUNT }))
     await swap.goto()
     await swap.quote('USDC', USDC_TO_ARB, '100')
     await swap.setRecipient(RECIPIENT)
     await expect.poll(() => api.calls('POST /quote').at(-1)?.body).toMatchObject({ recipient: RECIPIENT })
-    await swap.execute()
 
-    await expect(swap.executeError).toContainText('This route returned transactions that cannot be sent safely')
+    await expect(swap.executeButton).toHaveText(
+      "This route can't send to another address yet. Send to your wallet instead.",
+    )
+    await expect(swap.executeButton).toBeDisabled()
     expect(chain.sent()).toHaveLength(0)
+  })
+
+  test('blocks the swap when the API does not name the recipient', async ({ swap, api }) => {
+    // An API without recipients answers with no `recipient` and pays the swapper.
+    serveQuote(api, xchainQuote())
+    await swap.goto()
+    await swap.quote('USDC', USDC_TO_ARB, '100')
+    await swap.setRecipient(RECIPIENT)
+    await expect.poll(() => api.calls('POST /quote').at(-1)?.body).toMatchObject({ recipient: RECIPIENT })
+
+    await expect(swap.executeButton).toHaveText(
+      "This route can't send to another address yet. Send to your wallet instead.",
+    )
+    await expect(swap.executeButton).toBeDisabled()
   })
 
   test('closing the field sends to the wallet again', async ({ swap, api }) => {
@@ -73,10 +89,12 @@ test.describe('send to another address', () => {
     await swap.setRecipient(RECIPIENT)
     await expect.poll(() => api.calls('POST /quote').at(-1)?.body).toMatchObject({ recipient: RECIPIENT })
 
+    // The served quote names no recipient: it cannot pay the address typed.
+    await expect(swap.executeButton).toBeDisabled()
+
     await swap.page.getByTestId('xswap-recipient-remove').click()
     await expect(swap.recipientInput).toBeHidden()
-    await expect
-      .poll(() => (api.calls('POST /quote').at(-1)?.body as { recipient?: string } | undefined)?.recipient)
-      .toBeUndefined()
+    // The wallet quote may come from the cache (no new request): the swap paying the wallet is allowed again.
+    await expect(swap.executeButton).toBeEnabled()
   })
 })

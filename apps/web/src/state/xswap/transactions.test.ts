@@ -57,6 +57,11 @@ describe('xswapTxInfo', () => {
     })
   })
 
+  it('keeps the recipient of a deposit paying another address', () => {
+    expect(xswapTxInfo(deposit, quote({ recipient: SENDER }))).toMatchObject({ recipient: SENDER })
+    expect(xswapTxInfo(deposit, quote())).not.toHaveProperty('recipient')
+  })
+
   it('names a native token as the app does', () => {
     const info = xswapTxInfo(deposit, quote({ tokenIn: { chainId: CHAIN, address: XSWAP_NATIVE_ADDRESS } }))
     expect(info).toMatchObject({ inputCurrencyId: NATIVE_CHAIN_ID })

@@ -56,6 +56,7 @@ import { useSwapActionHandlers, useSwapAndLimitContext, useSwapContext } from 's
 import { CurrencyState } from 'state/swap/types'
 import { useUserSlippageTolerance } from 'state/user/hooks'
 import { SlippageTolerance } from 'state/user/types'
+import { xswapQuotePaysPayee } from 'state/xswap/execute'
 import {
   useXSwapChainMode,
   useXSwapQuote,
@@ -69,7 +70,6 @@ import {
   parseXSwapRecipient,
   pickDefaultXSwapRoute,
   xswapNativeValue,
-  xswapQuoteRecipient,
 } from 'state/xswap/utils'
 import { useTheme } from 'styled-components'
 import { ExternalLink, ThemedText } from 'theme/components'
@@ -353,13 +353,25 @@ export function SwapForm({ disableTokenInputs = false, onCurrencyChange }: SwapF
   const [xswapRecipientValue, setXSwapRecipientValue] = useState('')
   const xswapRecipientInput = useMemo(() => parseXSwapRecipient(xswapRecipientValue), [xswapRecipientValue])
   const xswapRecipientActive = showXSwapRecipient && xswapRecipientOpen
-  // Undefined pays the connected wallet: no recipient, an invalid one (the swap is blocked below) or the wallet itself.
+  const resetXSwapRecipient = useCallback(() => {
+    setXSwapRecipientOpen(false)
+    setXSwapRecipientValue('')
+  }, [])
+  // A recipient is for one swap: another wallet, another output chain or leaving the API chains drops it, so a later
+  // swap never pays an address the user typed for an earlier one.
+  const xswapOutputChainId = currencies[Field.OUTPUT]?.chainId
+  useEffect(resetXSwapRecipient, [account.address, resetXSwapRecipient, showXSwapRecipient, xswapOutputChainId])
+  // Undefined pays the connected wallet: no recipient or an invalid one (the swap is blocked below). The connected wallet
+  // itself is quoted like no recipient (`buildXSwapQuoteRequest`).
   const xswapRecipient =
-    xswapRecipientActive && xswapRecipientInput.status === 'valid'
-      ? xswapQuoteRecipient(xswapRecipientInput.address, account.address)
-      : undefined
-  const xswapRecipientError =
-    xswapRecipientActive && xswapRecipientInput.status === 'invalid' ? t('xswap.recipient.invalid') : undefined
+    xswapRecipientActive && xswapRecipientInput.status === 'valid' ? xswapRecipientInput.address : undefined
+  const xswapRecipientInvalid = xswapRecipientActive && xswapRecipientInput.status === 'invalid'
+  // While the address is invalid (e.g. being edited) the quote keeps the last valid recipient: no new request for a route
+  // that could not be sent, and the route on screen does not flip to one paying the wallet. The swap stays blocked.
+  const xswapLastValidRecipient = useRef<string>()
+  if (!xswapRecipientInvalid) {
+    xswapLastValidRecipient.current = xswapRecipient
+  }
   const xswapPayee = useMemo(
     () => (account.address ? { swapper: account.address, recipient: xswapRecipient } : undefined),
     [account.address, xswapRecipient],
@@ -373,7 +385,7 @@ export function SwapForm({ disableTokenInputs = false, onCurrencyChange }: SwapF
     outputCurrency: currencies[Field.OUTPUT],
     inputAmount: parsedAmounts[Field.INPUT],
     swapper: account.address,
-    recipient: xswapRecipient,
+    recipient: xswapRecipientInvalid ? xswapLastValidRecipient.current : xswapRecipient,
     slippage: userSlippageTolerance === SlippageTolerance.Auto ? undefined : userSlippageTolerance,
   })
   const xswapQuoteError = xswapQuote.status === 'error' ? xswapQuote.message : undefined
@@ -419,6 +431,13 @@ export function SwapForm({ disableTokenInputs = false, onCurrencyChange }: SwapF
   const xswapExecutableAlternative = xswapSelectedQuote?.executable
     ? undefined
     : xswapRouteOptions && pickDefaultXSwapRoute(xswapRouteOptions.filter((q) => q.executable))
+  // A route that does not say it pays the recipient (e.g. an API without recipients) is refused at execution: block it
+  // here, with the reason, instead of letting the user press Swap.
+  const xswapRecipientError = xswapRecipientInvalid
+    ? t('xswap.recipient.invalid')
+    : xswapPayee && xswapSelectedQuote && !xswapExecuting && !xswapQuotePaysPayee(xswapSelectedQuote, xswapPayee)
+      ? t('xswap.recipient.unsupported')
+      : undefined
   // The deposit's `value` carries the input amount of a native input and the bridge's native fee (XGate's LayerZero
   // fee). The amount alone may pass the balance check while the deposit cannot be sent; an ERC-20 input still needs
   // the native token for that fee. That balance is read only on the connected chain: off it, the cached balances may
@@ -489,9 +508,10 @@ export function SwapForm({ disableTokenInputs = false, onCurrencyChange }: SwapF
     (order: XSwapOrder) => {
       setXSwapOrder(order)
       onUserInput(Field.INPUT, '')
+      resetXSwapRecipient()
       queryClient.invalidateQueries({ queryKey: xswapQueryKeys.orders(account.address) })
     },
-    [account.address, onUserInput, queryClient],
+    [account.address, onUserInput, queryClient, resetXSwapRecipient],
   )
 
   const maximumAmountIn = useMaxAmountIn(trade, allowedSlippage)
@@ -835,6 +855,7 @@ export function SwapForm({ disableTokenInputs = false, onCurrencyChange }: SwapF
             chainId={currencies[Field.OUTPUT]?.chainId}
             chainName={currencies[Field.OUTPUT] ? xswapChainName(currencies[Field.OUTPUT].chainId) : undefined}
             outputSymbol={currencies[Field.OUTPUT]?.symbol}
+            swapper={account.address}
             disabled={xswapExecuting}
           />
         )}

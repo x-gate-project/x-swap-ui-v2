@@ -7,11 +7,14 @@ import {
   XSwapRecipientInput as ParsedRecipient,
   XSwapRecipientWarning,
   classifyXSwapRecipient,
+  isSameXSwapAddress,
 } from 'state/xswap/utils'
 import styled, { useTheme } from 'styled-components'
 import { useBalance, useBytecode, useTransactionCount } from 'wagmi'
 
 type WagmiChainId = (typeof wagmiConfig)['chains'][number]['id']
+
+const RECIPIENT_READ_STALE_MS = 5 * 60_000
 
 const ToggleButton = styled.button`
   align-self: flex-start;
@@ -76,15 +79,23 @@ const Warning = styled.div`
   line-height: 16px;
 `
 
-/** Reads the recipient on the destination chain to warn about a contract or an unused address. */
+/**
+ * Reads the recipient on the destination chain to warn about a contract or an unused address. A chain the wallet config
+ * does not know is not read: every read would fail. A failed read is not retried and gives no warning.
+ */
 function useXSwapRecipientWarning(address?: string, chainId?: number): XSwapRecipientWarning | undefined {
-  const query = { enabled: Boolean(address && chainId) }
+  const known = Boolean(chainId && wagmiConfig.chains.some((chain) => chain.id === chainId))
+  const query = {
+    enabled: Boolean(address) && known,
+    retry: false,
+    staleTime: RECIPIENT_READ_STALE_MS,
+    refetchOnWindowFocus: false,
+  }
   const params = { address: address as `0x${string}` | undefined, chainId: chainId as WagmiChainId | undefined }
   const { data: code } = useBytecode({ ...params, query })
   const { data: nonce } = useTransactionCount({ ...params, query })
   const { data: balance } = useBalance({ ...params, query })
-  // A chain the wallet config does not know fails every read: no warning.
-  return address && chainId ? classifyXSwapRecipient({ code, nonce, balance: balance?.value }) : undefined
+  return address && known ? classifyXSwapRecipient({ code, nonce, balance: balance?.value }) : undefined
 }
 
 type Props = {
@@ -97,6 +108,8 @@ type Props = {
   chainId?: number
   chainName?: string
   outputSymbol?: string
+  /** The connected wallet: typing it pays the wallet, as with no recipient. */
+  swapper?: string
   /** An order is executing: the recipient cannot change. */
   disabled?: boolean
 }
@@ -114,10 +127,15 @@ export function XSwapRecipientInput({
   chainId,
   chainName,
   outputSymbol,
+  swapper,
   disabled,
 }: Props) {
   const theme = useTheme()
-  const warning = useXSwapRecipientWarning(parsed.status === 'valid' ? parsed.address : undefined, chainId)
+  const recipient = parsed.status === 'valid' ? parsed.address : undefined
+  // The wallet itself is quoted as no recipient: no warning and no "goes to this address" note.
+  const isSelf = isSameXSwapAddress(recipient, swapper)
+  const warning = useXSwapRecipientWarning(isSelf ? undefined : recipient, chainId)
+  const chain = chainName || t('xswap.recipient.destinationChain')
   const handleChange = useCallback(
     (event: ChangeEvent<HTMLInputElement>) => onChange(event.target.value.replace(/\s+/g, '')),
     [onChange],
@@ -172,12 +190,12 @@ export function XSwapRecipientInput({
           <Warning data-testid={`xswap-recipient-warning-${warning}`}>
             <AlertTriangle size={14} color={theme.deprecated_accentWarning} style={{ flex: 'none' }} />
             {warning === 'contract'
-              ? t('xswap.recipient.warning.contract', { chain: chainName ?? '', symbol: outputSymbol ?? '' })
-              : t('xswap.recipient.warning.unused', { chain: chainName ?? '' })}
+              ? t('xswap.recipient.warning.contract', { chain, symbol: outputSymbol || t('xswap.recipient.output') })
+              : t('xswap.recipient.warning.unused', { chain })}
           </Warning>
         )
       )}
-      {parsed.status === 'valid' && <Muted>{t('xswap.recipient.note')}</Muted>}
+      {recipient && <Muted>{isSelf ? t('xswap.recipient.self') : t('xswap.recipient.note')}</Muted>}
     </Panel>
   )
 }

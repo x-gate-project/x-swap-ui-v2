@@ -1203,5 +1203,9 @@
   "xswap.recipient.remove": "Send to my wallet",
   "xswap.recipient.toggle": "Send to a different address",
   "xswap.recipient.warning.contract": "This address is a contract on {{chain}}. Make sure it can receive {{symbol}}, or the funds may be lost.",
-  "xswap.recipient.warning.unused": "This address has no activity on {{chain}}. Check it before you swap."
+  "xswap.recipient.warning.unused": "This address has no activity on {{chain}}. Check it before you swap.",
+  "xswap.recipient.destinationChain": "the destination chain",
+  "xswap.recipient.output": "the output token",
+  "xswap.recipient.self": "This is your connected wallet. The output goes to it as usual.",
+  "xswap.recipient.unsupported": "This route can't send to another address yet. Send to your wallet instead."
 }

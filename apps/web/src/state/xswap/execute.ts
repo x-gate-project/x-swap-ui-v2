@@ -1,6 +1,7 @@
 import { permit2Address } from '@uniswap/permit2-sdk'
 import { XSwapApiError } from 'state/xswap/client'
 import { XSwapOrder, XSwapPermitTypedData, XSwapQuote, XSwapTx, XSwapTxKind } from 'state/xswap/types'
+import { isSameXSwapAddress as sameAddress } from 'state/xswap/utils'
 import { decodeFunctionData, erc20Abi, parseAbi } from 'viem'
 
 /** Leave the user time to sign before the quote expires; a quote closer to expiry is refreshed first. */
@@ -89,10 +90,6 @@ export class XSwapRegisterError extends Error {
     this.name = 'XSwapRegisterError'
     Object.setPrototypeOf(this, XSwapRegisterError.prototype)
   }
-}
-
-function sameAddress(a?: string, b?: string): boolean {
-  return Boolean(a && b && a.toLowerCase() === b.toLowerCase())
 }
 
 function decodeErc20ApproveSpender(tx: XSwapTx): string {
@@ -263,14 +260,15 @@ function coveredBy(approved: PlanSpenders, next: PlanSpenders): boolean {
 
 /**
  * Throws when `fresh` pays less than `shown` guaranteed, spends another amount of another token, or pays the output to
- * another address.
+ * another address. A recipient that appears or disappears counts as another address: unset means "the swapper" only on
+ * an API without recipients, and the two quotes must agree on who is paid without knowing the swapper.
  */
 function assertRefreshAgreed(shown: XSwapQuote, fresh: XSwapQuote): void {
   if (
     fresh.inputAmount !== shown.inputAmount ||
     fresh.tokenIn.chainId !== shown.tokenIn.chainId ||
     !sameAddress(fresh.tokenIn.address, shown.tokenIn.address) ||
-    (shown.recipient !== undefined && !sameAddress(fresh.recipient, shown.recipient))
+    ((shown.recipient !== undefined || fresh.recipient !== undefined) && !sameAddress(fresh.recipient, shown.recipient))
   ) {
     throw new XSwapQuoteChangedError('route')
   }
@@ -287,17 +285,20 @@ export type XSwapPayee = { swapper: string; recipient?: string }
  * quote's `recipient`; the UI checks that `recipient` is the address the user typed. An API older than #228 returns no
  * `recipient` and pays the swapper, which is only right when no other recipient was asked for.
  */
-export function assertXSwapPaysRecipient(quote: XSwapQuote, { swapper, recipient }: XSwapPayee): void {
+export function assertXSwapPaysRecipient(quote: XSwapQuote, payee: XSwapPayee): void {
+  if (!xswapQuotePaysPayee(quote, payee)) {
+    throw new XSwapPlanError(
+      quote.recipient === undefined
+        ? 'quote does not name the recipient'
+        : 'quote pays another address than the recipient',
+    )
+  }
+}
+
+/** Whether the quote says it pays `payee`; see `assertXSwapPaysRecipient`. */
+export function xswapQuotePaysPayee(quote: XSwapQuote, { swapper, recipient }: XSwapPayee): boolean {
   const expected = recipient ?? swapper
-  if (quote.recipient === undefined) {
-    if (!sameAddress(expected, swapper)) {
-      throw new XSwapPlanError('quote does not name the recipient')
-    }
-    return
-  }
-  if (!sameAddress(quote.recipient, expected)) {
-    throw new XSwapPlanError('quote pays another address than the recipient')
-  }
+  return quote.recipient === undefined ? sameAddress(expected, swapper) : sameAddress(quote.recipient, expected)
 }
 
 function isXSwapQuoteExpiring(quote: XSwapQuote, now: number, marginMs = XSWAP_QUOTE_EXPIRY_MARGIN_MS) {
