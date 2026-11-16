@@ -21,7 +21,7 @@ import { useUserSlippageTolerance } from 'state/user/hooks'
 import { SlippageTolerance } from 'state/user/types'
 import { XSwapTokenLookup } from 'state/xswap/hooks'
 import { XSwapLeg, XSwapQuote } from 'state/xswap/types'
-import { formatXSwapEta, formatXSwapUnits, isSameXSwapAddress, xswapBridgeNativeFee } from 'state/xswap/utils'
+import { formatXSwapEta, formatXSwapUnits, xswapBridgeNativeFee, xswapQuoteRecipient } from 'state/xswap/utils'
 import styled, { DefaultTheme, useTheme } from 'styled-components'
 import { ThemedText } from 'theme/components'
 import { NumberType, useFormatter } from 'utils/formatNumbers'
@@ -135,6 +135,7 @@ export function XSwapDetailsDropdown({
   // The bridge fee is in the bridged leg's token, which may be an unlisted wrapped native.
   const legLookup = useXSwapLegTokenLookup(lookup)
   const isAutoSlippage = useUserSlippageTolerance()[0] === SlippageTolerance.Auto
+  const recipient = xswapQuoteRecipient(selected?.recipient, swapper)
 
   const price = useMemo(
     () =>
@@ -289,14 +290,14 @@ export function XSwapDetailsDropdown({
                 Value: () => <>{details.fees.length ? details.fees.join(' + ') : '0'}</>,
               }}
             />
-            {selected.recipient && !isSameXSwapAddress(selected.recipient, swapper) && (
+            {recipient && (
               <DetailLineItem
                 syncing={syncing}
                 LineItem={{
                   Label: () => <>{t('xswap.recipient.label')}</>,
                   Value: () => (
                     <span data-testid="xswap-route-recipient">
-                      <AddressLink chainId={selected.tokenOut.chainId} address={selected.recipient as string} />
+                      <AddressLink chainId={selected.tokenOut.chainId} address={recipient} />
                     </span>
                   ),
                 }}

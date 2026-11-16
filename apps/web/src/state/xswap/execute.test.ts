@@ -14,6 +14,7 @@ import {
   executeXSwapQuote,
   planXSwapSteps,
   planXSwapTxs,
+  xswapQuotePaysPayee,
 } from 'state/xswap/execute'
 import { XSwapOrder, XSwapPermitTypedData, XSwapQuote, XSwapTx } from 'state/xswap/types'
 import { encodeFunctionData, erc20Abi, parseAbi } from 'viem'
@@ -713,5 +714,36 @@ describe('executeXSwapQuote with a recipient', () => {
     })
     await expect(executeXSwapQuote(shown, d, { payee })).rejects.toBeInstanceOf(XSwapQuoteChangedError)
     expect(d.sent.map((t) => t.kind)).toEqual(['approve'])
+  })
+
+  it('rejects a signed quote that newly names a recipient, even without a payee', async () => {
+    const shown = localQuote()
+    const d = deps({
+      permitQuote: jest.fn(async () => ({
+        ...shown,
+        quoteId: 'q1-signed',
+        recipient: OTHER,
+        permit: undefined,
+        txs: [deposit('0xdead', ROUTER)],
+      })),
+    })
+    await expect(executeXSwapQuote(shown, d)).rejects.toBeInstanceOf(XSwapQuoteChangedError)
+    expect(d.sent.map((t) => t.kind)).toEqual(['approve'])
+  })
+})
+
+describe('xswapQuotePaysPayee', () => {
+  const SWAPPER = '0x5555555555555555555555555555555555555555'
+  const RECIPIENT = `0x${'ab'.repeat(20)}`
+
+  it('accepts the recipient asked for, or the swapper on an API without recipients', () => {
+    expect(xswapQuotePaysPayee(quote({ recipient: RECIPIENT }), { swapper: SWAPPER, recipient: RECIPIENT })).toBe(true)
+    expect(xswapQuotePaysPayee(quote({}), { swapper: SWAPPER })).toBe(true)
+    expect(xswapQuotePaysPayee(quote({}), { swapper: SWAPPER, recipient: SWAPPER })).toBe(true)
+  })
+
+  it('rejects a quote that does not name the recipient asked for', () => {
+    expect(xswapQuotePaysPayee(quote({}), { swapper: SWAPPER, recipient: RECIPIENT })).toBe(false)
+    expect(xswapQuotePaysPayee(quote({ recipient: SWAPPER }), { swapper: SWAPPER, recipient: RECIPIENT })).toBe(false)
   })
 })

@@ -4,7 +4,7 @@ import { t } from 'i18n'
 import { useMemo } from 'react'
 import { useXSwapChains, useXSwapOrderHistory, useXSwapTokenLookup } from 'state/xswap/hooks'
 import { XSwapOrder } from 'state/xswap/types'
-import { isSameXSwapAddress, shortenXSwapHash, xswapTokenToCurrency } from 'state/xswap/utils'
+import { shortenXSwapHash, xswapQuoteRecipient, xswapTokenToCurrency } from 'state/xswap/utils'
 import { TransactionStatus } from 'uniswap/src/data/graphql/uniswap-data-api/__generated__/types-and-hooks'
 import { InterfaceChainId } from 'uniswap/src/types/chains'
 
@@ -45,10 +45,8 @@ function orderDescriptor(
   order: XSwapOrder,
   values: { amountIn: string; amountOut: string; chainIn: string; chainOut: string },
 ): string {
-  const recipient =
-    order.recipient && !isSameXSwapAddress(order.recipient, order.swapper)
-      ? shortenXSwapHash(order.recipient)
-      : undefined
+  const other = xswapQuoteRecipient(order.recipient, order.swapper)
+  const recipient = other ? shortenXSwapHash(other) : undefined
   const { amountIn, amountOut, chainIn, chainOut } = values
   if (order.routeClass === 'local') {
     return recipient
