@@ -25,6 +25,7 @@ export const ACCOUNT: Address = '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266'
 const WETH_SEPOLIA = '0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14'
 export const USDC_SEPOLIA = '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238'
 const USDT_SEPOLIA = '0xaA8E23Fb1079EA71e0a56F48a2aA51851D8433D0'
+const USDTX_SEPOLIA = '0x6C9322A8143fDAA3B482e5b8662bc649d1822424'
 export const USDC_ARB = '0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d'
 const JOCX_ARB = '0xB1660F8CDbf2102Ac74C6CD6d7CD6A65E481e5fe'
 const WJOC = '0x8B85219c0767Ce4FA5ae5944d71aB4a3De27090d'
@@ -59,6 +60,7 @@ export const TOKENS = {
   ethSepolia: token(SEPOLIA, NATIVE_ADDRESS, 'ETH', 18),
   usdcSepolia: token(SEPOLIA, USDC_SEPOLIA, 'USDC', 6),
   usdtSepolia: token(SEPOLIA, USDT_SEPOLIA, 'USDT', 6),
+  usdtxSepolia: token(SEPOLIA, USDTX_SEPOLIA, 'USDTX', 6),
   usdcArb: token(ARB_SEPOLIA, USDC_ARB, 'USDC', 6),
   jocxArb: token(ARB_SEPOLIA, JOCX_ARB, 'JOCX', 18),
   joc: token(JOC_TESTNET, NATIVE_ADDRESS, 'JOC', 18),
@@ -323,6 +325,52 @@ export function jocEthStableQuote(overrides: Partial<XSwapQuote> = {}): XSwapQuo
     txs: [approveTx(tokenIn, XSWAP_ROUTER), depositTx(SEPOLIA, XSWAP_ROUTER, nativeFee)],
     ...overrides,
   })
+}
+
+/**
+ * A same-chain X-Gate mint (USDT → USDTX) or burn (USDTX → USDT) on Sepolia: a `local` order to XChainSender that
+ * mints or burns 1:1 and sweeps the output, with one bridge leg that never leaves the chain and no fee.
+ */
+function sameChainXGateQuote(
+  tokenIn: XSwapToken,
+  tokenOut: XSwapToken,
+  overrides: Partial<XSwapQuote> = {},
+): XSwapQuote {
+  return baseQuote(tokenIn, tokenOut, {
+    provider: 'xgate',
+    routing: 'BRIDGE',
+    routeClass: 'local',
+    inputAmount: '10000000',
+    outputAmount: '10000000',
+    minOutputAmount: '10000000',
+    fees: { lp: '0', relayer: '0', gas: '0', app: '0' },
+    etaSec: 60,
+    legs: [
+      {
+        type: 'bridge',
+        provider: 'xgate',
+        tokenInChainId: SEPOLIA,
+        tokenOutChainId: SEPOLIA,
+        tokenIn: tokenIn.address,
+        tokenOut: tokenOut.address,
+        expectedOut: '10000000',
+        minOut: '10000000',
+        nativeFee: '0',
+      },
+    ],
+    txs: [approveTx(ref(tokenIn), XSWAP_ROUTER, 10_000_000n), depositTx(SEPOLIA, XSWAP_ROUTER)],
+    ...overrides,
+  })
+}
+
+/** USDT → USDTX on Sepolia: X-Gate mints the real stable into its OFTX 1:1. */
+export function sameChainMintQuote(overrides: Partial<XSwapQuote> = {}): XSwapQuote {
+  return sameChainXGateQuote(TOKENS.usdtSepolia, TOKENS.usdtxSepolia, overrides)
+}
+
+/** USDTX → USDT on Sepolia: X-Gate burns the OFTX for the real stable 1:1. */
+export function sameChainBurnQuote(overrides: Partial<XSwapQuote> = {}): XSwapQuote {
+  return sameChainXGateQuote(TOKENS.usdtxSepolia, TOKENS.usdtSepolia, overrides)
 }
 
 export function quoteResponse(best: XSwapQuote, candidates: XSwapQuote[] = []): XSwapQuoteResponse {
