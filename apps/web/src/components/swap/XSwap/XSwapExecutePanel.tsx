@@ -24,6 +24,7 @@ import {
   XSwapTxRevertedError,
   executeXSwapQuote,
 } from 'state/xswap/execute'
+import { getXSwapFeeOverrides } from 'state/xswap/fees'
 import { useXSwapRequote } from 'state/xswap/hooks'
 import { useAddXSwapOrderToHistory, useXSwapTxAdder } from 'state/xswap/transactions'
 import { XSwapOrder, XSwapPermitTypedData, XSwapQuote, XSwapTx } from 'state/xswap/types'
@@ -33,7 +34,7 @@ import { ThemedText } from 'theme/components'
 import { InterfaceChainId } from 'uniswap/src/types/chains'
 import { logger } from 'utilities/src/logger/logger'
 import { didUserReject } from 'utils/swapErrorToUserReadableMessage'
-import { getAccount, getPublicClient, sendTransaction, signTypedData } from 'wagmi/actions'
+import { estimateFeesPerGas, getAccount, getPublicClient, sendTransaction, signTypedData } from 'wagmi/actions'
 
 type WagmiChainId = (typeof wagmiConfig)['chains'][number]['id']
 
@@ -113,12 +114,16 @@ function useXSwapExecutionDeps(): XSwapExecutionDeps {
       },
       sendTx: async (tx: XSwapTx) => {
         await ensureChain(tx.chainId)
+        const feeOverrides = await getXSwapFeeOverrides(tx.chainId, (chainId) =>
+          estimateFeesPerGas(wagmiConfig, { chainId: chainId as WagmiChainId }),
+        )
         return sendTransaction(wagmiConfig, {
           chainId: tx.chainId as WagmiChainId,
           to: tx.to as `0x${string}`,
           data: tx.data as `0x${string}`,
           value: BigInt(tx.value),
           gas: tx.gasLimit ? BigInt(tx.gasLimit) : undefined,
+          ...feeOverrides,
         })
       },
       waitForTx: async (chainId, hash, signal) => {
