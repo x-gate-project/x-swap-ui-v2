@@ -15,6 +15,8 @@ import { MockChain, NATIVE, PERMIT2_ADDRESS } from './mockChain'
 export const RPC_HOSTS: Record<string, number> = {
   'mainnet.infura.io': 1,
   'sepolia.infura.io': 11155111,
+  'arbitrum-sepolia.infura.io': 421614,
+  'base-sepolia.infura.io': 84532,
   'rpc-1.testnet.japanopenchain.org': 10081,
   'rpc-1.japanopenchain.org': 81,
 }
@@ -256,7 +258,7 @@ export function handleRpc(chain: MockChain, chainId: number, method: string, par
     case 'eth_getTransactionCount':
       return numberToHex(chain.sent().filter((tx) => tx.chainId === chainId).length)
     case 'eth_getCode':
-      return '0x'
+      return chain.code(chainId, String(params[0]))
     case 'eth_estimateGas':
       return '0x30d40'
     case 'eth_gasPrice':

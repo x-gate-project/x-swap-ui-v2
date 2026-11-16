@@ -6,6 +6,7 @@ import {
   isXSwapNativeAddress,
   resolveXSwapLegToken,
   shortenXSwapHash,
+  xswapExplorerAddressUrl,
   xswapExplorerTxUrl,
 } from 'state/xswap/utils'
 import styled from 'styled-components'
@@ -130,15 +131,33 @@ export function formatXSwapTokenAmount(
   return `${amount} (${shortenXSwapHash(address)})`
 }
 
-/** Tx link on the chain's explorer from `GET /v1/chains`, then the app's chain list; plain text when neither has one. */
-export function TxLink({ chainId, hash }: { chainId: number; hash: string }) {
+/** Explorer base URL of a chain from `GET /v1/chains`, then the app's chain list. */
+function useXSwapExplorer(chainId: number): string | undefined {
   const { chains } = useXSwapChains()
-  const explorer =
+  return (
     chains.find((c) => c.chainId === chainId)?.explorerUrl ??
     UNIVERSE_CHAIN_INFO[chainId as InterfaceChainId]?.explorer.url
-  const href = xswapExplorerTxUrl(hash, explorer)
+  )
+}
+
+/** Tx link on the chain's explorer; plain text when the chain has none. */
+export function TxLink({ chainId, hash }: { chainId: number; hash: string }) {
+  const href = xswapExplorerTxUrl(hash, useXSwapExplorer(chainId))
   const label = shortenXSwapHash(hash, 6)
   return href ? <ExternalLink href={href}>{label}</ExternalLink> : <span>{label}</span>
+}
+
+/** Shortened address linked to the chain's explorer, with the full address as its title; plain text without one. */
+export function AddressLink({ chainId, address }: { chainId: number; address: string }) {
+  const href = xswapExplorerAddressUrl(address, useXSwapExplorer(chainId))
+  const label = shortenXSwapHash(address, 4)
+  return href ? (
+    <ExternalLink href={href} title={address}>
+      {label}
+    </ExternalLink>
+  ) : (
+    <span title={address}>{label}</span>
+  )
 }
 
 const PROVIDER_NAMES: Record<string, string> = {

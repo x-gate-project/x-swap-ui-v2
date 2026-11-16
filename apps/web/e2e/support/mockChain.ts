@@ -56,6 +56,7 @@ export class MockChain {
   private readonly rpcCalls = new Map<string, number>()
   private readonly balances = new Map<string, bigint>()
   private readonly tokens = new Map<string, TokenInfo>()
+  private readonly codes = new Map<string, Hex>()
   private readonly held = new Set<TxKind>()
   private readonly reverting = new Set<TxKind>()
   private rejecting: string | undefined
@@ -93,6 +94,15 @@ export class MockChain {
 
   balance(chainId: number, token: string): bigint {
     return this.balances.get(key(chainId, token)) ?? 0n
+  }
+
+  /** Deploys `code` at `address` on `chainId`, as `eth_getCode` answers it; every other address is an EOA. */
+  setCode(chainId: number, address: string, code: Hex) {
+    this.codes.set(key(chainId, address), code)
+  }
+
+  code(chainId: number, address: string): Hex {
+    return this.codes.get(key(chainId, address)) ?? '0x'
   }
 
   /** Sends of this kind stay pending (no receipt) until `mine`. */

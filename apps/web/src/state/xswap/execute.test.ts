@@ -8,6 +8,7 @@ import {
   XSwapQuoteExpiredError,
   XSwapRegisterError,
   XSwapTxRevertedError,
+  assertXSwapPaysRecipient,
   decodeXSwapApproval,
   isDefiniteXSwapRegisterError,
   executeXSwapQuote,
@@ -636,5 +637,81 @@ describe('isDefiniteXSwapRegisterError', () => {
     [new Error('network'), false],
   ])('%s → %s', (error, definite) => {
     expect(isDefiniteXSwapRegisterError(error)).toBe(definite)
+  })
+})
+
+describe('assertXSwapPaysRecipient', () => {
+  const SWAPPER = '0x5555555555555555555555555555555555555555'
+  const RECIPIENT = `0x${'ab'.repeat(20)}`
+
+  it.each([
+    [
+      'the recipient asked for, in any case',
+      { recipient: RECIPIENT },
+      { swapper: SWAPPER, recipient: `0x${'AB'.repeat(20)}` },
+    ],
+    ['the swapper when no recipient is asked for', { recipient: SWAPPER }, { swapper: SWAPPER }],
+    ['the swapper on an API without recipients', {}, { swapper: SWAPPER }],
+  ])('accepts a quote paying %s', (_, overrides, payee) => {
+    expect(() => assertXSwapPaysRecipient(quote(overrides), payee)).not.toThrow()
+  })
+
+  it.each([
+    ['another address than the recipient', { recipient: OTHER }, { swapper: SWAPPER, recipient: RECIPIENT }],
+    ['the swapper while a recipient is asked for', { recipient: SWAPPER }, { swapper: SWAPPER, recipient: RECIPIENT }],
+    ['a recipient while none is asked for', { recipient: RECIPIENT }, { swapper: SWAPPER }],
+    ['nobody named, on an API without recipients', {}, { swapper: SWAPPER, recipient: RECIPIENT }],
+  ])('rejects a quote paying %s', (_, overrides, payee) => {
+    expect(() => assertXSwapPaysRecipient(quote(overrides), payee)).toThrow(XSwapPlanError)
+  })
+})
+
+describe('executeXSwapQuote with a recipient', () => {
+  const SWAPPER = '0x5555555555555555555555555555555555555555'
+  const RECIPIENT = '0x6666666666666666666666666666666666666666'
+  const payee = { swapper: SWAPPER, recipient: RECIPIENT }
+
+  it('sends a quote that pays the recipient', async () => {
+    const d = deps()
+    await expect(executeXSwapQuote(quote({ recipient: RECIPIENT }), d, { payee })).resolves.toBe(order)
+    expect(d.sent.map((t) => t.kind)).toEqual(['approve', 'deposit'])
+  })
+
+  it('sends nothing when the quote pays someone else', async () => {
+    const d = deps()
+    await expect(executeXSwapQuote(quote({ recipient: SWAPPER }), d, { payee })).rejects.toBeInstanceOf(XSwapPlanError)
+    expect(d.sent).toHaveLength(0)
+  })
+
+  it('stops before the deposit when a refresh pays another address', async () => {
+    let now = NOW
+    const refreshed = quote({ quoteId: 'q2', recipient: OTHER, expiresAt: NOW + 120_000, txs: [deposit()] })
+    const d = deps({
+      now: () => now,
+      refreshQuote: jest.fn(async () => refreshed),
+      waitForTx: jest.fn(async () => {
+        now += 60_000
+        return true
+      }),
+    })
+    const error = await executeXSwapQuote(quote({ recipient: RECIPIENT }), d, { payee }).catch((e) => e)
+    expect(error).toBeInstanceOf(XSwapQuoteChangedError)
+    expect(error.reason).toBe('route')
+    expect(d.sent.map((t) => t.kind)).toEqual(['approve'])
+  })
+
+  it('rejects a signed quote that drops the recipient', async () => {
+    const shown = localQuote({ recipient: RECIPIENT })
+    const d = deps({
+      permitQuote: jest.fn(async () => ({
+        ...shown,
+        quoteId: 'q1-signed',
+        recipient: undefined,
+        permit: undefined,
+        txs: [deposit('0xdead', ROUTER)],
+      })),
+    })
+    await expect(executeXSwapQuote(shown, d, { payee })).rejects.toBeInstanceOf(XSwapQuoteChangedError)
+    expect(d.sent.map((t) => t.kind)).toEqual(['approve'])
   })
 })

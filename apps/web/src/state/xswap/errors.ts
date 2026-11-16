@@ -46,6 +46,8 @@ export function getXSwapErrorMessage(error: Pick<XSwapError, 'code' | 'serverMes
       return t('xswap.error.priceUnavailable')
     case 'quote_timeout':
       return t('xswap.error.quoteTimeout')
+    case 'invalid_recipient':
+      return t('xswap.error.invalidRecipient')
     default:
       return t('xswap.error.generic')
   }

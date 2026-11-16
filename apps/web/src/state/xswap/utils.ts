@@ -2,7 +2,7 @@ import { Currency, NativeCurrency, Percent, Token } from '@uniswap/sdk-core'
 import { WRAPPED_NATIVE_CURRENCY, nativeOnChain } from 'constants/tokens'
 import JSBI from 'jsbi'
 import { XSwapChain, XSwapQuote, XSwapRouteDestination, XSwapToken, XSwapTokenRef } from 'state/xswap/types'
-import { zeroAddress } from 'viem'
+import { getAddress, isAddress, isAddressEqual, zeroAddress } from 'viem'
 
 /** The zero address is the native token on the wire, both ways. */
 export const XSWAP_NATIVE_ADDRESS: XSwapTokenRef = zeroAddress
@@ -229,6 +229,77 @@ export function getXSwapChainMode({
 export function xswapExplorerTxUrl(hash: string, explorer?: string): string | undefined {
   const base = explorer?.replace(/\/+$/, '')
   return base ? `${base}/tx/${hash}` : undefined
+}
+
+/** Address link on a chain's explorer; undefined without an explorer. */
+export function xswapExplorerAddressUrl(address: string, explorer?: string): string | undefined {
+  const base = explorer?.replace(/\/+$/, '')
+  return base ? `${base}/address/${address}` : undefined
+}
+
+export type XSwapRecipientInput =
+  | { status: 'empty' }
+  | { status: 'invalid' }
+  /** `address` is checksummed. */
+  | { status: 'valid'; address: string }
+
+/**
+ * Parses a typed recipient: a 20-byte hex address, all lowercase or with a valid EIP-55 checksum. A
+ * mixed-case address with a wrong checksum is a typo, not an address. The zero address is refused: it burns the output.
+ */
+export function parseXSwapRecipient(value: string): XSwapRecipientInput {
+  const trimmed = value.trim()
+  if (!trimmed) {
+    return { status: 'empty' }
+  }
+  if (!isAddress(trimmed, { strict: true }) || isAddressEqual(trimmed, zeroAddress)) {
+    return { status: 'invalid' }
+  }
+  return { status: 'valid', address: getAddress(trimmed) }
+}
+
+// EIP-7702: an EOA that delegates to a contract has `0xef0100 || address` as its code; it is still the user's wallet.
+const EIP7702_DELEGATION_PREFIX = '0xef0100'
+
+export type XSwapRecipientWarning = 'contract' | 'unused'
+
+/**
+ * What to warn about a recipient, from its state on the destination chain: `contract` when it has code (it may not be
+ * able to move the output), `unused` when it never sent a tx and holds no native balance (likely a typo or a wrong
+ * chain). Undefined while any read is missing: no warning is better than a wrong one.
+ */
+export function classifyXSwapRecipient({
+  code,
+  nonce,
+  balance,
+}: {
+  code?: string | null
+  nonce?: number
+  balance?: bigint
+}): XSwapRecipientWarning | undefined {
+  if (code === undefined) {
+    return undefined
+  }
+  if (code && code !== '0x' && !code.toLowerCase().startsWith(EIP7702_DELEGATION_PREFIX)) {
+    return 'contract'
+  }
+  if (nonce === undefined || balance === undefined) {
+    return undefined
+  }
+  return nonce === 0 && balance === 0n ? 'unused' : undefined
+}
+
+/** Whether two addresses are the same, ignoring case; false when either is missing. */
+export function isSameXSwapAddress(a?: string, b?: string): boolean {
+  return Boolean(a && b && a.toLowerCase() === b.toLowerCase())
+}
+
+/**
+ * The recipient to quote with: undefined (pay the swapper) unless `recipient` is another address than `swapper`, so
+ * sending to oneself quotes like no recipient at all.
+ */
+export function xswapQuoteRecipient(recipient?: string, swapper?: string): string | undefined {
+  return recipient && !isSameXSwapAddress(recipient, swapper) ? recipient : undefined
 }
 
 // XGate runs on testnets only for now: every order's message is on LayerZero Scan's testnet site.

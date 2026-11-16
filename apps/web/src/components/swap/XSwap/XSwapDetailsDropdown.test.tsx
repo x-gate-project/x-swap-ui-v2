@@ -100,7 +100,7 @@ const quote = (quoteId: string, provider: string, legs: XSwapLeg[]): XSwapQuote 
   score: 1,
 })
 
-function renderDropdown(routes: XSwapQuote[], selected = routes[0]) {
+function renderDropdown(routes: XSwapQuote[], selected = routes[0], swapper?: string) {
   render(
     <Provider store={store}>
       <MemoryRouter>
@@ -113,6 +113,7 @@ function renderDropdown(routes: XSwapQuote[], selected = routes[0]) {
               inputCurrency={INPUT}
               outputCurrency={OUTPUT}
               lookup={lookup}
+              swapper={swapper}
               loading={false}
               syncing={false}
               onSelectRoute={jest.fn()}
@@ -152,5 +153,18 @@ describe('XSwapDetailsDropdown', () => {
 
     // The selected route reads the same in the order routing row.
     expect(screen.getByText('Uniswap v3 → Across → Uniswap v3')).toBeInTheDocument()
+  })
+
+  it('shows the recipient of a route paying another address', () => {
+    const swapper = '0x0000000000000000000000000000000000000001'
+    const recipient = '0x00000000000000000000000000000000000000Aa'
+    renderDropdown([{ ...quote('q1', 'across', [BRIDGE]), recipient }], undefined, swapper)
+    expect(screen.getByTestId('xswap-route-recipient')).toHaveTextContent('0x0000…00Aa')
+  })
+
+  it('hides the recipient when the route pays the swapper', () => {
+    const swapper = '0x0000000000000000000000000000000000000001'
+    renderDropdown([{ ...quote('q1', 'across', [BRIDGE]), recipient: swapper }], undefined, swapper)
+    expect(screen.queryByTestId('xswap-route-recipient')).not.toBeInTheDocument()
   })
 })

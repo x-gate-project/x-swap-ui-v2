@@ -8,6 +8,7 @@ describe('getXSwapErrorMessage', () => {
     ['local_unsupported', 'Same-chain swap not available on this chain'],
     ['price_unavailable', 'Price unavailable, retry'],
     ['quote_timeout', 'Quote timed out, retry'],
+    ['invalid_recipient', "This address can't receive the swap. Use a wallet address."],
   ])('maps %s', (code, message) => {
     expect(getXSwapErrorMessage({ code })).toBe(message)
   })

@@ -95,4 +95,19 @@ describe('XSwapOrderTracker', () => {
     renderTracker({ ...ORDER, composeTxHash: undefined })
     expect(screen.queryByText('Destination swap tx')).not.toBeInTheDocument()
   })
+
+  it('links the recipient on the destination chain when it is not the swapper', () => {
+    const recipient = '0x00000000000000000000000000000000000000Aa'
+    renderTracker({ ...ORDER, recipient })
+    const link = screen.getByTestId('xswap-order-recipient').querySelector('a')
+    expect(link).toHaveAttribute('href', `https://explorer.testnet.japanopenchain.org/address/${recipient}`)
+    expect(link).toHaveTextContent('0x0000…00Aa')
+  })
+
+  it('hides the recipient when the order pays the swapper', () => {
+    renderTracker({ ...ORDER, recipient: ORDER.swapper.toLowerCase() })
+    expect(screen.queryByTestId('xswap-order-recipient')).not.toBeInTheDocument()
+    renderTracker({ ...ORDER, recipient: undefined })
+    expect(screen.queryByTestId('xswap-order-recipient')).not.toBeInTheDocument()
+  })
 })

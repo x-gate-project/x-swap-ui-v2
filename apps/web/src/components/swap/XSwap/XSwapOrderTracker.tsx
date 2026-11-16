@@ -1,4 +1,5 @@
 import {
+  AddressLink,
   Badge,
   Card,
   Label,
@@ -14,7 +15,7 @@ import { t } from 'i18n'
 import { X } from 'react-feather'
 import { isXSwapOrderTerminal, useXSwapOrder, useXSwapTokenLookup } from 'state/xswap/hooks'
 import { XSwapOrder, XSwapOrderStatus } from 'state/xswap/types'
-import { layerZeroScanUrl, shortenXSwapHash } from 'state/xswap/utils'
+import { isSameXSwapAddress, layerZeroScanUrl, shortenXSwapHash } from 'state/xswap/utils'
 import styled, { useTheme } from 'styled-components'
 import { ExternalLink } from 'theme/components'
 
@@ -177,6 +178,14 @@ export function XSwapOrderTracker({ order: initial, onClose }: { order: XSwapOrd
       </Timeline>
 
       <Details>
+        {order.recipient && !isSameXSwapAddress(order.recipient, order.swapper) && (
+          <>
+            <dt>{t('xswap.recipient.label')}</dt>
+            <dd data-testid="xswap-order-recipient">
+              <AddressLink chainId={order.tokenOut.chainId} address={order.recipient} />
+            </dd>
+          </>
+        )}
         <dt>{t('xswap.route.expectedOut')}</dt>
         <dd>{out(order.outputAmount)}</dd>
         <dt>{t('xswap.route.minOut')}</dt>

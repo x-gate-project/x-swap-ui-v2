@@ -33,6 +33,7 @@ import {
   isXSwapNativeAddress,
   percentToBps,
   toXSwapAddress,
+  xswapQuoteRecipient,
   xswapTokenKey,
   xswapTokenToCurrency,
 } from 'state/xswap/utils'
@@ -179,6 +180,8 @@ type UseXSwapQuoteArgs = {
   /** Exact input amount. The API only quotes EXACT_INPUT. */
   inputAmount?: CurrencyAmount<Currency>
   swapper?: string
+  /** Pays the output to another address; undefined, or the swapper itself, pays the swapper. */
+  recipient?: string
   /** User slippage; undefined lets the API pick its default. */
   slippage?: Percent
   enabled?: boolean
@@ -194,6 +197,7 @@ export function buildXSwapQuoteRequest({
   outputCurrency,
   inputAmount,
   swapper,
+  recipient,
   slippage,
 }: Omit<UseXSwapQuoteArgs, 'enabled' | 'frozen'>): XSwapQuoteRequest | undefined {
   if (!inputCurrency || !outputCurrency || !inputAmount || !swapper) {
@@ -212,6 +216,8 @@ export function buildXSwapQuoteRequest({
     tokenOutChainId: outputCurrency.chainId,
     amount: inputAmount.quotient.toString(),
     swapper,
+    // A new recipient is a new request (query key), so changing it re-quotes.
+    ...(xswapQuoteRecipient(recipient, swapper) && { recipient }),
     slippageBps: slippage ? percentToBps(slippage) : undefined,
   }
 }
@@ -221,10 +227,10 @@ export function buildXSwapQuoteRequest({
  * class is the cross-chain flow.
  */
 export function useXSwapQuote({ enabled = true, frozen = false, ...args }: UseXSwapQuoteArgs): XSwapQuoteState {
-  const { inputCurrency, outputCurrency, inputAmount, swapper, slippage } = args
+  const { inputCurrency, outputCurrency, inputAmount, swapper, recipient, slippage } = args
   const request = useMemo(
-    () => buildXSwapQuoteRequest({ inputCurrency, outputCurrency, inputAmount, swapper, slippage }),
-    [inputAmount, inputCurrency, outputCurrency, slippage, swapper],
+    () => buildXSwapQuoteRequest({ inputCurrency, outputCurrency, inputAmount, swapper, recipient, slippage }),
+    [inputAmount, inputCurrency, outputCurrency, recipient, slippage, swapper],
   )
   // Debounce on a string so a new but equal request object (e.g. a re-created amount) does not restart the timer.
   const requestJson = request ? JSON.stringify(request) : undefined

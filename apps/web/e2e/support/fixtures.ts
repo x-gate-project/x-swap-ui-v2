@@ -349,6 +349,7 @@ export function order(quote: XSwapQuote, txHash: string, status: XSwapOrderStatu
     provider: quote.provider,
     routeClass: String(quote.routeClass),
     swapper: ACCOUNT,
+    recipient: quote.recipient ?? ACCOUNT,
     tokenIn: { ...quote.tokenIn, amount: quote.inputAmount },
     tokenOut: quote.tokenOut,
     outputAmount: quote.outputAmount,
