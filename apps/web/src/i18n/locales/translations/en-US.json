@@ -1192,5 +1192,16 @@
   "xswap.activity.local.success": "Swapped",
   "xswap.execute.error.permitRejected": "The signed swap did not pass the safety checks. Pick another route or try again.",
   "xswap.execute.step.permit": "Sign the Permit2 allowance (no gas)",
-  "xswap.execute.step.swap": "Swap"
+  "xswap.execute.step.swap": "Swap",
+  "xswap.activity.descriptor.recipient": "{{amountIn}} on {{chainIn}} for {{amountOut}} on {{chainOut}} to {{recipient}}",
+  "xswap.activity.local.descriptor.recipient": "{{amountIn}} for {{amountOut}} on {{chain}} to {{recipient}}",
+  "xswap.error.invalidRecipient": "This address can't receive the swap. Use a wallet address.",
+  "xswap.recipient.invalid": "Enter a valid recipient address",
+  "xswap.recipient.label": "Recipient",
+  "xswap.recipient.note": "The output goes to this address. Refunds come back to your wallet.",
+  "xswap.recipient.placeholder": "Wallet address (0x…)",
+  "xswap.recipient.remove": "Send to my wallet",
+  "xswap.recipient.toggle": "Send to a different address",
+  "xswap.recipient.warning.contract": "This address is a contract on {{chain}}. Make sure it can receive {{symbol}}, or the funds may be lost.",
+  "xswap.recipient.warning.unused": "This address has no activity on {{chain}}. Check it before you swap."
 }

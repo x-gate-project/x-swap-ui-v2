@@ -5,27 +5,33 @@ import { XSwapQuote, XSwapToken } from 'state/xswap/types'
 import {
   XSWAP_NATIVE_ADDRESS,
   buildXSwapReachability,
+  classifyXSwapRecipient,
   formatXSwapEta,
   formatXSwapUnits,
   getXSwapChainMode,
   getXSwapDestinationStatus,
   getXSwapFlow,
   getXSwapOutputChainId,
+  isSameXSwapAddress,
   isSameXSwapToken,
   layerZeroScanUrl,
+  parseXSwapRecipient,
   percentToBps,
   pickDefaultXSwapRoute,
   resolveXSwapLegToken,
   shortenXSwapHash,
   toXSwapAddress,
   xswapBridgeNativeFee,
+  xswapExplorerAddressUrl,
   xswapExplorerTxUrl,
   xswapNativeValue,
+  xswapQuoteRecipient,
   xswapTokenToCurrency,
 } from 'state/xswap/utils'
 import { UniverseChainId } from 'uniswap/src/types/chains'
 
 const SWAPPER = '0x0000000000000000000000000000000000000001'
+const RECIPIENT = '0x00000000000000000000000000000000000000Aa'
 const ETH = nativeOnChain(UniverseChainId.Mainnet)
 
 describe('toXSwapAddress', () => {
@@ -142,6 +148,13 @@ describe('buildXSwapQuoteRequest', () => {
       swapper: SWAPPER,
     })
     expect(request?.slippageBps).toBeUndefined()
+  })
+
+  it('pays another address only when the recipient is not the swapper', () => {
+    const args = { inputCurrency: ETH, outputCurrency: USDC_MAINNET, inputAmount: amount, swapper: SWAPPER }
+    expect(buildXSwapQuoteRequest({ ...args, recipient: RECIPIENT })?.recipient).toBe(RECIPIENT)
+    expect(buildXSwapQuoteRequest({ ...args, recipient: SWAPPER.toLowerCase() })).not.toHaveProperty('recipient')
+    expect(buildXSwapQuoteRequest(args)).not.toHaveProperty('recipient')
   })
 
   it('does not quote the same token on both sides', () => {
@@ -435,5 +448,63 @@ describe('xswapNativeValue / xswapBridgeNativeFee', () => {
 describe('layerZeroScanUrl', () => {
   it('links the message on the testnet site', () => {
     expect(layerZeroScanUrl('0xabc')).toBe('https://testnet.layerzeroscan.com/tx/0xabc')
+  })
+})
+
+describe('parseXSwapRecipient', () => {
+  const CHECKSUMMED = '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266'
+
+  it('reads an empty or blank field as no recipient', () => {
+    expect(parseXSwapRecipient('')).toEqual({ status: 'empty' })
+    expect(parseXSwapRecipient('   ')).toEqual({ status: 'empty' })
+  })
+
+  it.each([CHECKSUMMED, CHECKSUMMED.toLowerCase(), ` ${CHECKSUMMED} `])('accepts %s, checksummed', (value) => {
+    expect(parseXSwapRecipient(value)).toEqual({ status: 'valid', address: CHECKSUMMED })
+  })
+
+  it.each([
+    ['a wrong checksum', '0xF39Fd6e51aad88F6F4ce6aB8827279cffFb92266'],
+    ['a short address', '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb922'],
+    ['an ENS name', 'vitalik.eth'],
+    ['the zero address', '0x0000000000000000000000000000000000000000'],
+  ])('refuses %s', (_, value) => {
+    expect(parseXSwapRecipient(value)).toEqual({ status: 'invalid' })
+  })
+})
+
+describe('xswapQuoteRecipient', () => {
+  it('keeps another address and drops the swapper itself', () => {
+    expect(xswapQuoteRecipient(RECIPIENT, SWAPPER)).toBe(RECIPIENT)
+    expect(xswapQuoteRecipient(RECIPIENT.toLowerCase(), RECIPIENT)).toBeUndefined()
+    expect(xswapQuoteRecipient(undefined, SWAPPER)).toBeUndefined()
+  })
+
+  it('compares addresses ignoring case', () => {
+    expect(isSameXSwapAddress(RECIPIENT, RECIPIENT.toLowerCase())).toBe(true)
+    expect(isSameXSwapAddress(SWAPPER, undefined)).toBe(false)
+  })
+})
+
+describe('classifyXSwapRecipient', () => {
+  it.each([
+    ['a contract', { code: '0x6080', nonce: 1, balance: 0n }, 'contract'],
+    ['an unused address', { code: null, nonce: 0, balance: 0n }, 'unused'],
+    ['a used wallet', { code: null, nonce: 3, balance: 0n }, undefined],
+    ['a funded wallet that never sent', { code: null, nonce: 0, balance: 1n }, undefined],
+    ['an EIP-7702 delegated wallet', { code: `0xef0100${'12'.repeat(20)}`, nonce: 5, balance: 0n }, undefined],
+    ['a pending read', { code: undefined, nonce: 0, balance: 0n }, undefined],
+    ['a pending nonce', { code: null, nonce: undefined, balance: 0n }, undefined],
+  ] as const)('%s → %s', (_, state, expected) => {
+    expect(classifyXSwapRecipient(state)).toBe(expected)
+  })
+})
+
+describe('xswapExplorerAddressUrl', () => {
+  it('links an address on the explorer', () => {
+    expect(xswapExplorerAddressUrl(RECIPIENT, 'https://sepolia.etherscan.io/')).toBe(
+      `https://sepolia.etherscan.io/address/${RECIPIENT}`,
+    )
+    expect(xswapExplorerAddressUrl(RECIPIENT)).toBeUndefined()
   })
 })

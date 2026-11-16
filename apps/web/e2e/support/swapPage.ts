@@ -94,4 +94,14 @@ export class SwapPage {
   step(index: number): Locator {
     return this.steps.locator('li').nth(index)
   }
+
+  get recipientInput(): Locator {
+    return this.page.getByTestId('xswap-recipient-input')
+  }
+
+  /** Opens "Send to a different address" and types `address` into it. */
+  async setRecipient(address: string) {
+    await this.page.getByTestId('xswap-recipient-toggle').click()
+    await this.recipientInput.fill(address)
+  }
 }

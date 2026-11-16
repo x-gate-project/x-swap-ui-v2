@@ -22,7 +22,8 @@ import SwapDetailsDropdown from 'components/swap/SwapDetailsDropdown'
 import { XSwapDetailsDropdown } from 'components/swap/XSwap/XSwapDetailsDropdown'
 import { XSwapExecutePanel } from 'components/swap/XSwap/XSwapExecutePanel'
 import { XSwapOrderTracker } from 'components/swap/XSwap/XSwapOrderTracker'
-import { xswapRouteKey, xswapRoutes } from 'components/swap/XSwap/shared'
+import { XSwapRecipientInput } from 'components/swap/XSwap/XSwapRecipientInput'
+import { useXSwapChainName, xswapRouteKey, xswapRoutes } from 'components/swap/XSwap/shared'
 import confirmPriceImpactWithoutFee from 'components/swap/confirmPriceImpactWithoutFee'
 import { Field } from 'components/swap/constants'
 import { ArrowContainer, ArrowWrapper, OutputSwapSection, SwapSection } from 'components/swap/styled'
@@ -38,7 +39,7 @@ import useSelectChain from 'hooks/useSelectChain'
 import { SwapResult, useSwapCallback } from 'hooks/useSwapCallback'
 import { useUSDPrice } from 'hooks/useUSDPrice'
 import useWrapCallback, { WrapErrorText } from 'hooks/useWrapCallback'
-import { Trans } from 'i18n'
+import { Trans, t } from 'i18n'
 import JSBI from 'jsbi'
 import useCurrencyBalance from 'lib/hooks/useCurrencyBalance'
 import { formatSwapQuoteReceivedEventProperties } from 'lib/utils/analytics'
@@ -63,7 +64,13 @@ import {
   xswapQueryKeys,
 } from 'state/xswap/hooks'
 import { XSwapOrder } from 'state/xswap/types'
-import { getXSwapDestinationStatus, pickDefaultXSwapRoute, xswapNativeValue } from 'state/xswap/utils'
+import {
+  getXSwapDestinationStatus,
+  parseXSwapRecipient,
+  pickDefaultXSwapRoute,
+  xswapNativeValue,
+  xswapQuoteRecipient,
+} from 'state/xswap/utils'
 import { useTheme } from 'styled-components'
 import { ExternalLink, ThemedText } from 'theme/components'
 import { maybeLogFirstSwapAction } from 'tracing/swapFlowLoggers'
@@ -340,6 +347,24 @@ export function SwapForm({ disableTokenInputs = false, onCurrencyChange }: SwapF
   // `best`.
   const [xswapPickedRoute, setXSwapPickedRoute] = useState<string>()
   const [xswapOrder, setXSwapOrder] = useState<XSwapOrder>()
+  // "Send to a different address": only API swaps can pay another address (the router pays the swapper).
+  const showXSwapRecipient = xswapChainMode === 'api' && !showWrap
+  const [xswapRecipientOpen, setXSwapRecipientOpen] = useState(false)
+  const [xswapRecipientValue, setXSwapRecipientValue] = useState('')
+  const xswapRecipientInput = useMemo(() => parseXSwapRecipient(xswapRecipientValue), [xswapRecipientValue])
+  const xswapRecipientActive = showXSwapRecipient && xswapRecipientOpen
+  // Undefined pays the connected wallet: no recipient, an invalid one (the swap is blocked below) or the wallet itself.
+  const xswapRecipient =
+    xswapRecipientActive && xswapRecipientInput.status === 'valid'
+      ? xswapQuoteRecipient(xswapRecipientInput.address, account.address)
+      : undefined
+  const xswapRecipientError =
+    xswapRecipientActive && xswapRecipientInput.status === 'invalid' ? t('xswap.recipient.invalid') : undefined
+  const xswapPayee = useMemo(
+    () => (account.address ? { swapper: account.address, recipient: xswapRecipient } : undefined),
+    [account.address, xswapRecipient],
+  )
+  const xswapChainName = useXSwapChainName()
   const xswapQuote = useXSwapQuote({
     enabled: xswapChainMode === 'api' && !showWrap && independentField === Field.INPUT,
     // Keep the quote being sent while the user executes it.
@@ -348,6 +373,7 @@ export function SwapForm({ disableTokenInputs = false, onCurrencyChange }: SwapF
     outputCurrency: currencies[Field.OUTPUT],
     inputAmount: parsedAmounts[Field.INPUT],
     swapper: account.address,
+    recipient: xswapRecipient,
     slippage: userSlippageTolerance === SlippageTolerance.Auto ? undefined : userSlippageTolerance,
   })
   const xswapQuoteError = xswapQuote.status === 'error' ? xswapQuote.message : undefined
@@ -799,6 +825,19 @@ export function SwapForm({ disableTokenInputs = false, onCurrencyChange }: SwapF
             </Trace>
           </OutputSwapSection>
         </div>
+        {showXSwapRecipient && (
+          <XSwapRecipientInput
+            open={xswapRecipientOpen}
+            onOpenChange={setXSwapRecipientOpen}
+            value={xswapRecipientValue}
+            onChange={setXSwapRecipientValue}
+            parsed={xswapRecipientInput}
+            chainId={currencies[Field.OUTPUT]?.chainId}
+            chainName={currencies[Field.OUTPUT] ? xswapChainName(currencies[Field.OUTPUT].chainId) : undefined}
+            outputSymbol={currencies[Field.OUTPUT]?.symbol}
+            disabled={xswapExecuting}
+          />
+        )}
 
         {showPriceImpactWarning && <PriceImpactWarning priceImpact={largerPriceImpact} />}
         <div>
@@ -860,7 +899,8 @@ export function SwapForm({ disableTokenInputs = false, onCurrencyChange }: SwapF
               quote={xswapSelectedQuote}
               executableAlternative={xswapExecutableAlternative}
               onSelectRoute={setXSwapPickedRoute}
-              inputError={swapInputError ?? xswapInputError}
+              inputError={swapInputError ?? xswapRecipientError ?? xswapInputError}
+              payee={xswapPayee}
               onExecutingChange={setXSwapExecuting}
               onOrder={handleXSwapOrder}
             />
@@ -924,6 +964,7 @@ export function SwapForm({ disableTokenInputs = false, onCurrencyChange }: SwapF
               inputCurrency={currencies[Field.INPUT] as Currency}
               outputCurrency={currencies[Field.OUTPUT] as Currency}
               lookup={xswapTokenLookup}
+              swapper={account.address}
               loading={xswapQuote.status === 'loading'}
               syncing={xswapQuote.status === 'success' && xswapQuote.refreshing && !xswapExecuting}
               disabled={xswapExecuting}

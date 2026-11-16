@@ -15,6 +15,7 @@ import {
   XSwapApprovalTimeoutError,
   XSwapExecutionDeps,
   XSwapPermitRejectedError,
+  XSwapPayee,
   XSwapPlanError,
   XSwapQuoteChangedError,
   XSwapQuoteExpiredError,
@@ -190,6 +191,8 @@ type Props = {
   onSelectRoute?: (routeKey: string) => void
   /** Why the swap cannot go on (no wallet, no balance, …); shown on the button. */
   inputError?: ReactNode
+  /** Who the output must go to; every quote sent is checked against it. */
+  payee?: XSwapPayee
   onExecutingChange: (executing: boolean) => void
   onOrder: (order: XSwapOrder) => void
 }
@@ -210,6 +213,7 @@ export function XSwapExecutePanel({
   executableAlternative,
   onSelectRoute,
   inputError,
+  payee,
   onExecutingChange,
   onOrder,
 }: Props) {
@@ -234,6 +238,7 @@ export function XSwapExecutePanel({
     selected.tokenOut.chainId,
     selected.tokenOut.address,
     selected.inputAmount,
+    selected.recipient ?? '',
   ].join('|')
   useEffect(() => {
     setSteps(undefined)
@@ -255,6 +260,7 @@ export function XSwapExecutePanel({
     setRegistering(false)
     try {
       const order = await executeXSwapQuote(selected, deps, {
+        payee,
         onQuote: setExecuting,
         onPlan: setSteps,
         onStep: (index, patch) =>
@@ -286,7 +292,7 @@ export function XSwapExecutePanel({
       setExecuting(undefined)
       setRegistering(false)
     }
-  }, [addOrderToHistory, addTx, deps, onOrder, requote, selected])
+  }, [addOrderToHistory, addTx, deps, onOrder, payee, requote, selected])
 
   const busy = Boolean(executing)
 

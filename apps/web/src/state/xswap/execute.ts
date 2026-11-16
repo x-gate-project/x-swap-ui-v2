@@ -261,17 +261,42 @@ function coveredBy(approved: PlanSpenders, next: PlanSpenders): boolean {
   return [...next.erc20].every((spender) => approved.erc20.has(spender))
 }
 
-/** Throws when `fresh` pays less than `shown` guaranteed, or spends another amount of another token. */
+/**
+ * Throws when `fresh` pays less than `shown` guaranteed, spends another amount of another token, or pays the output to
+ * another address.
+ */
 function assertRefreshAgreed(shown: XSwapQuote, fresh: XSwapQuote): void {
   if (
     fresh.inputAmount !== shown.inputAmount ||
     fresh.tokenIn.chainId !== shown.tokenIn.chainId ||
-    !sameAddress(fresh.tokenIn.address, shown.tokenIn.address)
+    !sameAddress(fresh.tokenIn.address, shown.tokenIn.address) ||
+    (shown.recipient !== undefined && !sameAddress(fresh.recipient, shown.recipient))
   ) {
     throw new XSwapQuoteChangedError('route')
   }
   if (BigInt(fresh.minOutputAmount) < BigInt(shown.minOutputAmount)) {
     throw new XSwapQuoteChangedError('price')
+  }
+}
+
+/** Who a quote must pay: `recipient` when the user named one, else the swapper. */
+export type XSwapPayee = { swapper: string; recipient?: string }
+
+/**
+ * Throws when the quote does not say it pays `payee`. The API's Tx Validator checks every payout of the txs against the
+ * quote's `recipient`; the UI checks that `recipient` is the address the user typed. An API older than #228 returns no
+ * `recipient` and pays the swapper, which is only right when no other recipient was asked for.
+ */
+export function assertXSwapPaysRecipient(quote: XSwapQuote, { swapper, recipient }: XSwapPayee): void {
+  const expected = recipient ?? swapper
+  if (quote.recipient === undefined) {
+    if (!sameAddress(expected, swapper)) {
+      throw new XSwapPlanError('quote does not name the recipient')
+    }
+    return
+  }
+  if (!sameAddress(quote.recipient, expected)) {
+    throw new XSwapPlanError('quote pays another address than the recipient')
   }
 }
 
@@ -335,6 +360,8 @@ function stepsOf(quote: XSwapQuote, txs: XSwapTx[], usePermit: boolean): XSwapSt
 type XSwapExecutionOptions = {
   /** Sign a quote's `permit` instead of sending its `permit2-approve` tx. Default true. */
   usePermit?: boolean
+  /** Who the output must go to. Every quote sent (the shown one, a refresh, a signed one) must pay it. */
+  payee?: XSwapPayee
   onPlan?: (steps: XSwapStep[]) => void
   onStep?: (index: number, patch: Partial<XSwapStep>) => void
   /** A refresh or a signed permit replaced the quote: its `quoteId`, amounts and expiry changed. */
@@ -543,17 +570,21 @@ function depositOf(txs: XSwapTx[]): XSwapTx {
  *    API takes a pending tx and its tracker follows it (a reverted deposit ends `FAILED_ORIGIN`). Waiting on the UI's own
  *    RPC could hang forever when that RPC fails, since viem's receipt polling swallows RPC errors.
  *
- * A refresh or a signed quote that lowers `minOutputAmount`, spends another amount, or targets other contracts than the
- * approvals already sent stops with `XSwapQuoteChangedError`.
+ * A refresh or a signed quote that lowers `minOutputAmount`, spends another amount, pays another recipient, or targets
+ * other contracts than the approvals already sent stops with `XSwapQuoteChangedError`. With `payee`, a quote that does
+ * not pay it stops with `XSwapPlanError` before anything more is sent.
  */
 export async function executeXSwapQuote(
   initialQuote: XSwapQuote,
   deps: XSwapExecutionDeps,
-  { usePermit = true, ...callbacks }: XSwapExecutionOptions = {},
+  { usePermit = true, payee, ...callbacks }: XSwapExecutionOptions = {},
 ): Promise<XSwapOrder> {
+  const assertPaysRecipient = (q: XSwapQuote) => payee && assertXSwapPaysRecipient(q, payee)
+  assertPaysRecipient(initialQuote)
   let quote = await ensureFreshXSwapQuote(initialQuote, deps)
   if (quote !== initialQuote) {
     assertRefreshAgreed(initialQuote, quote)
+    assertPaysRecipient(quote)
     callbacks.onQuote?.(quote)
   }
   // The txs of `quote`, kept in step with it.
@@ -565,6 +596,7 @@ export async function executeXSwapQuote(
   /** A replacement quote must still be what the user agreed to, and spend through the contracts already approved. */
   const assertCovered = (next: XSwapQuote): XSwapTx[] => {
     assertRefreshAgreed(initialQuote, next)
+    assertPaysRecipient(next)
     const txs = planXSwapTxs(next)
     if (!coveredBy(approved, planSpenders(next, txs))) {
       throw new XSwapQuoteChangedError('route')

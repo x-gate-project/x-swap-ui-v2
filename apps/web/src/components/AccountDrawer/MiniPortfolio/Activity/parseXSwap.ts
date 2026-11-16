@@ -4,7 +4,7 @@ import { t } from 'i18n'
 import { useMemo } from 'react'
 import { useXSwapChains, useXSwapOrderHistory, useXSwapTokenLookup } from 'state/xswap/hooks'
 import { XSwapOrder } from 'state/xswap/types'
-import { xswapTokenToCurrency } from 'state/xswap/utils'
+import { isSameXSwapAddress, shortenXSwapHash, xswapTokenToCurrency } from 'state/xswap/utils'
 import { TransactionStatus } from 'uniswap/src/data/graphql/uniswap-data-api/__generated__/types-and-hooks'
 import { InterfaceChainId } from 'uniswap/src/types/chains'
 
@@ -38,6 +38,26 @@ const ORDER_TITLES: Record<'local' | 'crossChain', Record<XSwapOrder['state'], (
 
 function orderTitle(order: XSwapOrder): string {
   return ORDER_TITLES[order.routeClass === 'local' ? 'local' : 'crossChain'][order.state]()
+}
+
+/** "X for Y", naming the recipient when the order pays another address than the swapper. */
+function orderDescriptor(
+  order: XSwapOrder,
+  values: { amountIn: string; amountOut: string; chainIn: string; chainOut: string },
+): string {
+  const recipient =
+    order.recipient && !isSameXSwapAddress(order.recipient, order.swapper)
+      ? shortenXSwapHash(order.recipient)
+      : undefined
+  const { amountIn, amountOut, chainIn, chainOut } = values
+  if (order.routeClass === 'local') {
+    return recipient
+      ? t('xswap.activity.local.descriptor.recipient', { amountIn, amountOut, chain: chainIn, recipient })
+      : t('xswap.activity.local.descriptor', { amountIn, amountOut, chain: chainIn })
+  }
+  return recipient
+    ? t('xswap.activity.descriptor.recipient', { amountIn, chainIn, amountOut, chainOut, recipient })
+    : t('xswap.activity.descriptor', { amountIn, chainIn, amountOut, chainOut })
 }
 
 /**
@@ -79,15 +99,12 @@ export function useXSwapActivities(account: string): { activities: ActivityMap; 
         status: orderStatus(order),
         timestamp: Math.floor(Date.parse(order.createdAt) / 1000),
         title: orderTitle(order),
-        descriptor:
-          order.routeClass === 'local'
-            ? t('xswap.activity.local.descriptor', { amountIn, amountOut, chain: chainName(tokenIn.chainId) })
-            : t('xswap.activity.descriptor', {
-                amountIn,
-                chainIn: chainName(tokenIn.chainId),
-                amountOut,
-                chainOut: chainName(tokenOut.chainId),
-              }),
+        descriptor: orderDescriptor(order, {
+          amountIn,
+          amountOut,
+          chainIn: chainName(tokenIn.chainId),
+          chainOut: chainName(tokenOut.chainId),
+        }),
         currencies: [currency(tokenIn.chainId, tokenIn.address), currency(tokenOut.chainId, tokenOut.address)],
         from: order.swapper,
         xswapOrder: order,

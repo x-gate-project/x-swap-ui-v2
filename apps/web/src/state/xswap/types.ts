@@ -115,6 +115,8 @@ export type XSwapQuote = {
   routeClass: XSwapRouteClassName
   tokenIn: { chainId: number; address: XSwapTokenRef }
   tokenOut: { chainId: number; address: XSwapTokenRef }
+  /** Who the output goes to: the request's `recipient`, else the swapper. Unset by an API older than #228. */
+  recipient?: string
   inputAmount: string
   outputAmount: string
   minOutputAmount: string
@@ -144,6 +146,8 @@ export type XSwapQuoteRequest = {
   tokenOutChainId: number
   amount: string
   swapper: string
+  /** Pays the output to another address; unset pays the swapper. Refunds always go to the swapper. */
+  recipient?: string
   slippageBps?: number
 }
 
@@ -190,6 +194,8 @@ export type XSwapOrder = {
   provider: string
   routeClass: string
   swapper: string
+  /** Who the output goes to; the swapper unless the quote named another. Unset by an API older than #228. */
+  recipient?: string
   tokenIn: { chainId: number; address: XSwapTokenRef; amount: string }
   tokenOut: { chainId: number; address: XSwapTokenRef }
   outputAmount: string

@@ -8,6 +8,7 @@ import { SlippageTooltipContent } from 'components/swap/SwapLineItem'
 import TradePrice from 'components/swap/TradePrice'
 import { XSwapRouteLegs, xswapNativeFeeLabel, xswapRouteName, xswapShowsLegs } from 'components/swap/XSwap/XSwapRouteLegs'
 import {
+  AddressLink,
   formatXSwapTokenSymbol,
   useXSwapLegTokenLookup,
   useXSwapNativeSymbol,
@@ -20,7 +21,7 @@ import { useUserSlippageTolerance } from 'state/user/hooks'
 import { SlippageTolerance } from 'state/user/types'
 import { XSwapTokenLookup } from 'state/xswap/hooks'
 import { XSwapLeg, XSwapQuote } from 'state/xswap/types'
-import { formatXSwapEta, formatXSwapUnits, xswapBridgeNativeFee } from 'state/xswap/utils'
+import { formatXSwapEta, formatXSwapUnits, isSameXSwapAddress, xswapBridgeNativeFee } from 'state/xswap/utils'
 import styled, { DefaultTheme, useTheme } from 'styled-components'
 import { ThemedText } from 'theme/components'
 import { NumberType, useFormatter } from 'utils/formatNumbers'
@@ -89,6 +90,8 @@ type Props = {
   inputCurrency: Currency
   outputCurrency: Currency
   lookup: XSwapTokenLookup
+  /** The connected wallet: a route paying another address shows that recipient. */
+  swapper?: string
   /** A new amount or pair is being quoted: no route yet. */
   loading: boolean
   /** A background re-quote of the shown route is in flight. */
@@ -119,6 +122,7 @@ export function XSwapDetailsDropdown({
   inputCurrency,
   outputCurrency,
   lookup,
+  swapper,
   loading,
   syncing,
   disabled,
@@ -285,6 +289,19 @@ export function XSwapDetailsDropdown({
                 Value: () => <>{details.fees.length ? details.fees.join(' + ') : '0'}</>,
               }}
             />
+            {selected.recipient && !isSameXSwapAddress(selected.recipient, swapper) && (
+              <DetailLineItem
+                syncing={syncing}
+                LineItem={{
+                  Label: () => <>{t('xswap.recipient.label')}</>,
+                  Value: () => (
+                    <span data-testid="xswap-route-recipient">
+                      <AddressLink chainId={selected.tokenOut.chainId} address={selected.recipient as string} />
+                    </span>
+                  ),
+                }}
+              />
+            )}
             {details.fallbackSymbol && (
               <DetailLineItem
                 syncing={syncing}
