@@ -1,5 +1,12 @@
 import { render, screen } from '@testing-library/react'
-import { XSwapRouteLegs, xswapLegSummary, xswapRouteName, xswapShowsLegs } from 'components/swap/XSwap/XSwapRouteLegs'
+import {
+  XSwapRouteLegs,
+  isXSwapSameChainBridge,
+  xswapConversionKind,
+  xswapLegSummary,
+  xswapRouteName,
+  xswapShowsLegs,
+} from 'components/swap/XSwap/XSwapRouteLegs'
 import { XSwapLeg, XSwapToken } from 'state/xswap/types'
 import { XSWAP_NATIVE_ADDRESS, xswapTokenKey } from 'state/xswap/utils'
 import { ThemeProvider } from 'styled-components'
@@ -33,6 +40,7 @@ const USDCX_JOC = '0x367f476c9B5fA1e64F3d7EE19c3E4E2f76D42200'
 // Placeholder: only a lookup key here.
 const USDT = '0x5555555555555555555555555555555555555555'
 const WJOC = '0x8B85219c0767Ce4FA5ae5944d71aB4a3De27090d'
+const USDTX_SEPOLIA = '0x6C9322A8143fDAA3B482e5b8662bc649d1822424'
 
 const token = (chainId: number, address: string, symbol: string, decimals: number): XSwapToken => ({
   chainId,
@@ -47,6 +55,7 @@ const tokens = new Map(
     token(11155111, XSWAP_NATIVE_ADDRESS, 'ETH', 18),
     token(11155111, USDC, 'USDC', 6),
     token(11155111, USDT, 'USDT', 6),
+    token(11155111, USDTX_SEPOLIA, 'USDTX', 6),
     token(421614, JOCX, 'JOCX', 18),
     token(10081, XSWAP_NATIVE_ADDRESS, 'JOC', 18),
     token(10081, USDTX_JOC, 'USDTX', 6),
@@ -124,6 +133,40 @@ describe('xswapShowsLegs', () => {
     expect(xswapShowsLegs([COMPOSITE[1]])).toBe(true)
     expect(xswapShowsLegs([COMPOSITE[0], COMPOSITE[2]])).toBe(true)
     expect(xswapShowsLegs(COMPOSITE)).toBe(true)
+  })
+})
+
+// Real USDT on Sepolia → USDTX on Sepolia: X-Gate mints 1:1 on the chain, one bridge leg that never leaves it.
+const SAME_CHAIN_MINT: XSwapLeg = {
+  type: 'bridge',
+  provider: 'xgate',
+  tokenInChainId: 11155111,
+  tokenOutChainId: 11155111,
+  tokenIn: USDT,
+  tokenOut: USDTX_SEPOLIA,
+  expectedOut: '10000000',
+  minOut: '10000000',
+  nativeFee: '0',
+}
+
+describe('isXSwapSameChainBridge', () => {
+  it('is true only for a bridge leg that stays on its chain', () => {
+    expect(isXSwapSameChainBridge(SAME_CHAIN_MINT)).toBe(true)
+    expect(isXSwapSameChainBridge(COMPOSITE[1] as Extract<XSwapLeg, { type: 'bridge' }>)).toBe(false)
+  })
+})
+
+describe('xswapConversionKind', () => {
+  it('reads the real stable into its OFTX as a mint and back as a burn', () => {
+    expect(xswapConversionKind('USDT', 'USDTX')).toBe('mint')
+    expect(xswapConversionKind('USDC', 'USDCX')).toBe('mint')
+    expect(xswapConversionKind('USDTX', 'USDT')).toBe('burn')
+    expect(xswapConversionKind('USDCX', 'USDC')).toBe('burn')
+  })
+
+  it('falls back to a plain conversion when the symbols do not tell', () => {
+    expect(xswapConversionKind('USDT', 'USDCX')).toBe('convert')
+    expect(xswapConversionKind('0x5555…5555', 'USDTX')).toBe('convert')
   })
 })
 
@@ -321,5 +364,36 @@ describe('XSwapRouteLegs', () => {
     expect(leg).toHaveTextContent('JOC Testnet → Sepolia via X-Gate · out 10 USDC')
     expect(leg).not.toHaveTextContent('(min')
     expect(leg).toHaveTextContent('LayerZero fee 0.001 JOC')
+  })
+
+  // Same chain: no bridge, no chain hop, no LayerZero fee; the leg reads as the mint or burn it is.
+  it('renders a same-chain X-Gate mint as a mint, not a bridge', () => {
+    render(
+      <ThemeProvider theme={getTheme(false)}>
+        <XSwapRouteLegs legs={[SAME_CHAIN_MINT]} lookup={lookup} />
+      </ThemeProvider>,
+    )
+    const [leg] = screen.getAllByRole('listitem')
+    expect(leg).toHaveAttribute('data-testid', 'xswap-route-leg-mint')
+    expect(leg).toHaveTextContent('Mint')
+    expect(leg).toHaveTextContent('USDT → USDTX')
+    expect(leg).toHaveTextContent('Sepolia · X-Gate · out 10 USDTX')
+    expect(leg).not.toHaveTextContent('Bridge')
+    expect(leg).not.toHaveTextContent('Sepolia → Sepolia')
+    expect(leg).not.toHaveTextContent('fee')
+  })
+
+  it('renders a same-chain X-Gate burn as a burn', () => {
+    render(
+      <ThemeProvider theme={getTheme(false)}>
+        <XSwapRouteLegs legs={[{ ...SAME_CHAIN_MINT, tokenIn: USDTX_SEPOLIA, tokenOut: USDT }]} lookup={lookup} />
+      </ThemeProvider>,
+    )
+    const [leg] = screen.getAllByRole('listitem')
+    expect(leg).toHaveAttribute('data-testid', 'xswap-route-leg-burn')
+    expect(leg).toHaveTextContent('Burn')
+    expect(leg).toHaveTextContent('USDTX → USDT')
+    expect(leg).toHaveTextContent('Sepolia · X-Gate · out 10 USDT')
+    expect(leg).not.toHaveTextContent('Bridge')
   })
 })
