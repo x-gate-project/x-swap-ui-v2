@@ -211,8 +211,9 @@ export type XSwapOrder = {
   originTxHash: string
   fillTxHash?: string
   refundTxHash?: string
-  /** XGate: LayerZero message id. */
+  /** XGate / Stargate: LayerZero message id. */
   lzGuid?: string
+  /** XGate / Stargate: destination lzCompose tx. */
   composeTxHash?: string
   fillDeadline: string | null
   createdAt: string

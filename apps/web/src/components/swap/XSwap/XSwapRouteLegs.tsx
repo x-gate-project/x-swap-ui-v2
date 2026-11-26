@@ -61,9 +61,12 @@ function xswapVenueName(venue: string): string {
   return VENUE_NAMES[venue] ?? venue
 }
 
-/** Label of a bridge's native fee: XGate pays LayerZero with it. */
+/** Bridges whose native fee pays LayerZero: XGate's OFT send and Stargate V2's Taxi send. */
+const LAYERZERO_PROVIDERS = new Set(['xgate', 'stargate'])
+
+/** Label of a bridge's native fee: the LayerZero fee for LayerZero bridges, a plain bridge fee otherwise. */
 export function xswapNativeFeeLabel(provider: string | undefined): string {
-  return provider === 'xgate' ? t('xswap.route.fee.layerZero') : t('xswap.route.fee.bridgeNative')
+  return provider && LAYERZERO_PROVIDERS.has(provider) ? t('xswap.route.fee.layerZero') : t('xswap.route.fee.bridgeNative')
 }
 
 /**

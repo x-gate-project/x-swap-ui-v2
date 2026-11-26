@@ -305,7 +305,7 @@ export function xswapQuoteRecipient(recipient?: string, swapper?: string): strin
 // XGate runs on testnets only for now: every order's message is on LayerZero Scan's testnet site.
 const LAYERZERO_SCAN_URL = 'https://testnet.layerzeroscan.com'
 
-/** LayerZero Scan link of an XGate order's message (`lzGuid`). */
+/** LayerZero Scan link of an XGate or Stargate order's message (`lzGuid`). */
 export function layerZeroScanUrl(guid: string): string {
   return `${LAYERZERO_SCAN_URL}/tx/${guid}`
 }
