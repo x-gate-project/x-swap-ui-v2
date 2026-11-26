@@ -4,6 +4,7 @@ import {
   isXSwapSameChainBridge,
   xswapConversionKind,
   xswapLegSummary,
+  xswapNativeFeeLabel,
   xswapRouteName,
   xswapShowsLegs,
 } from 'components/swap/XSwap/XSwapRouteLegs'
@@ -120,6 +121,19 @@ describe('xswapRouteName', () => {
   it('names a single-leg route by its provider', () => {
     expect(xswapRouteName({ provider: 'across', legs: [COMPOSITE[1]] })).toBe('Across')
     expect(xswapRouteName({ provider: 'across' })).toBe('Across')
+    expect(xswapRouteName({ provider: 'stargate' })).toBe('Stargate')
+  })
+})
+
+describe('xswapNativeFeeLabel', () => {
+  it('labels the native fee of a LayerZero bridge as the LayerZero fee', () => {
+    expect(xswapNativeFeeLabel('xgate')).toBe('LayerZero fee')
+    expect(xswapNativeFeeLabel('stargate')).toBe('LayerZero fee')
+  })
+
+  it('labels any other bridge native fee as a bridge fee', () => {
+    expect(xswapNativeFeeLabel('across')).toBe('Bridge fee')
+    expect(xswapNativeFeeLabel(undefined)).toBe('Bridge fee')
   })
 })
 
@@ -211,6 +225,29 @@ describe('XSwapRouteLegs', () => {
       </ThemeProvider>,
     )
     expect(screen.getByRole('listitem')).toHaveTextContent('LayerZero fee 0.00012 ETH')
+  })
+
+  it('names a Stargate bridge and shows its LayerZero fee', () => {
+    // ETH on Sepolia → ETH on Arbitrum Sepolia over Stargate V2 (Taxi): the LayerZero fee rides on the deposit.
+    const stargate: XSwapLeg = {
+      type: 'bridge',
+      provider: 'stargate',
+      tokenInChainId: 11155111,
+      tokenOutChainId: 421614,
+      tokenIn: XSWAP_NATIVE_ADDRESS,
+      tokenOut: XSWAP_NATIVE_ADDRESS,
+      expectedOut: '999000000000000',
+      minOut: '998000000000000',
+      nativeFee: '110000000000000',
+    }
+    render(
+      <ThemeProvider theme={getTheme(false)}>
+        <XSwapRouteLegs legs={[stargate]} lookup={lookup} />
+      </ThemeProvider>,
+    )
+    const item = screen.getByRole('listitem')
+    expect(item).toHaveTextContent('Sepolia → Arbitrum Sepolia via Stargate')
+    expect(item).toHaveTextContent('LayerZero fee 0.00011 ETH')
   })
 
   it('shows no native fee when the bridge charges none', () => {

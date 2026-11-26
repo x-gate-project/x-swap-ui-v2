@@ -158,7 +158,7 @@ export function XSwapDetailsDropdown({
         feeToken ? `${formatXSwapUnits(bridgeFee.toString(), feeToken.decimals)} ${feeToken.symbol}` : `${bridgeFee}`,
       )
     }
-    // XGate's LayerZero fee, sent as the deposit's `msg.value` on the source chain.
+    // The bridge's native fee (LayerZero for XGate and Stargate), sent as the deposit's `msg.value` on the source chain.
     const nativeFee = xswapBridgeNativeFee(selected)
     const nativeFeeText =
       nativeFee > 0n

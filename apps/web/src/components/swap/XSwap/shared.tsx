@@ -164,6 +164,7 @@ const PROVIDER_NAMES: Record<string, string> = {
   across: 'Across',
   relay: 'Relay',
   xgate: 'X-Gate',
+  stargate: 'Stargate',
   xswap: 'X-Swap',
   uniswap: 'Uniswap',
 }
