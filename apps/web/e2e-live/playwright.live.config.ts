@@ -6,7 +6,8 @@ export default defineConfig({
   testMatch: '*.live.spec.ts',
   retries: 0,
   workers: 1,
-  timeout: 20 * 60_000,
+  // Each test's budget, page load to terminal order (stargateRoute.ts sets it too): a slower order is a failure.
+  timeout: 5 * 60_000,
   expect: { timeout: 30_000 },
   reporter: [['list']],
   outputDir: process.env.LIVE_OUT_DIR ?? '.results',
