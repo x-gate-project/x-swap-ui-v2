@@ -143,6 +143,7 @@ export function CurrencyRow({
   tooltip,
   showAddress,
   tag,
+  name = currency.name,
 }: {
   currency: Currency
   onSelect: (hasWarning: boolean) => void
@@ -157,6 +158,8 @@ export function CurrencyRow({
   showAddress?: boolean
   /** Short label shown before the token list tags, e.g. "Quote only". */
   tag?: string
+  /** Name shown above the symbol in place of `currency.name`, e.g. the x-swap API's name for the token. */
+  name?: string
 }) {
   const account = useAccount()
   const key = currencyListRowKey(currency)
@@ -200,7 +203,7 @@ export function CurrencyRow({
           </Column>
           <AutoColumn style={{ opacity: isBlockedToken ? blockedTokenOpacity : '1' }} gap="xs">
             <Row>
-              <CurrencyName title={currency.name}>{currency.name}</CurrencyName>
+              <CurrencyName title={name}>{name}</CurrencyName>
               <WarningContainer>
                 <TokenSafetyIcon warning={warning} />
               </WarningContainer>
@@ -279,6 +282,7 @@ export class CurrencyListRow {
       showAddress?: boolean
       tooltip?: string
       tag?: string
+      name?: string
     },
   ) {}
 }
@@ -365,6 +369,7 @@ export default function CurrencyList({
             tooltip={row.options?.tooltip}
             showAddress={row.options?.showAddress}
             tag={row.options?.tag}
+            name={row.options?.name}
           />
         )
       } else {

@@ -134,12 +134,15 @@ function xswapNativeCurrency(chainId: number, symbol: string, wrappedNative?: st
   return currency
 }
 
-/** API token to an SDK currency; the zero address becomes the chain's native currency. */
+/**
+ * API token to an SDK currency; the zero address becomes the chain's native currency. A token's name is the API's
+ * `name`, or its symbol when the API sends none.
+ */
 export function xswapTokenToCurrency(token: XSwapToken, wrappedNative?: string): Currency {
   if (isXSwapNativeAddress(token.address)) {
     return xswapNativeCurrency(token.chainId, token.symbol, wrappedNative)
   }
-  return new Token(token.chainId, token.address, token.decimals, token.symbol, token.symbol)
+  return new Token(token.chainId, token.address, token.decimals, token.symbol, token.name ?? token.symbol)
 }
 
 /**
