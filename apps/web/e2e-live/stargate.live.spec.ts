@@ -95,7 +95,8 @@ test.describe('Stargate V2 (live, testnet), Sepolia origin', () => {
 test.describe('Stargate V2 (live, testnet), Arbitrum Sepolia origin', () => {
   test('bridge: 0.001 ETH Arbitrum Sepolia -> ETH to an empty Sepolia address', async ({ page }) => {
     test.fixme(true, ARB_ORIGIN_FIXME)
-    // A fresh address each run: a delivery to an account without balance needs more gas (backend #275, #278). The
+    // A fresh EOA each run: a delivery to an account without balance needs more gas (backend #275, #278), and the
+    // wallet itself has EIP-7702 code on Sepolia, which the api takes for a contract (README, "Known gaps"). The
     // 0.001 ETH stays there.
     const recipient = privateKeyToAccount(generatePrivateKey()).address
     await runStargateRoute(page, {

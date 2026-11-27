@@ -77,8 +77,12 @@ Sepolia.
   `LIVE_QUOTE_ONLY` against a local UI with the fix, and the ETH, sgUSDC and sgUSDT lanes filled through the API
   directly (orders `fff9ee73`, `f3325d1a`, `58d867aa`, about 3 minutes each).
 - Native ETH to an empty Sepolia address works since backend #278: the Stargate delivery no longer runs out of gas.
-- 0.001 ETH Arbitrum Sepolia → ETH to the wallet's own Sepolia address, sent from a local UI with the fix on 2026-11-27,
-  missed the 5 minutes: the first lzCompose on Sepolia reverted with `InsufficientComposeGas(286450, 266627)`, and the
-  order filled 22 minutes after the deposit (order `7d49cc9b`).
+- 0.001 ETH Arbitrum Sepolia → ETH to the wallet's own Sepolia address (order `7d49cc9b`, from a local UI with the fix
+  on 2026-11-27): the UI flow worked, and the delivery failed on a backend bug. The test wallet has EIP-7702 delegation
+  code on Sepolia, so the api takes it for a contract and picks the unwrap compose. Its lzCompose reverted with
+  `InsufficientComposeGas(285938, 266627)`: on Sepolia (Glamsterdam) the runner's first storage write of a compose
+  (the WETH deposit) also pays ~98k state gas, which the compose budget does not cover. A manual `lzCompose` retry
+  filled the order. Until the backend fixes the compose gas, ETH from Arbitrum Sepolia goes to a fresh EOA, as the
+  suite does.
 - The routes with a swap on Sepolia (50 USDC and 50 USDT Sepolia → ETH Arbitrum Sepolia, ETH Arbitrum Sepolia → USDC
   Sepolia) fail when the backend's dex search on Sepolia times out: the quote flaps to `no_route`.
