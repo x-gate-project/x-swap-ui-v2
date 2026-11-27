@@ -38,6 +38,24 @@ test.describe('token and chain selection', () => {
     expect(errors).toEqual([])
   })
 
+  test('keeps the chain and both tokens when the wallet rejects the input chain switch', async ({ swap, chain }) => {
+    await swap.goto()
+    await swap.selectToken('input', 'USDC')
+    await swap.selectToken('output', 'USDC', 'Arbitrum Sepolia')
+    await swap.input.locator('.open-currency-select-button').click()
+
+    chain.rejectNext('wallet_switchEthereumChain')
+    await swap.chainChip('Arbitrum Sepolia').click()
+
+    await expect(swap.chainChip('Sepolia')).toHaveAttribute('aria-checked', 'true')
+    await expect(swap.chainChip('Arbitrum Sepolia')).toHaveAttribute('aria-checked', 'false')
+    expect(chain.chainId).toBe(SEPOLIA)
+    expect(new URL(swap.page.url()).searchParams.get('chain')).not.toBe('arbitrum_sepolia')
+    await swap.page.keyboard.press('Escape')
+    await expect(swap.input.locator('.open-currency-select-button')).toContainText('USDC')
+    await expect(swap.output.locator('.open-currency-select-button')).toContainText('USDC')
+  })
+
   test('offers the API chains as output chains and lists their tokens', async ({ swap }) => {
     await swap.goto()
     await swap.selectToken('input', 'USDC')

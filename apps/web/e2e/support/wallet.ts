@@ -21,6 +21,9 @@ function handleWalletRequest(chain: MockChain, { method, params = [] }: WalletRe
       case 'wallet_getPermissions':
         return { result: [{ parentCapability: 'eth_accounts' }] }
       case 'wallet_switchEthereumChain': {
+        if (chain.takeRejection(method)) {
+          return { error: { code: 4001, message: 'User rejected the request.' } }
+        }
         chain.chainId = Number((params[0] as { chainId: string }).chainId)
         return { result: null, chainChanged: numberToHex(chain.chainId) }
       }
