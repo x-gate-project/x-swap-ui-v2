@@ -70,6 +70,21 @@ describe('xswapTokenToCurrency', () => {
     expect(currency.isToken).toBe(true)
     expect(currency.equals(USDC_MAINNET)).toBe(true)
     expect(currency.decimals).toBe(6)
+    expect(currency.name).toBe('USDC')
+  })
+
+  it('names a Token by the API name when the API sends one', () => {
+    const currency = xswapTokenToCurrency({
+      chainId: UniverseChainId.Sepolia,
+      address: '0x2F6F07CDcf3588944Bf4C42aC74ff24bF56e7590',
+      symbol: 'USDC',
+      name: 'Stargate USDC (testnet)',
+      decimals: 6,
+      class: 'native-side',
+      available: true,
+    })
+    expect(currency.symbol).toBe('USDC')
+    expect(currency.name).toBe('Stargate USDC (testnet)')
   })
 })
 

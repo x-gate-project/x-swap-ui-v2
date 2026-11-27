@@ -6,7 +6,6 @@ import {
   SwapEventName,
 } from '@uniswap/analytics-events'
 import { Currency, CurrencyAmount, Token } from '@uniswap/sdk-core'
-import { UNIVERSAL_ROUTER_ADDRESS } from '@uniswap/universal-router-sdk'
 import { useAccountDrawer } from 'components/AccountDrawer/MiniPortfolio/hooks'
 import { ButtonError, ButtonLight, ButtonPrimary } from 'components/Button'
 import { GrayCard } from 'components/Card'
@@ -84,6 +83,7 @@ import { logger } from 'utilities/src/logger/logger'
 import { useTrace } from 'utilities/src/telemetry/trace/TraceContext'
 import { computeFiatValuePriceImpact } from 'utils/computeFiatValuePriceImpact'
 import { NumberType, useFormatter } from 'utils/formatNumbers'
+import { getUniversalRouterAddress } from 'utils/getUniversalRouterAddress'
 import { maxAmountSpend } from 'utils/maxAmountSpend'
 import { largerPercentValue } from 'utils/percent'
 import { computeRealizedPriceImpact, warningSeverity } from 'utils/prices'
@@ -520,7 +520,9 @@ export function SwapForm({ disableTokenInputs = false, onCurrencyChange }: SwapF
       (parsedAmounts[Field.INPUT]?.currency.isToken
         ? (parsedAmounts[Field.INPUT] as CurrencyAmount<Token>)
         : undefined),
-    supportedChainId ? UNIVERSAL_ROUTER_ADDRESS(supportedChainId) : undefined,
+    // Undefined on a chain without a Universal Router: only router swaps use this allowance, and such a chain swaps
+    // through the API, whose quote carries its own approval.
+    getUniversalRouterAddress(supportedChainId),
     trade?.fillType,
   )
 

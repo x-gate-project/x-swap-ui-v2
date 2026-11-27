@@ -33,6 +33,7 @@ function matchesQuery(entry: XSwapTokenEntry, query: string): boolean {
   return (
     token.address.toLowerCase() === q ||
     token.symbol.toLowerCase().includes(q) ||
+    Boolean(token.name?.toLowerCase().includes(q)) ||
     Boolean(currency.name?.toLowerCase().includes(q))
   )
 }
@@ -100,6 +101,8 @@ export function useXSwapCurrencySearchResults({
                 : undefined,
           showAddress: !!searchQuery,
           tag: quoteOnly && token.available ? t('xswap.tokenSelector.quoteOnly') : undefined,
+          // A token the local lists know keeps their instance (logo, tags); the API's name still labels it.
+          name: token.name,
         })
       }),
     ]

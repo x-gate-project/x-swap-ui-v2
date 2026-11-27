@@ -9,6 +9,7 @@ import { PaddedColumn, SearchInput, Separator } from 'components/SearchModal/sty
 import { useCurrencySearchResults } from 'components/SearchModal/useCurrencySearchResults'
 import { useXSwapCurrencySearchResults } from 'components/SearchModal/useXSwapCurrencySearchResults'
 import { XSwapChainPicker } from 'components/SearchModal/XSwapChainPicker'
+import { CHAIN_IDS_TO_NAMES } from 'constants/chains'
 import useDebounce from 'hooks/useDebounce'
 import { useOnClickOutside } from 'hooks/useOnClickOutside'
 import useSelectChain from 'hooks/useSelectChain'
@@ -18,6 +19,7 @@ import { t, Trans } from 'i18n'
 import useNativeCurrency from 'lib/hooks/useNativeCurrency'
 import tryParseCurrencyAmount from 'lib/utils/tryParseCurrencyAmount'
 import { ChangeEvent, KeyboardEvent, RefObject, useCallback, useEffect, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import AutoSizer from 'react-virtualized-auto-sizer'
 import { FixedSizeList } from 'react-window'
 import { Text } from 'rebass'
@@ -28,6 +30,7 @@ import { getXSwapOutputChainId } from 'state/xswap/utils'
 import styled, { useTheme } from 'styled-components'
 import { CloseIcon, ThemedText } from 'theme/components'
 import Trace from 'uniswap/src/features/telemetry/Trace'
+import { InterfaceChainId } from 'uniswap/src/types/chains'
 import { isAddress } from 'utilities/src/addresses'
 import { currencyKey } from 'utils/currencyKey'
 
@@ -56,7 +59,7 @@ export interface CurrencySearchFilters {
   xswapApiTokens?: boolean
   /**
    * With `xswapApiTokens`, pick the token on any chain the API enables without switching the wallet: the output side
-   * of a cross-chain swap.
+   * of a cross-chain swap. Without it, the API chains still show, and picking one switches the wallet: the input side.
    */
   xswapAnyChain?: boolean
 }
@@ -96,7 +99,7 @@ export function CurrencySearch({
     ...DEFAULT_CURRENCY_SEARCH_FILTERS,
     ...filters,
   }
-  const { chainId } = useSwapAndLimitContext()
+  const { chainId, multichainUXEnabled, setSelectedChainId } = useSwapAndLimitContext()
   const xswapChainMode = useXSwapChainMode(chainId, {
     enabled: Boolean(xswapApiTokensFilter) && isXSwapApiEnabled(),
   })
@@ -153,6 +156,32 @@ export function CurrencySearch({
   const native = useNativeCurrency(chainId)
 
   const selectChain = useSelectChain()
+  // The input side's chain chips switch the chain as the network selector does, but list every chain the API enables:
+  // the selector hides testnets until "Show testnets" is on.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const handleInputChainSelect = useCallback(
+    async (targetChainId: number) => {
+      if (targetChainId === chainId) {
+        return
+      }
+      if (multichainUXEnabled) {
+        setSelectedChainId(targetChainId as InterfaceChainId)
+      } else if (!(await selectChain(targetChainId as InterfaceChainId))) {
+        return
+      }
+      searchParams.delete('inputCurrency')
+      searchParams.delete('outputCurrency')
+      const chainName = CHAIN_IDS_TO_NAMES[targetChainId as InterfaceChainId]
+      if (chainName) {
+        searchParams.set('chain', chainName)
+      } else {
+        searchParams.delete('chain')
+      }
+      setSearchParams(searchParams)
+      fixedList.current?.scrollTo(0)
+    },
+    [chainId, multichainUXEnabled, searchParams, selectChain, setSearchParams, setSelectedChainId],
+  )
   const handleCurrencySelect = useCallback(
     async (currency: Currency, hasWarning?: boolean) => {
       if (currency.chainId !== chainId && !xswapAnyChain) {
@@ -258,6 +287,9 @@ export function CurrencySearch({
                 fixedList.current?.scrollTo(0)
               }}
             />
+          )}
+          {xswapApiTokens && !xswapAnyChain && (
+            <XSwapChainPicker selectedChainId={chainId} onSelect={handleInputChainSelect} />
           )}
           {showCommonBases && (
             <CommonBases
