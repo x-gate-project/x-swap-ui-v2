@@ -28,8 +28,9 @@ const Chip = styled.button<{ $selected: boolean }>`
 `
 
 /**
- * Chains `GET /v1/chains` enables, to pick the chain of a cross-chain swap's output without switching the wallet.
- * `reachableChainIds` hides the chains where the input reaches no token.
+ * Chains `GET /v1/chains` enables: on the output side, to pick the chain of a cross-chain swap's output without
+ * switching the wallet; on the input side, to switch the wallet's chain. `reachableChainIds` hides the chains where the
+ * input reaches no token.
  */
 export function XSwapChainPicker({
   selectedChainId,
