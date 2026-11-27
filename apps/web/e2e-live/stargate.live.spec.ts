@@ -17,9 +17,10 @@ const SGUSDT_ARB = '0x095f40616FA98Ff75D1a7D0c68685c5ef806f110'
 // compose on the destination. Deployed by the test wallet (tx 0xf00ba21a…).
 const CONTRACT_ARB = '0x72387a183cD007f5AC0a80Ead328c35807a65c53'
 
-// The swap page crashes with the wallet on Arbitrum Sepolia until the fix on the UI branch
-// `fix/swap-chain-without-universal-router` (UNIVERSAL_ROUTER_ADDRESS(421614) throws in SwapForm) is deployed.
-const ARB_ORIGIN_FIXME = 'needs fix/swap-chain-without-universal-router on the UI under test'
+// A UI without #108 (merged into dev) crashes with the wallet on Arbitrum Sepolia: UNIVERSAL_ROUTER_ADDRESS(421614)
+// throws in SwapForm. Lift the fixme once the UI under test (LIVE_BASE_URL, the testnet VM by default) runs #108;
+// against a local UI built from dev these pass now (README, "Known gaps").
+const ARB_ORIGIN_FIXME = 'needs #108 (no Universal Router crash on Arbitrum Sepolia) on the UI under test'
 
 test.describe('Stargate V2 (live, testnet), Sepolia origin', () => {
   test('bridge: 0.001 ETH Sepolia -> ETH Arbitrum Sepolia', async ({ page }) => {

@@ -70,10 +70,11 @@ Sepolia.
 
 ## Known gaps
 
-- The Arbitrum Sepolia origin tests are `fixme`. With the wallet on Arbitrum Sepolia, the deployed swap page crashes
+- The Arbitrum Sepolia origin tests are `fixme`. With the wallet on Arbitrum Sepolia, a UI without #108 crashes
   (`UNIVERSAL_ROUTER_ADDRESS(421614)` throws in `SwapForm`), and its network selector lists Arbitrum Sepolia only with
-  "Show testnets" on. The UI branch `fix/swap-chain-without-universal-router` fixes the crash and adds the x-swap chain
-  chips to the input side. Remove the `fixme` once the UI under test has it. On 2026-11-27 all four passed
+  "Show testnets" on. #108 (merged into `dev`) fixes the crash and adds the x-swap chain chips to the input side.
+  Remove the `fixme` once the UI under test (by default the testnet VM) is deployed from a `dev` with #108; to run
+  them against a local UI from `dev` before that, lift the `fixme` locally. On 2026-11-27 all four passed
   `LIVE_QUOTE_ONLY` against a local UI with the fix, and the ETH, sgUSDC and sgUSDT lanes filled through the API
   directly (orders `fff9ee73`, `f3325d1a`, `58d867aa`, about 3 minutes each).
 - Native ETH to an empty Sepolia address works since backend #278: the Stargate delivery no longer runs out of gas.
@@ -85,4 +86,5 @@ Sepolia.
   filled the order. Until the backend fixes the compose gas, ETH from Arbitrum Sepolia goes to a fresh EOA, as the
   suite does.
 - The routes with a swap on Sepolia (50 USDC and 50 USDT Sepolia → ETH Arbitrum Sepolia, ETH Arbitrum Sepolia → USDC
-  Sepolia) fail when the backend's dex search on Sepolia times out: the quote flaps to `no_route`.
+  Sepolia) fail when the backend's dex search on Sepolia times out: the quote flaps to `no_route`
+  (gu-corp/cross-chain-swap-research#283, open).
