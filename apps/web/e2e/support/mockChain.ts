@@ -116,7 +116,7 @@ export class MockChain {
   }
 
   /** The next wallet request with this method fails with EIP-1193 4001 (user rejected). */
-  rejectNext(method: 'eth_sendTransaction' | 'eth_signTypedData_v4') {
+  rejectNext(method: 'eth_sendTransaction' | 'eth_signTypedData_v4' | 'wallet_switchEthereumChain') {
     this.rejecting = method
   }
 
