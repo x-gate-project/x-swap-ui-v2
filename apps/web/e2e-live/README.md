@@ -86,5 +86,6 @@ Sepolia.
   filled the order. Until the backend fixes the compose gas, ETH from Arbitrum Sepolia goes to a fresh EOA, as the
   suite does.
 - The routes with a swap on Sepolia (50 USDC and 50 USDT Sepolia → ETH Arbitrum Sepolia, ETH Arbitrum Sepolia → USDC
-  Sepolia) fail when the backend's dex search on Sepolia times out: the quote flaps to `no_route`
-  (gu-corp/cross-chain-swap-research#283, open).
+  Sepolia) fail when the backend's dex search on Sepolia times out: the quote flaps to `no_route`. The fix,
+  gu-corp/cross-chain-swap-research#283, is merged but not yet deployed to the testnet VM, so the flapping persists
+  until that deploy.
