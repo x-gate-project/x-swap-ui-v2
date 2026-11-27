@@ -1,6 +1,5 @@
 import { InterfaceElementName, InterfaceSectionName, SwapEventName } from '@uniswap/analytics-events'
 import { Currency, CurrencyAmount, Token } from '@uniswap/sdk-core'
-import { UNIVERSAL_ROUTER_ADDRESS } from '@uniswap/universal-router-sdk'
 import { MenuState, miniPortfolioMenuStateAtom } from 'components/AccountDrawer/DefaultMenu'
 import { OpenLimitOrdersButton } from 'components/AccountDrawer/MiniPortfolio/Limits/OpenLimitOrdersButton'
 import { useAccountDrawer } from 'components/AccountDrawer/MiniPortfolio/hooks'
@@ -48,6 +47,7 @@ import {
   formatCurrencyAmount as formatCurrencyAmountWithoutUserLocale,
   useFormatter,
 } from 'utils/formatNumbers'
+import { getUniversalRouterAddress } from 'utils/getUniversalRouterAddress'
 import { maxAmountSpend } from 'utils/maxAmountSpend'
 
 const CustomHeightSwapSection = styled(SwapSection)`
@@ -231,7 +231,7 @@ function LimitForm({ onCurrencyChange }: LimitFormProps) {
 
   const allowance = usePermit2Allowance(
     parsedAmounts.INPUT?.currency?.isNative ? undefined : (parsedAmounts.INPUT as CurrencyAmount<Token>),
-    isSupportedChain ? UNIVERSAL_ROUTER_ADDRESS(chainId) : undefined,
+    isSupportedChain ? getUniversalRouterAddress(chainId) : undefined,
     TradeFillType.UniswapX,
   )
 
