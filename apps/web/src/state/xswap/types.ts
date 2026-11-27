@@ -19,6 +19,11 @@ export type XSwapToken = {
   chainId: number
   address: XSwapTokenRef
   symbol: string
+  /**
+   * Display name that tells apart tokens sharing a symbol on one chain (e.g. Stargate's test USDC next to Circle's).
+   * Optional: older API versions omit it, and the UI then names the token by its symbol.
+   */
+  name?: string
   decimals: number
   class: string
   available: boolean
